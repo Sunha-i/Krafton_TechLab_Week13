@@ -302,6 +302,22 @@ struct alignas(16) FVector4
 
     FVector4(const __m128& InSimd) : SimdData(InSimd) {}
 
+    // Explicit copy constructor to ensure correct SIMD register handling
+    FVector4(const FVector4& Other)
+    {
+        this->SimdData = Other.SimdData;
+    }
+
+    // Explicit copy assignment operator
+    FVector4& operator=(const FVector4& Other)
+    {
+        if (this != &Other)
+        {
+            this->SimdData = Other.SimdData;
+        }
+        return *this;
+    }
+
     FVector4 ComponentMin(const FVector4& B) const
     {
         return FVector4(_mm_min_ps(this->SimdData, B.SimdData));
