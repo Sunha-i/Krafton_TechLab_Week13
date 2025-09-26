@@ -35,15 +35,16 @@ void FBVHierachy::Insert(AActor* InActor, const FBound& ActorBounds)
 {
     if (!InActor) return;
 
-    // 항상 루트(또는 현재 노드)에 캐시 갱신
+    // 캐시 갱신
     ActorLastBounds.Add(InActor, ActorBounds);
 
+    ////// 리프 노드일 경우 //////
     const bool isLeaf = (Left == nullptr && Right == nullptr);
     if (isLeaf)
     {
         Actors.Add(InActor);
-        // 분할 조건: 용량 초과 + 깊이 여유
-        if ((int)Actors.size() > MaxObjects && Depth < MaxDepth)
+
+        if (static_cast<uint32>(Actors.size()) > MaxObjects && Depth < MaxDepth)
         {
             Split();
         }
@@ -54,24 +55,17 @@ void FBVHierachy::Insert(AActor* InActor, const FBound& ActorBounds)
         return;
     }
 
-    // 내부 노드: 자식 선택(간단한 볼륨 확장 비용)
-    auto Union = [](const FBound& A, const FBound& B) { return UnionBounds(A, B); };
-    auto Volume = [](const FBound& B)
-    {
-        FVector e = B.GetExtent() * 2.0f;
-        return std::max(0.0f, e.X) * std::max(0.0f, e.Y) * std::max(0.0f, e.Z);
-    };
+    ////// 내부 노드일 경우 ////// 
 
-    float costL = FLT_MAX, costR = FLT_MAX;
-    if (Left) costL = Volume(Union(Left->Bounds, ActorBounds)) - Volume(Left->Bounds);
-    if (Right) costR = Volume(Union(Right->Bounds, ActorBounds)) - Volume(Right->Bounds);
-
+    // 비어있는 자식있을 시 (균형)
     if (!Left && Right)
     {
         Left = new FBVHierachy(ActorBounds, Depth + 1, MaxDepth, MaxObjects);
         Left->Actors.Add(InActor);
         Left->ActorLastBounds.Add(InActor, ActorBounds);
         Left->Refit();
+        Refit();
+        return;
     }
     else if (Left && !Right)
     {
@@ -79,28 +73,51 @@ void FBVHierachy::Insert(AActor* InActor, const FBound& ActorBounds)
         Right->Actors.Add(InActor);
         Right->ActorLastBounds.Add(InActor, ActorBounds);
         Right->Refit();
+        Refit();
+        return;
     }
-    else
+
+    // 자식 둘 다 존재할 시
+    auto BoxVolume = [](const FBound& b)
+        {
+            FVector size = b.GetExtent() * 2.0f; // 실제 폭/높이/깊이
+            return std::max(0.0f, size.X) * std::max(0.0f, size.Y) * std::max(0.0f, size.Z);
+        };
+
+    // 부피 증가량 계산
+    float costL = FLT_MAX;
+    float costR = FLT_MAX;
+
+    if (Left)
     {
-        if (costL <= costR)
-            Left->Insert(InActor, ActorBounds);
-        else
-            Right->Insert(InActor, ActorBounds);
+        FBound afterL = UnionBounds(Left->Bounds, ActorBounds);
+        costL = BoxVolume(afterL) - BoxVolume(Left->Bounds);
     }
+
+    if (Right)
+    {
+        FBound afterR = UnionBounds(Right->Bounds, ActorBounds);
+        costR = BoxVolume(afterR) - BoxVolume(Right->Bounds);
+    }
+
+    // 부피 증가량 적은 노드에 삽입
+    if (costL <= costR)
+        Left->Insert(InActor, ActorBounds);
+    else
+        Right->Insert(InActor, ActorBounds);
 
     Refit();
 }
 
 void FBVHierachy::BulkInsert(const TArray<std::pair<AActor*, FBound>>& ActorsAndBounds)
 {
-    // Smart path: if batch is large relative to current tree, rebuild for balance
     const int N = TotalActorCount();
     const int M = (int)ActorsAndBounds.size();
 
-    // Heuristics (tunable):
-    const int MinRebuildN = 2000;     // small trees rebuild cheaply
-    const float RelRatio = 0.30f;     // if batch >= 30% of current size
-    const int AbsMThreshold = 1500;   // absolute batch threshold
+    //휴리스틱
+    const int MinRebuildN = 2000;
+    const float RelRatio = 0.30f;
+    const int AbsMThreshold = 1500;
 
     const bool shouldRebuild =
         (N == 0) ||
@@ -110,7 +127,7 @@ void FBVHierachy::BulkInsert(const TArray<std::pair<AActor*, FBound>>& ActorsAnd
 
     if (shouldRebuild)
     {
-        // Build a combined list: existing cached bounds (prefer incoming overrides)
+        //비교를 위한 Set Insert (N^2 => N Log N)
         TSet<AActor*> incoming;
         incoming.reserve(ActorsAndBounds.size());
         for (const auto& it : ActorsAndBounds)
@@ -121,7 +138,7 @@ void FBVHierachy::BulkInsert(const TArray<std::pair<AActor*, FBound>>& ActorsAnd
         TArray<std::pair<AActor*, FBound>> Combined;
         Combined.reserve((size_t)N + ActorsAndBounds.size());
 
-        // Add existing ones that are NOT overridden by incoming batch
+        //기존 존재하던 액터와 중복 시 continue
         for (const auto& kv : ActorLastBounds)
         {
             if (incoming.find(kv.first) == incoming.end())
@@ -129,19 +146,19 @@ void FBVHierachy::BulkInsert(const TArray<std::pair<AActor*, FBound>>& ActorsAnd
                 Combined.push_back({ kv.first, kv.second });
             }
         }
-        // Append incoming (new values take precedence)
+
+        //새로 들어오는 액터 추가
         for (const auto& it : ActorsAndBounds)
         {
             Combined.push_back(it);
         }
 
-        // Build a new balanced tree, then adopt its contents into this node
+        //새로운 루트 생성
         FBVHierachy* NewRoot = FBVHierachy::Build(Combined, MaxDepth, MaxObjects);
 
-        // Drop current subtree first to avoid leaks
         Clear();
 
-        // Adopt fields from NewRoot (safe because this is a member function, we can access privates)
+        //이동 연산으로 데이터 업데이트
         Depth = NewRoot->Depth;
         MaxDepth = NewRoot->MaxDepth;
         MaxObjects = NewRoot->MaxObjects;
@@ -151,7 +168,7 @@ void FBVHierachy::BulkInsert(const TArray<std::pair<AActor*, FBound>>& ActorsAnd
         Right = NewRoot->Right;
         ActorLastBounds = std::move(NewRoot->ActorLastBounds);
 
-        // Null out NewRoot so its destructor doesn't delete our adopted children
+        //껍데기 포인터 반환
         NewRoot->Left = nullptr;
         NewRoot->Right = nullptr;
         NewRoot->Actors = TArray<AActor*>();
@@ -161,7 +178,7 @@ void FBVHierachy::BulkInsert(const TArray<std::pair<AActor*, FBound>>& ActorsAnd
         return;
     }
 
-    // Otherwise, do incremental online inserts
+    // 단순 반복 Insert
     for (const auto& kv : ActorsAndBounds)
     {
         Insert(kv.first, kv.second);
@@ -177,7 +194,7 @@ bool FBVHierachy::Remove(AActor* InActor, const FBound& ActorBounds)
 {
     if (!InActor) return false;
 
-    // 1) 리프에서 시도
+    //리프에서 시도
     const bool isLeaf = (Left == nullptr && Right == nullptr);
     if (isLeaf)
     {
@@ -190,14 +207,14 @@ bool FBVHierachy::Remove(AActor* InActor, const FBound& ActorBounds)
         return true;
     }
 
-    // 2) 내부 노드: 교차하는 자식으로 위임
+    //내부 노드: 교차하는 자식으로 위임
     bool removed = false;
     if (Left && Left->Bounds.Intersects(ActorBounds))
         removed = Left->Remove(InActor, ActorBounds);
     if (!removed && Right && Right->Bounds.Intersects(ActorBounds))
         removed = Right->Remove(InActor, ActorBounds);
 
-    // 3) 자식 병합 조건 확인(양쪽이 비면 해제)
+    //자식 병합 조건 확인(양쪽이 비면 해제)
     if (removed)
     {
         bool leftEmpty = (!Left) || (Left->Left == nullptr && Left->Right == nullptr && Left->Actors.empty());
@@ -212,14 +229,6 @@ bool FBVHierachy::Remove(AActor* InActor, const FBound& ActorBounds)
 
 void FBVHierachy::Update(AActor* InActor, const FBound& OldBounds, const FBound& NewBounds)
 {
-    if (!InActor) return;
-    if (OldBounds.Min.X == NewBounds.Min.X && OldBounds.Min.Y == NewBounds.Min.Y && OldBounds.Min.Z == NewBounds.Min.Z &&
-        OldBounds.Max.X == NewBounds.Max.X && OldBounds.Max.Y == NewBounds.Max.Y && OldBounds.Max.Z == NewBounds.Max.Z)
-    {
-        // 경계 동일 시 업데이트 불필요
-        return;
-    }
-
     Remove(InActor, OldBounds);
     Insert(InActor, NewBounds);
 }
@@ -247,11 +256,18 @@ void FBVHierachy::Update(AActor* InActor)
     }
 }
 
+void FBVHierachy::Query(FRay InRay, OUT TArray<AActor*>& Actors)
+{
+}
+
+void FBVHierachy::Query(FBound InBound, OUT TArray<AActor*>& Actors)
+{
+}
+
 void FBVHierachy::DebugDraw(URenderer* Renderer) const
 {
     if (!Renderer) return;
 
-    // 깊이에 따른 색상(간단한 변화)
     const float t = 1.0f - std::min(1.0f, Depth / float(std::max(1, MaxDepth)));
     const FVector4 LineColor(1.0f, t, 0.0f, 1.0f);
 
@@ -371,38 +387,48 @@ void FBVHierachy::Split()
         return;
     }
 
-    // 분할 축 선정(가장 긴 축)
+    // 분할 축 선정
     int axis = ChooseSplitAxis();
 
-    // 중앙값 기반 분할로 변경 (더 균등한 분할 보장)
+    // 분할 축 기반 위치 저장
     struct ActorSort { AActor* Actor; float Key; };
     TArray<ActorSort> sortData;
-    
-    for (auto* a : Actors)
+
+    for (auto* Actor : Actors)
     {
-        if (auto* pb = ActorLastBounds.Find(a))
+        if (auto* ActorBound = ActorLastBounds.Find(Actor))
         {
-            FVector c = pb->GetCenter();
-            float key = (axis == 0 ? c.X : (axis == 1 ? c.Y : c.Z));
-            sortData.Add({ a, key });
+            FVector Center = ActorBound->GetCenter();
+            float key;
+            switch (axis)
+            {
+            case 0: key = Center.X; break;
+            case 1: key = Center.Y; break;
+            case 2: key = Center.Z; break;
+            }
+
+            sortData.Add({ Actor, key });
         }
     }
-    
+
     if (sortData.empty()) { Refit(); return; }
-    
-    // 중앙값으로 정렬
-    std::sort(sortData.begin(), sortData.end(), 
-        [](const ActorSort& a, const ActorSort& b) { return a.Key < b.Key; });
-    
+
+    // 위치 값 정렬
+    std::sort(
+        sortData.begin(), sortData.end(),
+        [](const ActorSort& a, const ActorSort& b)
+        { return a.Key < b.Key; }
+    );
+
     TArray<AActor*> leftActors;
     TArray<AActor*> rightActors;
-    
+
     int half = (int)sortData.size() / 2;
     for (int i = 0; i < (int)sortData.size(); ++i)
     {
-        if (i < half) 
+        if (i < half)
             leftActors.Add(sortData[i].Actor);
-        else 
+        else
             rightActors.Add(sortData[i].Actor);
     }
 
@@ -435,7 +461,7 @@ void FBVHierachy::Split()
         if (pb) { Right->Actors.Add(a); Right->ActorLastBounds.Add(a, *pb); }
     }
 
-    // 부모의 액터는 비움(내부 노드)
+    // 부모의 액터 비움
     Actors = TArray<AActor*>();
 
     // 자식 경계 재적합 후, 부모도 갱신
@@ -511,7 +537,7 @@ int FBVHierachy::ChooseSplitAxis() const
 
 FBVHierachy* FBVHierachy::Build(const TArray<std::pair<AActor*, FBound>>& Items, int InMaxDepth, int InMaxObjects)
 {
-    // 입력을 빌더 아이템으로 변환(센트로이드 계산)
+    // 입력을 빌더 아이템으로 변환(센터 계산)
     TArray<FBuildItem> Work;
     Work.reserve(Items.size());
     for (const auto& kv : Items)
@@ -519,7 +545,7 @@ FBVHierachy* FBVHierachy::Build(const TArray<std::pair<AActor*, FBound>>& Items,
         FBuildItem it;
         it.Actor = kv.first;
         it.Box = kv.second;
-        it.Centroid = it.Box.GetCenter();
+        it.Center = it.Box.GetCenter();
         Work.Add(it);
     }
 
@@ -566,20 +592,36 @@ FBVHierachy* FBVHierachy::BuildRecursive(TArray<FBuildItem>& Items, int Depth, i
     auto mid = begin + Items.size() / 2;
     auto end = Items.end();
 
-    std::nth_element(begin, mid, end, [axis](const FBuildItem& a, const FBuildItem& b)
-    {
-        const float ca = (axis == 0 ? a.Centroid.X : (axis == 1 ? a.Centroid.Y : a.Centroid.Z));
-        const float cb = (axis == 0 ? b.Centroid.X : (axis == 1 ? b.Centroid.Y : b.Centroid.Z));
-        return ca < cb;
-    });
+    // 중앙값 기준 부분 정렬 (left, right)
+    std::nth_element(begin, mid, end, [axis](const FBuildItem& ActorA, const FBuildItem& ActorB)
+        {
+            float CenterA = 0.f;
+            switch (axis)
+            {
+            case 0: CenterA = ActorA.Center.X; break;
+            case 1: CenterA = ActorA.Center.Y; break;
+            case 2: CenterA = ActorA.Center.Z; break;
+            }
+
+            float CenterB = 0.f;
+            switch (axis)
+            {
+            case 0: CenterB = ActorB.Center.X; break;
+            case 1: CenterB = ActorB.Center.Y; break;
+            case 2: CenterB = ActorB.Center.Z; break;
+            }
+
+            return CenterA < CenterB;
+        });
 
     // 양쪽 그룹 복사
     TArray<FBuildItem> LeftItems;
     TArray<FBuildItem> RightItems;
-    LeftItems.reserve(Items.size()/2 + 1);
-    RightItems.reserve(Items.size()/2 + 1);
+    LeftItems.reserve(Items.size() / 2 + 1);
+    RightItems.reserve(Items.size() / 2 + 1);
     for (auto it = begin; it != mid; ++it) LeftItems.Add(*it);
     for (auto it = mid; it != end; ++it) RightItems.Add(*it);
+
 
     // 퇴화 방지: 비어있으면 균등 분할
     if (LeftItems.empty() || RightItems.empty())

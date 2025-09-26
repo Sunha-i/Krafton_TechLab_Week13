@@ -24,11 +24,11 @@ public:
     void Remove(AActor* InActor);
     void Update(AActor* InActor);
 
+    void Query(FRay InRay, OUT TArray<AActor*>& Actors);
+    void Query(FBound InBound, OUT TArray<AActor*>& Actors);
+
     // Debug draw
     void DebugDraw(URenderer* Renderer) const;
-
-    // 대량 빌더(가장 긴 축 중앙값 분할)
-    static FBVHierachy* Build(const TArray<std::pair<AActor*, FBound>>& Items, int InMaxDepth = 8, int InMaxObjects = 16);
 
     // Debug/Stats
     int TotalNodeCount() const;
@@ -44,6 +44,8 @@ private:
     static FBound UnionBounds(const FBound& A, const FBound& B);
     int ChooseSplitAxis() const; // 0:X, 1:Y, 2:Z
 
+    // 대량 빌더(가장 긴 축 중앙값 분할)
+    static FBVHierachy* Build(const TArray<std::pair<AActor*, FBound>>& Items, int InMaxDepth = 8, int InMaxObjects = 16);
     // 빌더 헬퍼: 아이템과 재귀 빌드
     struct FBuildItem { AActor* Actor; FBound Box; FVector Centroid; };
     static FBVHierachy* BuildRecursive(TArray<FBuildItem>& Items, int Depth, int InMaxDepth, int InMaxObjects);
