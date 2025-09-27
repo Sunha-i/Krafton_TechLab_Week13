@@ -4,6 +4,14 @@
 #pragma once
 #include "ShapeComponent.h"
 
+
+enum class EAxis : uint8
+{
+	X = 0,
+	Y = 1,
+	Z = 2
+};
+
 struct FBound
 {
 

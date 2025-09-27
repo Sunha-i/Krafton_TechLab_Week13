@@ -453,15 +453,18 @@ void FOctree::QueryRayOrdered(const FRay& Ray, TArray<std::pair<AActor*, float>>
             OutCandidates.Reserve(static_cast<int32>(OutCandidates.size() + Node->Actors.size() + 32));
         }
 
-        // Process local actors first (use contiguous cache to avoid map lookup)
+        // 여기서 사이즈로 도는게 아니라, Actor를 또 BVH로 관리해서. 맞는 영역만 검사하도록 한다.. !! 
         for (size_t i = 0; i < Node->Actors.size(); ++i)
         {
             AActor* Actor = Node->Actors[i];
             if (!Actor) continue;
             if (Actor->GetActorHiddenInGame()) continue;
+
+            // 저장해둔거 있으면 저장해둔걸로 ! 
             FBound box = (i < Node->ActorBoundsCache.size())
                                  ? Node->ActorBoundsCache[i]
                                  : (Node->ActorLastBounds.count(Actor) ? Node->ActorLastBounds[Actor] : Actor->GetBounds());
+
             float tmin, tmax;
             if (box.RayAABB_IntersectT(Ray, tmin, tmax))
             {
@@ -469,7 +472,6 @@ void FOctree::QueryRayOrdered(const FRay& Ray, TArray<std::pair<AActor*, float>>
             }
         }
 
-        // Push intersecting children ordered by tmin using the heap
         if (Node->Children[0])
         {
             for (int i = 0; i < 8; ++i)
@@ -501,8 +503,8 @@ void FOctree::QueryRayClosest(const FRay& Ray, AActor*& OutActor, float& OutBest
     if (!Bounds.RayAABB_IntersectT(Ray, nodeTMin, nodeTMax))
         return;
 
-    // Best-first traversal of nodes by entry distance
     std::priority_queue<FNodeEntry> heap;
+    // 레이가 가장 먼저 도착한 노드 부터 탐색 
     heap.push({ this, nodeTMin });
 
     const float Epsilon = 1e-3f;
@@ -512,19 +514,20 @@ void FOctree::QueryRayClosest(const FRay& Ray, AActor*& OutActor, float& OutBest
         FNodeEntry e = heap.top();
         heap.pop();
 
-        // If this node is further than the current best precise hit, we can terminate
+        // 이미 더 가까운 정확한 교차가 있으면, 더 먼 노드는 굳이 탐색하지 않고 중단 
         if (OutActor && e.TMin > OutBestT + Epsilon)
             break;
 
         FOctree* node = e.Node;
         if (!node) continue;
 
-        // Test local actors (coarse using AABB, then precise)
         for (size_t i = 0; i < node->Actors.size(); ++i)
         {
             AActor* actor = node->Actors[i];
             if (!actor) continue;
             if (actor->GetActorHiddenInGame()) continue;
+
+
             FBound box = (i < node->ActorBoundsCache.size())
                                 ? node->ActorBoundsCache[i]
                                 : (node->ActorLastBounds.count(actor) ? node->ActorLastBounds[actor] : actor->GetBounds());
