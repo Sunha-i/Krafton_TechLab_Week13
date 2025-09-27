@@ -20,6 +20,8 @@
 #include "ObjManager.h"
 #include"stdio.h"
 #include "WorldPartitionManager.h"
+#include "PlatformTime.h"
+
 FRay MakeRayFromMouse(const FMatrix& InView,
                       const FMatrix& InProj)
 {
@@ -338,6 +340,7 @@ AActor* CPickingSystem::PerformViewportPicking(const TArray<AActor*>& Actors,
                                                float ViewportAspectRatio, FViewport* Viewport)
 {
     if (!Camera) return nullptr;
+    static uint32 TotalPickCount = 0;
 
     // 뷰포트별 레이 생성 - 커스텀 aspect ratio 사용
     const FMatrix View = Camera->GetViewMatrix();
@@ -360,10 +363,12 @@ AActor* CPickingSystem::PerformViewportPicking(const TArray<AActor*>& Actors,
         return nullptr;
     }
 
+    // 퍼포먼스 측정용 카운터 시작
+    FScopeCycleCounter pickCounter;
 
-    LARGE_INTEGER frequency, start, end;
-    QueryPerformanceFrequency(&frequency);
-    QueryPerformanceCounter(&start);
+    // 전체 Picking 횟수 누적
+    ++TotalPickCount;
+
     // 옥트리에서 후보를 거리순(tmin)으로 수집
     TArray<std::pair<AActor*, float>> Candidates;
     PartitionManager->RayQueryOrdered(ray, Candidates);
@@ -396,21 +401,20 @@ AActor* CPickingSystem::PerformViewportPicking(const TArray<AActor*>& Actors,
             }
         }
     }
-    QueryPerformanceCounter(&end);
-    double elapsedSec = static_cast<double>(end.QuadPart - start.QuadPart) / static_cast<double>(frequency.QuadPart);
-
+    uint64 LastPickTime = pickCounter.Finish();
+    double Seconds = ((double)LastPickTime) / 1000.0;
     if (pickedActor)
     {
         char buf[160];
-        sprintf_s(buf, "[Pick] Hit primitive %d at t=%.3f | time=%.6f sec\n",
-            pickedIndex, pickedT, elapsedSec);
+        sprintf_s(buf, "[Pick] Hit primitive %d at t=%.3f | time=%.6lf ms\n",
+            pickedIndex, pickedT, Seconds);
         UE_LOG(buf);
         return pickedActor;
     }
     else
     {
         char buf[160];
-        sprintf_s(buf, "[Pick] No hit | time=%.6f sec\n", elapsedSec);
+        sprintf_s(buf, "[Pick] No hit | time=%.6f ms\n", Seconds);
         UE_LOG(buf);
         return nullptr;
     }

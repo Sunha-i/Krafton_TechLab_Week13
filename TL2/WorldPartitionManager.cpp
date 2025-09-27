@@ -8,6 +8,7 @@
 #include "BVHierachy.h"
 #include "StaticMeshActor.h"
 
+
 namespace 
 {
 	inline bool ShouldIndexActor(const AActor* Actor)
