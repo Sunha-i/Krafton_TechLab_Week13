@@ -285,7 +285,6 @@ void UWorld::RenderSingleViewport()
 
 void UWorld::RenderViewports(ACameraActor* Camera, FViewport* Viewport)
 {
-
 	// 뷰포트의 실제 크기로 aspect ratio 계산
 	float ViewportAspectRatio = static_cast<float>(Viewport->GetSizeX()) / static_cast<float>(Viewport->GetSizeY());
 	if (Viewport->GetSizeY() == 0) ViewportAspectRatio = 1.0f; // 0으로 나누기 방지
@@ -309,13 +308,9 @@ void UWorld::RenderViewports(ACameraActor* Camera, FViewport* Viewport)
 	// === Draw Actors with Show Flag checks ===
 	Renderer->SetViewModeType(ViewModeIndex);
 
-
 	// ============ Culling Logic Dispatch ========= //
 	for (AActor* Actor : Actors)
-	{
 		Actor->SetCulled(true);
-	}
-
 	UWorldPartitionManager::GetInstance()->FrustumQuery(ViewFrustum);
 
 	// ---------------------- CPU HZB Occlusion ----------------------
@@ -351,6 +346,8 @@ void UWorld::RenderViewports(ACameraActor* Camera, FViewport* Viewport)
 			if (!Actor) continue;
 			if (Actor->GetActorHiddenInGame()) continue;
 			if (Actor->GetCulled()) continue;
+			if (Cast<AStaticMeshActor>(Actor) && !IsShowFlagEnabled(EEngineShowFlags::SF_StaticMeshes))
+				continue;
 
 			// ★★★ CPU 오클루전 컬링: UUID로 보임 여부 확인
 			if (bUseCPUOcclusion)
@@ -362,64 +359,57 @@ void UWorld::RenderViewports(ACameraActor* Camera, FViewport* Viewport)
 				}
 			}
 
-			if (Cast<AStaticMeshActor>(Actor) && !IsShowFlagEnabled(EEngineShowFlags::SF_StaticMeshes))
-			{
+			if (SelectionManager.IsActorSelected(Actor))
 				continue;
-			}
-
-
-			//if (CamComp)
-			//{
-			//	if (AStaticMeshActor* MeshActor = Cast<AStaticMeshActor>(Actor))
-			//	{
-			//		if (UAABoundingBoxComponent* Box = Cast<UAABoundingBoxComponent>(MeshActor->CollisionComponent))
-			//		{
-			//			const FBound Bound = Box->GetWorldBound();
-			//			if (!IsAABBVisible(ViewFrustum, Bound))
-			//			{
-			//				continue;
-			//			}
-			//		}
-			//	}
-			//}
-			bool bIsSelected = SelectionManager.IsActorSelected(Actor);
-			/*if (bIsSelected)
-				Renderer->OMSetDepthStencilState(EComparisonFunc::Always);*/ // 이렇게 하면, 같은 메시에 속한 정점끼리도 뒤에 있는게 앞에 그려지는 경우가 발생해, 이상하게 렌더링 됨.
-
-			Renderer->UpdateHighLightConstantBuffer(bIsSelected, rgb, 0, 0, 0, 0);
-
-			for (USceneComponent* Component : Actor->GetComponents())
+			
+			const auto& Components = Actor->GetComponents();
+			for (int32 i = static_cast<int32>(Components.Num()) - 1; i >= 0; --i)
 			{
-				if (!Component)
-				{
-					continue;
-				}
-				if (UActorComponent* ActorComp = Cast<UActorComponent>(Component))
-				{
-					if (!ActorComp->IsActive())
-					{
-						continue;
-					}
-				}
-
-
-				if (Cast<UTextRenderComponent>(Component) && !IsShowFlagEnabled(EEngineShowFlags::SF_BillboardText))
-				{
-					continue;
-				}
-
-				if (Cast<UAABoundingBoxComponent>(Component) && !IsShowFlagEnabled(EEngineShowFlags::SF_BoundingBoxes))
-				{
-					continue;
-				}
-				if (UPrimitiveComponent* Primitive = Cast<UPrimitiveComponent>(Component))
+				if (!Components[i] || !Components[i]->IsActive()) continue;
+				if (UPrimitiveComponent* Primitive = Cast<UPrimitiveComponent>(Components[i]))
 				{
 					Renderer->SetViewModeType(ViewModeIndex);
 					Primitive->Render(Renderer, ViewMatrix, ProjectionMatrix);
-					Renderer->OMSetDepthStencilState(EComparisonFunc::LessEqual);
+					Renderer->OMSetDepthStencilState(EComparisonFunc::LessEqual); // 상태 원복 유지
 				}
 			}
-			Renderer->OMSetBlendState(false);
+		}
+
+		//Selected Actor 전용 렌더
+		for (AActor* Actor : SelectionManager.GetSelectedActors())
+		{
+			if (!Actor) continue;
+			if (Actor->GetActorHiddenInGame()) continue;
+			if (Actor->GetCulled()) continue;
+			if (Cast<AStaticMeshActor>(Actor) && !IsShowFlagEnabled(EEngineShowFlags::SF_StaticMeshes))
+				continue;
+
+			// ★★★ CPU 오클루전 컬링: UUID로 보임 여부 확인
+			if (bUseCPUOcclusion)
+			{
+				uint32_t id = Actor->UUID;
+				if (id < VisibleFlags.size() && VisibleFlags[id] == 0)
+				{
+					continue; // 가려짐 → 스킵
+				}
+			}
+
+			Renderer->UpdateHighLightConstantBuffer(true, rgb, 0, 0, 0, 0);
+			const auto& Components = Actor->GetComponents();
+			for (int32 i = static_cast<int32>(Components.Num()) - 1; i >= 0; --i)
+			{
+				if (!Components[i] || !Components[i]->IsActive()) continue;
+				if (Cast<UTextRenderComponent>(Components[i]) && !IsShowFlagEnabled(EEngineShowFlags::SF_BillboardText))
+					continue;
+				if (Cast<UAABoundingBoxComponent>(Components[i]) && !IsShowFlagEnabled(EEngineShowFlags::SF_BoundingBoxes))
+					continue;
+				if (UPrimitiveComponent* Primitive = Cast<UPrimitiveComponent>(Components[i]))
+				{
+					Renderer->SetViewModeType(ViewModeIndex);
+					Primitive->Render(Renderer, ViewMatrix, ProjectionMatrix);
+					Renderer->OMSetDepthStencilState(EComparisonFunc::LessEqual); // 상태 원복 유지
+				}
+			}
 		}
 	}
 
