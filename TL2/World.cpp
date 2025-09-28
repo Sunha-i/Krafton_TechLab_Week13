@@ -313,67 +313,14 @@ void UWorld::RenderViewports(ACameraActor* Camera, FViewport* Viewport)
 		Actor->SetCulled(true);
 	UWorldPartitionManager::GetInstance()->FrustumQuery(ViewFrustum);
 
-	// ---------------------- CPU HZB Occlusion ----------------------
-	if (bUseCPUOcclusion)
-	{
-		// 1) 그리드 사이즈 보정(해상도 변화 대응)
-		UpdateOcclusionGridSizeForViewport(Viewport);
-
-		// 2) 오클루더/오클루디 수집
-		TArray<FCandidateDrawable> Occluders, Occludees;
-		BuildCpuOcclusionSets(ViewFrustum, ViewMatrix, ProjectionMatrix, Occluders, Occludees);
-
-		// 3) 오클루더로 저해상도 깊이 빌드 + HZB
-		OcclusionCPU.BuildOccluderDepth(Occluders, Viewport->GetSizeX(), Viewport->GetSizeY());
-		OcclusionCPU.BuildHZB();
-
-		// 4) 가시성 판정 → VisibleFlags[UUID] = 0/1
-		//     VisibleFlags 크기 보장
-		uint32_t maxUUID = 0;
-		for (auto& C : Occludees) maxUUID = std::max(maxUUID, C.ActorIndex);
-		if (VisibleFlags.size() <= size_t(maxUUID))
-			VisibleFlags.assign(size_t(maxUUID + 1), 1); // 기본 보임
-
-		OcclusionCPU.TestOcclusion(Occludees, Viewport->GetSizeX(), Viewport->GetSizeY(), VisibleFlags);
-
-		VisibleNow.clear();
-		VisibleNow.reserve(Occludees.size()); // 대충 예상치
-
-		for (AActor* Actor : Actors)
-		{
-			if (!Actor) continue;
-
-			// 1) 프러스텀 밖은 이미 culled(true)일 것
-			if (Actor->GetCulled()) continue;
-			if (Cast<AStaticMeshActor>(Actor) && !IsShowFlagEnabled(EEngineShowFlags::SF_StaticMeshes))
-				continue;
-
-			// 2) 오클루전 결과 반영
-			if (bUseCPUOcclusion)
-			{
-				const uint32 id = Actor->UUID;
-				const bool isVisible = (id < VisibleFlags.size()) ? (VisibleFlags[id] != 0) : true;
-
-				if (!isVisible)
-				{
-					Actor->SetCulled(true); // 오클루전으로 다시 컷
-					continue;
-				}
-			}
-
-			// 최종 가시
-			VisibleNow.push_back(Actor);
-		}
-	}
-	// ----------------------------------------------------------------
-
 	// 일반 액터들 렌더링
 	if (IsShowFlagEnabled(EEngineShowFlags::SF_Primitives))
 	{
-		for (AActor* Actor : VisibleNow)
+		for (AActor* Actor : Actors)
 		{
 			if (!Actor) continue;
 			if (Actor->GetActorHiddenInGame()) continue;
+			if (Actor->GetCulled()) continue; // 컬링된 액터는 스킵
 
 			bool bIsSelected = SelectionManager.IsActorSelected(Actor);
 			Renderer->UpdateHighLightConstantBuffer(bIsSelected, rgb, 0, 0, 0, 0);
@@ -959,64 +906,4 @@ void UWorld::SaveScene(const FString& SceneName)
 AGizmoActor* UWorld::GetGizmoActor()
 {
 	return GizmoActor;
-}
-
-// === World.cpp 패치: 그리드 리사이즈 ===
-void UWorld::UpdateOcclusionGridSizeForViewport(FViewport* Viewport)
-{
-	if (!Viewport) return;
-	int vw = (1 > Viewport->GetSizeX()) ? 1 : Viewport->GetSizeX();
-	int vh = (1 > Viewport->GetSizeY()) ? 1 : Viewport->GetSizeY();
-	int gw = std::max(1, vw / std::max(1, OcclGridDiv));
-	int gh = std::max(1, vh / std::max(1, OcclGridDiv));
-	// 매 프레임 호출해도 싸다. 내부에서 동일크기면 skip
-	OcclusionCPU.Initialize(gw, gh);
-}
-
-// === World.cpp 패치: 후보 수집 ===
-void UWorld::BuildCpuOcclusionSets(
-	const Frustum& ViewFrustum,
-	const FMatrix& View, const FMatrix& Proj,
-	TArray<FCandidateDrawable>& OutOccluders,
-	TArray<FCandidateDrawable>& OutOccludees)
-{
-	OutOccluders.clear();
-	OutOccludees.clear();
-
-	const FMatrix VP = View * Proj;
-
-	if (auto* PM = UWorldPartitionManager::GetInstance())
-	{
-		if (FBVHierachy* BVH = PM->GetBVH())
-		{
-			// BVH가 프러스텀 전처리로 이미 SetCulled(false)를 찍어줬다고 가정
-			// 여기선 오클루전 후보만 따로 수집
-			const int MaxOccNodes = 512;       // 씬에 맞게 조절 가능
-			const int MaxOccludee = INT_MAX;    // 필요 시 상한을 둬도 됨
-			BVH->CollectOcclusionSets(ViewFrustum, VP, OutOccluders, OutOccludees, MaxOccNodes, MaxOccludee);
-			return;
-		}
-	}
-
-	// --- 폴백: BVH 없음 → 기존 방식 ---
-	for (AActor* Actor : Actors)
-	{
-		if (!Actor) continue;
-		if (Actor->GetActorHiddenInGame()) continue;
-		if (Actor->GetCulled()) continue; // 프러스텀 제외
-
-		AStaticMeshActor* SMA = Cast<AStaticMeshActor>(Actor);
-		if (!SMA) continue;
-
-		UAABoundingBoxComponent* Box = Cast<UAABoundingBoxComponent>(SMA->CollisionComponent);
-		if (!Box) continue;
-
-		FCandidateDrawable C{};
-		C.ActorIndex = Actor->UUID;
-		C.Bound = Box->GetWorldBound();
-		C.WorldViewProj = VP;
-
-		OutOccludees.push_back(C);
-		OutOccluders.push_back(C);
-	}
 }
