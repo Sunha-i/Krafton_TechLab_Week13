@@ -174,22 +174,6 @@ private:
     
     EViewModeIndex ViewModeIndex = EViewModeIndex::VMI_Unlit;
 
-    // ==================== CPU HZB Occlusion ====================
-    FOcclusionCullingManagerCPU OcclusionCPU;
-    TArray<uint8_t>        VisibleFlags;   // ActorIndex(UUID)로 인덱싱 (0=가려짐, 1=보임)
-    bool                        bUseCPUOcclusion = true;
-    int                         OcclGridDiv = 4; // 화면 크기/이 값 = 오클루전 그리드 해상도(1/6 권장)
-
-    // 헬퍼들
-    void UpdateOcclusionGridSizeForViewport(FViewport* Viewport);
-    void BuildCpuOcclusionSets(
-        const Frustum& ViewFrustum,
-        const FMatrix& View, const FMatrix& Proj,
-        TArray<FCandidateDrawable>& OutOccluders,
-        TArray<FCandidateDrawable>& OutOccludees);
-   
-    TArray<AActor*> VisibleNow;     // 이번 프레임 최종 가시 리스트
-
 };
 template<class T>
 inline T* UWorld::SpawnActor()
