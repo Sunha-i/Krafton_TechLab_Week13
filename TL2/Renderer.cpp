@@ -205,7 +205,9 @@ void URenderer::DrawIndexedPrimitiveComponent(UTextRenderComponent* Comp, D3D11_
     RHIDevice->PSSetDefaultSampler(0);
     RHIDevice->GetDeviceContext()->PSSetShaderResources(0, 1, &TextureSRV);
     RHIDevice->GetDeviceContext()->IASetPrimitiveTopology(InTopology);
-    RHIDevice->GetDeviceContext()->DrawIndexed(Comp->GetStaticMesh()->GetIndexCount(), 0, 0);
+    const uint32 indexCnt = Comp->GetStaticMesh()->GetIndexCount();
+    //UE_LOG("draw billboard. indexCount: %d", indexCnt);
+    RHIDevice->GetDeviceContext()->DrawIndexed(indexCnt, 0, 0);
 }
 
 void URenderer::SetViewModeType(EViewModeIndex ViewModeIndex)
