@@ -1,4 +1,4 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "EditorEngine.h"
 
 #if defined(_MSC_VER) && defined(_DEBUG)
@@ -21,7 +21,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     if (!Engine.Startup(hInstance))
         return -1;
 
-    Engine.Run();
+    Engine.MainLoop();
     Engine.Shutdown();
 
     return 0;

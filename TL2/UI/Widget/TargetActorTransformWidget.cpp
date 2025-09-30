@@ -12,6 +12,7 @@
 #include "StaticMeshComponent.h"
 #include "ResourceManager.h"    
 #include "TextRenderComponent.h"
+#include "CameraComponent.h"
 using namespace std;
 
 //// UE_LOG 대체 매크로
@@ -129,7 +130,7 @@ namespace
 		// 트리 노드 그리기 직전에 ID 푸시
 		ImGui::PushID(Component);
 		const bool bNodeOpen = ImGui::TreeNodeEx(Component, NodeFlags, "%s", Label.c_str());
-		// ✓ 좌클릭 시 컴포넌트 선택으로 전환(액터 Row 선택 해제)
+		// 좌클릭 시 컴포넌트 선택으로 전환(액터 Row 선택 해제)
 		if (ImGui::IsItemClicked(ImGuiMouseButton_Left))
 		{
 			SelectedComponent = Component;
@@ -138,7 +139,7 @@ namespace
 		if (ImGui::BeginPopupContextItem("ComponentContext"))
 		{
 			const bool bCanRemove = (Component != Actor.GetRootComponent());
-			if (ImGui::MenuItem("Remove", "Delete", false, bCanRemove))
+			if (ImGui::MenuItem("삭제", "Delete", false, bCanRemove))
 			{
 				ComponentPendingRemoval = Component;
 			}
@@ -279,6 +280,33 @@ void UTargetActorTransformWidget::Update()
 void UTargetActorTransformWidget::RenderWidget()
 {
 	{
+		/*
+			컨트롤 패널에서 선택한 직후, Update()가 아직 돌기 전에
+			RenderWidget()이 먼저 실행되면 CachedActorName이 빈 상태인 채로 Selectable을
+			그리게 되기 때문에 여기서도 캐시 갱신
+		*/
+
+		// 캐시 갱신을 RenderWidget에서도 보장
+		if (SelectedActor)
+		{
+			try
+			{
+				const FString LatestName = SelectedActor->GetName().ToString();
+				if (CachedActorName != LatestName)
+				{
+					CachedActorName = LatestName;
+				}
+			}
+			catch (...)
+			{
+				CachedActorName.clear();
+				SelectedActor = nullptr;
+			}
+		}
+		else
+		{
+			CachedActorName.clear();
+		}
 		// 월드 정보 표시
 		ImGui::Text("World Information");
 		ImGui::Text("Actor Count: %u", WorldActorCount);
@@ -302,7 +330,6 @@ void UTargetActorTransformWidget::RenderWidget()
 		ImGui::Text("Transform Editor");
 
 		SelectedActor = GetCurrentSelectedActor();
-
 
 
 		// 기즈모 스페이스 모드 선택
@@ -365,7 +392,8 @@ void UTargetActorTransformWidget::RenderWidget()
 
 		ImGui::PushID("ActorDisplay");
 		ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.85f, 0.3f, 1.0f));
-		// 액터 이름 표시 (캐시된 이름 사용)
+
+		// 액터 이름 표시 
 		const bool bActorClicked =
 			ImGui::Selectable(CachedActorName.c_str(), bActorSelected, ImGuiSelectableFlags_SelectOnClick | ImGuiSelectableFlags_SpanAvailWidth);
 		ImGui::PopStyleColor();
@@ -377,7 +405,7 @@ void UTargetActorTransformWidget::RenderWidget()
 
 		if (ImGui::BeginPopupContextItem("ActorContextMenu"))
 		{
-			if (ImGui::MenuItem("Remove Actor", "Delete", false, SelectedActor != nullptr))
+			if (ImGui::MenuItem("삭제", "Delete", false, SelectedActor != nullptr))
 			{
 				ActorPendingRemoval = SelectedActor;
 			}
@@ -415,7 +443,7 @@ void UTargetActorTransformWidget::RenderWidget()
 				{
 					// 루트 컴포넌트가 아닌 경우에만 제거 가능
 					const bool bCanRemove = (Component != RootComponent);
-					if (ImGui::MenuItem("Remove", "Delete", false, bCanRemove))
+					if (ImGui::MenuItem("삭제", "Delete", false, bCanRemove))
 					{
 						ComponentPendingRemoval = Component;
 					}
