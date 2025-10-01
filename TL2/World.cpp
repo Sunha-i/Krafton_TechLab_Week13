@@ -54,9 +54,6 @@ UWorld::~UWorld()
 	// Grid 정리 
 	ObjectFactory::DeleteObject(GridActor);
 	GridActor = nullptr;
-
-	// ObjManager 정리
-	FObjManager::Clear();
 }
 
 void UWorld::Initialize()
@@ -101,8 +98,6 @@ void UWorld::Tick(float DeltaSeconds)
 		if (EngineActor) EngineActor->Tick(DeltaSeconds);
 	}
 	GizmoActor->Tick(DeltaSeconds);
-
-	UI.Update(DeltaSeconds);
 }
 
 float UWorld::GetTimeSeconds() const
@@ -433,17 +428,10 @@ void UWorld::SaveScene(const FString& SceneName)
     FSceneLoader::Save(Primitives, CamPtr, SceneName);
 }
 
-void UWorld::SetCameraActor(ACameraActor* InCameraActor)
-{
-	MainCameraActor = InCameraActor;
-	UI.SetCamera(MainCameraActor);
-}
-
 AGizmoActor* UWorld::GetGizmoActor()
 {
 	return GizmoActor;
 }
-
 
 void UWorld::SetStaticMeshs()
 {

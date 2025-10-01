@@ -280,9 +280,6 @@ void URenderManager::RenderViewports(ACameraActor* Camera, FViewport* Viewport)
 							RHIDevice->GetDeviceContext()->DrawIndexed(IndexCount, 0, 0);
 						}
 					}
-					//FObjMaterialInfo ObjMaterialInfo;
-					//RHIDevice->UpdatePixelConstantBuffers(ObjMaterialInfo, false, false); // PSSet도 해줌
-					//RHIDevice->GetDeviceContext()->DrawIndexed(IndexCount, 0, 0);
 				}
 
 			}

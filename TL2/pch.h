@@ -76,5 +76,7 @@
 //@TODO Partition Manager 싱글톤 배제 (월드 별 소유)
 //#define PARTITION UWorldPartitionManager::GetInstance()
 
+//CUR ENGINE MODE
+#define _EDITOR
 
 extern TMap<FString, FString> EditorINI;

@@ -52,4 +52,6 @@ private:
     static float ClientHeight;
 };
 
+#ifdef _EDITOR
 extern UEditorEngine GEngine;
+#endif

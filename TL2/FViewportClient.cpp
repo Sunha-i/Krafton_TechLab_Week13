@@ -17,7 +17,6 @@ FViewportClient::FViewportClient()
     // 직교 뷰별 기본 카메라 설정
     extern UEditorEngine GEngine;
     Camera = GEngine.GetDefaultWorld()->SpawnActor<ACameraActor>();
-    ViewPortCamera = Camera;
     SetupCameraMode();
 }
 
@@ -63,7 +62,6 @@ void FViewportClient::Draw(FViewport* Viewport)
     case EViewportType::Orthographic_Bottom:
     case EViewportType::Orthographic_Right:
     {
-        Camera = ViewPortCamera;
         Camera->GetCameraComponent()->SetProjectionMode(ECameraProjectionMode::Orthographic);
         SetupCameraMode();
         if (World)
@@ -78,7 +76,6 @@ void FViewportClient::Draw(FViewport* Viewport)
 
 void FViewportClient::SetupCameraMode()
 {
-    Camera = ViewPortCamera;
     switch (ViewportType)
     {
     case EViewportType::Perspective:

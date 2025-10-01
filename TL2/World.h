@@ -55,7 +55,6 @@ public:
     void CreateNewScene();
     void LoadScene(const FString& SceneName);
     void SaveScene(const FString& SceneName);
-    void SetCameraActor(ACameraActor* InCameraActor);
     ACameraActor* GetCameraActor() { return MainCameraActor; }
 
     EViewModeIndex GetViewModeIndex() { return ViewModeIndex; }
@@ -97,7 +96,6 @@ private:
 
     /** === 액터 관리 === */
     TArray<AActor*> Actors;
-    TArray<FPrimitiveData> Primitives;
 
     /** A dedicated array for static mesh actors to optimize culling. */
     TArray<UStaticMesh*> StaticMeshs;
