@@ -138,158 +138,160 @@ void URenderManager::RenderViewports(ACameraActor* Camera, FViewport* Viewport)
 	}
 	// ----------------------------------------------------------------
 
-	// 일반 액터들 렌더링
-	if (World->GetRenderSettings().IsShowFlagEnabled(EEngineShowFlags::SF_Primitives))
-	{
-		for (AActor* Actor : World->GetActors())
+	{	// 일반 액터들 렌더링
+		if (World->GetRenderSettings().IsShowFlagEnabled(EEngineShowFlags::SF_Primitives))
 		{
-			if (!Actor) continue;
-			if (Actor->GetActorHiddenInGame()) continue;
-			if (Actor->GetCulled()) continue; // 컬링된 액터는 스킵
-
-			// ★★★ CPU 오클루전 컬링: UUID로 보임 여부 확인
-			if (bUseCPUOcclusion)
+			for (AActor* Actor : World->GetActors())
 			{
-				uint32_t id = Actor->UUID;
-				if (id < VisibleFlags.size() && VisibleFlags[id] == 0)
+				if (!Actor) continue;
+				if (Actor->GetActorHiddenInGame()) continue;
+				if (Actor->GetCulled()) continue; // 컬링된 액터는 스킵
+
+				// ★★★ CPU 오클루전 컬링: UUID로 보임 여부 확인
+				if (bUseCPUOcclusion)
 				{
-					continue; // 가려짐 → 스킵c
-				}
-			}
-
-			if (Cast<AStaticMeshActor>(Actor) && !World->GetRenderSettings().IsShowFlagEnabled(EEngineShowFlags::SF_StaticMeshes))
-			{
-				continue;
-			}
-
-			if (SELECTION.IsActorSelected(Actor))
-				continue;
-
-			for (USceneComponent* Component : Actor->GetComponents())
-			{
-				if (!Component) continue;
-				if (UActorComponent* ActorComp = Cast<UActorComponent>(Component))
-					if (!ActorComp->IsActive()) continue;
-
-				if (UPrimitiveComponent* Primitive = Cast<UPrimitiveComponent>(Component))
-				{
-					const UStaticMeshComponent* SMC = Cast<UStaticMeshComponent>(Primitive);
-					if (SMC && SMC->IsChangedMaterialByUser() == false)
+					uint32_t id = Actor->UUID;
+					if (id < VisibleFlags.size() && VisibleFlags[id] == 0)
 					{
-						// 유저에 의해 Material이 안 바뀐 UStaticMeshComponent는 따로 sorting rendering
-						continue;
+						continue; // 가려짐 → 스킵c
 					}
-					// Actor가 textCmp도 가지고 있고, bounding box도 가지고 있고,
-					// TODO: StaticMeshComp이면 분기해서, 어떤 sorting 자료구조에 넣고 나중에 렌더링 ㄱ?
-					// StatcMeshCmp면 이것의 dirtyflag를 보고, dirtyflag가 true면 tree탐색(이미 바꼇는데 그거 기반으로 어떻게 탐색해?)으로 state tree의 해당 cmp를 다른 곳으로 옮기기
-					Renderer->SetViewModeType(World->GetRenderSettings().GetViewModeIndex());
-					Primitive->Render(Renderer, ViewMatrix, ProjectionMatrix);
-					Renderer->OMSetDepthStencilState(EComparisonFunc::LessEqual);
-
-					visibleCount++;
 				}
+
+				if (Cast<AStaticMeshActor>(Actor) && !World->GetRenderSettings().IsShowFlagEnabled(EEngineShowFlags::SF_StaticMeshes))
+				{
+					continue;
+				}
+
+				if (SELECTION.IsActorSelected(Actor))
+					continue;
+
+				for (USceneComponent* Component : Actor->GetComponents())
+				{
+					if (!Component) continue;
+					if (UActorComponent* ActorComp = Cast<UActorComponent>(Component))
+						if (!ActorComp->IsActive()) continue;
+
+					if (UPrimitiveComponent* Primitive = Cast<UPrimitiveComponent>(Component))
+					{
+						//const UStaticMeshComponent* SMC = Cast<UStaticMeshComponent>(Primitive);
+						//if (SMC && SMC->IsChangedMaterialByUser() == false)
+						//{
+						//	// 유저에 의해 Material이 안 바뀐 UStaticMeshComponent는 따로 sorting rendering
+						//	continue;
+						//}
+						// Actor가 textCmp도 가지고 있고, bounding box도 가지고 있고,
+						// TODO: StaticMeshComp이면 분기해서, 어떤 sorting 자료구조에 넣고 나중에 렌더링 ㄱ?
+						// StatcMeshCmp면 이것의 dirtyflag를 보고, dirtyflag가 true면 tree탐색(이미 바꼇는데 그거 기반으로 어떻게 탐색해?)으로 state tree의 해당 cmp를 다른 곳으로 옮기기
+						Renderer->SetViewModeType(World->GetRenderSettings().GetViewModeIndex());
+						Primitive->Render(Renderer, ViewMatrix, ProjectionMatrix);
+						Renderer->OMSetDepthStencilState(EComparisonFunc::LessEqual);
+
+						visibleCount++;
+					}
+				}
+			}
+
+			//MATERIALSORTING
+			{
+				//	// TODO: StaticCmp를 State tree 이용해서 렌더(showFlag 확인 필요)
+				//	if (World->GetRenderSettings().IsShowFlagEnabled(EEngineShowFlags::SF_StaticMeshes))
+				//	{
+				//		for (UStaticMesh* StaticMesh : RESOURCE.GetStaticMeshs())
+				//		{
+				//			UINT stride = 0;
+				//			stride = sizeof(FVertexDynamic);
+				//			UINT offset = 0;
+
+				//			ID3D11Buffer* VertexBuffer = StaticMesh->GetVertexBuffer();
+				//			ID3D11Buffer* IndexBuffer = StaticMesh->GetIndexBuffer();
+				//			uint32 VertexCount = StaticMesh->GetVertexCount();
+				//			uint32 IndexCount = StaticMesh->GetIndexCount();
+
+				//			URHIDevice* RHIDevice = Renderer->GetRHIDevice();
+
+				//			RHIDevice->GetDeviceContext()->IASetVertexBuffers(
+				//				0, 1, &VertexBuffer, &stride, &offset
+				//			);
+
+				//			RHIDevice->GetDeviceContext()->IASetIndexBuffer(
+				//				IndexBuffer, DXGI_FORMAT_R32_UINT, 0
+				//			);
+
+				//			RHIDevice->GetDeviceContext()->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+				//			RHIDevice->PSSetDefaultSampler(0);
+
+				//			if (StaticMesh->HasMaterial())
+				//			{
+				//				for (const FGroupInfo& GroupInfo : StaticMesh->GetMeshGroupInfo())
+				//				{
+				//					if (StaticMesh->GetUsingComponents().empty())
+				//					{
+				//						continue;
+				//					}
+				//					UMaterial* const Material = UResourceManager::GetInstance().Get<UMaterial>(GroupInfo.InitialMaterialName);
+				//					const FObjMaterialInfo& MaterialInfo = Material->GetMaterialInfo();
+				//					bool bHasTexture = !(MaterialInfo.DiffuseTextureFileName.empty());
+				//					if (bHasTexture)
+				//					{
+				//						FWideString WTextureFileName(MaterialInfo.DiffuseTextureFileName.begin(), MaterialInfo.DiffuseTextureFileName.end()); // 단순 ascii라고 가정
+				//						FTextureData* TextureData = UResourceManager::GetInstance().CreateOrGetTextureData(WTextureFileName);
+				//						RHIDevice->GetDeviceContext()->PSSetShaderResources(0, 1, &(TextureData->TextureSRV));
+				//					}
+				//					RHIDevice->UpdatePixelConstantBuffers(MaterialInfo, true, bHasTexture); // PSSet도 해줌
+
+				//					for (UStaticMeshComponent* Component : StaticMesh->GetUsingComponents())
+				//					{
+				//						if (Component->GetOwner()->GetCulled() == false && Component->IsChangedMaterialByUser() == false)
+				//						{
+				//							// ★★★ CPU 오클루전 컬링: UUID로 보임 여부 확인
+				//							if (bUseCPUOcclusion)
+				//							{
+				//								uint32_t id = Component->GetOwner()->UUID;
+				//								if (id < VisibleFlags.size() && VisibleFlags[id] == 0)
+				//								{
+				//									continue; // 가려짐 → 스킵
+				//								}
+				//							}
+
+				//							Renderer->UpdateConstantBuffer(Component->GetWorldMatrix(), ViewMatrix, ProjectionMatrix);
+				//							Renderer->PrepareShader(Component->GetMaterial()->GetShader());
+				//							RHIDevice->GetDeviceContext()->DrawIndexed(GroupInfo.IndexCount, GroupInfo.StartIndex, 0);
+				//						}
+				//					}
+				//				}
+				//			}
+				//			else
+				//			{
+
+				//				for (UStaticMeshComponent* Component : StaticMesh->GetUsingComponents())
+				//				{
+				//					if (!Component->GetOwner()->GetCulled() && !Cast<AGizmoActor>(Component->GetOwner()))
+				//					{
+				//						// ★★★ CPU 오클루전 컬링: UUID로 보임 여부 확인
+				//						if (bUseCPUOcclusion)
+				//						{
+				//							uint32_t id = Component->GetOwner()->UUID;
+				//							if (id < VisibleFlags.size() && VisibleFlags[id] == 0)
+				//							{
+				//								continue; // 가려짐 → 스킵
+				//							}
+				//						}
+
+				//						FObjMaterialInfo ObjMaterialInfo;
+				//						RHIDevice->UpdatePixelConstantBuffers(ObjMaterialInfo, false, false); // PSSet도 해줌
+
+				//						Renderer->UpdateConstantBuffer(Component->GetWorldMatrix(), ViewMatrix, ProjectionMatrix);
+				//						Renderer->PrepareShader(Component->GetMaterial()->GetShader());
+				//						RHIDevice->GetDeviceContext()->DrawIndexed(IndexCount, 0, 0);
+				//					}
+				//				}
+				//			}
+
+				//		}
+				//	}
 			}
 		}
-
-		// TODO: StaticCmp를 State tree 이용해서 렌더(showFlag 확인 필요)
-		if (World->GetRenderSettings().IsShowFlagEnabled(EEngineShowFlags::SF_StaticMeshes))
-		{
-			for (UStaticMesh* StaticMesh : RESOURCE.GetStaticMeshs())
-			{
-				UINT stride = 0;
-				stride = sizeof(FVertexDynamic);
-				UINT offset = 0;
-
-				ID3D11Buffer* VertexBuffer = StaticMesh->GetVertexBuffer();
-				ID3D11Buffer* IndexBuffer = StaticMesh->GetIndexBuffer();
-				uint32 VertexCount = StaticMesh->GetVertexCount();
-				uint32 IndexCount = StaticMesh->GetIndexCount();
-
-				URHIDevice* RHIDevice = Renderer->GetRHIDevice();
-
-				RHIDevice->GetDeviceContext()->IASetVertexBuffers(
-					0, 1, &VertexBuffer, &stride, &offset
-				);
-
-				RHIDevice->GetDeviceContext()->IASetIndexBuffer(
-					IndexBuffer, DXGI_FORMAT_R32_UINT, 0
-				);
-
-				RHIDevice->GetDeviceContext()->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-				RHIDevice->PSSetDefaultSampler(0);
-
-				if (StaticMesh->HasMaterial())
-				{
-					for (const FGroupInfo& GroupInfo : StaticMesh->GetMeshGroupInfo())
-					{
-						if (StaticMesh->GetUsingComponents().empty())
-						{
-							continue;
-						}
-						UMaterial* const Material = UResourceManager::GetInstance().Get<UMaterial>(GroupInfo.InitialMaterialName);
-						const FObjMaterialInfo& MaterialInfo = Material->GetMaterialInfo();
-						bool bHasTexture = !(MaterialInfo.DiffuseTextureFileName.empty());
-						if (bHasTexture)
-						{
-							FWideString WTextureFileName(MaterialInfo.DiffuseTextureFileName.begin(), MaterialInfo.DiffuseTextureFileName.end()); // 단순 ascii라고 가정
-							FTextureData* TextureData = UResourceManager::GetInstance().CreateOrGetTextureData(WTextureFileName);
-							RHIDevice->GetDeviceContext()->PSSetShaderResources(0, 1, &(TextureData->TextureSRV));
-						}
-						RHIDevice->UpdatePixelConstantBuffers(MaterialInfo, true, bHasTexture); // PSSet도 해줌
-
-						for (UStaticMeshComponent* Component : StaticMesh->GetUsingComponents())
-						{
-							if (Component->GetOwner()->GetCulled() == false && Component->IsChangedMaterialByUser() == false)
-							{
-								// ★★★ CPU 오클루전 컬링: UUID로 보임 여부 확인
-								if (bUseCPUOcclusion)
-								{
-									uint32_t id = Component->GetOwner()->UUID;
-									if (id < VisibleFlags.size() && VisibleFlags[id] == 0)
-									{
-										continue; // 가려짐 → 스킵
-									}
-								}
-
-								Renderer->UpdateConstantBuffer(Component->GetWorldMatrix(), ViewMatrix, ProjectionMatrix);
-								Renderer->PrepareShader(Component->GetMaterial()->GetShader());
-								RHIDevice->GetDeviceContext()->DrawIndexed(GroupInfo.IndexCount, GroupInfo.StartIndex, 0);
-							}
-						}
-					}
-				}
-				else
-				{
-
-					for (UStaticMeshComponent* Component : StaticMesh->GetUsingComponents())
-					{
-						if (!Component->GetOwner()->GetCulled() && !Cast<AGizmoActor>(Component->GetOwner()))
-						{
-							// ★★★ CPU 오클루전 컬링: UUID로 보임 여부 확인
-							if (bUseCPUOcclusion)
-							{
-								uint32_t id = Component->GetOwner()->UUID;
-								if (id < VisibleFlags.size() && VisibleFlags[id] == 0)
-								{
-									continue; // 가려짐 → 스킵
-								}
-							}
-
-							FObjMaterialInfo ObjMaterialInfo;
-							RHIDevice->UpdatePixelConstantBuffers(ObjMaterialInfo, false, false); // PSSet도 해줌
-
-							Renderer->UpdateConstantBuffer(Component->GetWorldMatrix(), ViewMatrix, ProjectionMatrix);
-							Renderer->PrepareShader(Component->GetMaterial()->GetShader());
-							RHIDevice->GetDeviceContext()->DrawIndexed(IndexCount, 0, 0);
-						}
-					}
-				}
-
-			}
-		}
-
 	}
-
 	for (AActor* SelectedActor : SELECTION.GetSelectedActors())
 	{
 		if (!SelectedActor) continue;
@@ -308,11 +310,11 @@ void URenderManager::RenderViewports(ACameraActor* Camera, FViewport* Viewport)
 
 			if (UPrimitiveComponent* Primitive = Cast<UPrimitiveComponent>(Component))
 			{
-				UStaticMeshComponent* SMC = Cast<UStaticMeshComponent>(Primitive);
-				if (SMC && SMC->IsChangedMaterialByUser() == false)
-				{
-					continue;
-				}
+				//UStaticMeshComponent* SMC = Cast<UStaticMeshComponent>(Primitive);
+				//if (SMC && SMC->IsChangedMaterialByUser() == false)
+				//{
+				//	continue;
+				//}
 				Renderer->SetViewModeType(World->GetRenderSettings().GetViewModeIndex());
 				Primitive->Render(Renderer, ViewMatrix, ProjectionMatrix);
 				Renderer->OMSetDepthStencilState(EComparisonFunc::LessEqual);

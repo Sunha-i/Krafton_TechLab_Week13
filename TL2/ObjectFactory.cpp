@@ -29,23 +29,10 @@ namespace ObjectFactory
         UObject* Obj = ConstructObject(Class);
         if (!Obj) return nullptr;
 
-        // 배열에 등록: 빈 슬롯 재사용
         int32 idx = -1;
-      /*  GUObjectArray.Num();
-     
-            
-                idx = i;
-                break;
-            
-        }*/
-        /*if (idx >= 0)
-        {
-            GUObjectArray[idx] = Obj;
-        }
-        else
-        {*/
-            idx = GUObjectArray.Add(Obj);
-        //}
+
+        idx = GUObjectArray.Add(Obj);
+
         Obj->InternalIndex = static_cast<uint32>(idx);
 
         static TMap<UClass*, int> NameCounters;
@@ -100,8 +87,8 @@ namespace ObjectFactory
         }
         GUObjectArray.Empty();
         GUObjectArray.Shrink();
-        //GUObjectArray.clear();
     }
+
     // (선택) null 슬롯 압축
     void CompactNullSlots()
     {

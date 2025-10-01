@@ -1,8 +1,5 @@
 ﻿#pragma once
 
-//CUR ENGINE MODE
-#define _EDITOR
-
 // Linker
 #pragma comment(lib, "user32")
 #pragma comment(lib, "d3d11")
@@ -83,6 +80,9 @@ extern TMap<FString, FString> EditorINI;
 
 //Editor
 #include "EditorEngine.h"
+
+//CUR ENGINE MODE
+#define _EDITOR
 
 #ifdef _EDITOR
 extern UEditorEngine GEngine;

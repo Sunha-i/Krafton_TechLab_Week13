@@ -15,6 +15,9 @@ public:
     void MainLoop();
     void Shutdown();
 
+    void StartPIE();
+    void EndPIE();
+    
     HWND GetHWND() const { return HWnd; }
     
     URenderer* GetRenderer() const { return Renderer.get(); }

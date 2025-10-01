@@ -350,9 +350,6 @@ void FBVHierachy::BuildLBVHFromMap()
     BuildRange(0, N);
 }
 
-
-
-
 int FBVHierachy::BuildRange(int s, int e)
 {
     int nodeIdx = static_cast<int>(Nodes.size());

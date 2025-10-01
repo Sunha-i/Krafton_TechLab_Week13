@@ -2,6 +2,7 @@
 #include "Object.h"
 #include "Enums.h"
 #include "RenderSettings.h"
+#include "Level.h"
 
 // Forward Declarations
 class UResourceManager;
@@ -51,9 +52,11 @@ public:
     void OnActorSpawned(AActor* Actor);
     void OnActorDestroyed(AActor* Actor);
 
-    void CreateNewScene();
-    void LoadScene(const FString& SceneName);
-    void SaveScene(const FString& SceneName);
+    void CreateLevel();
+
+    // Level ownership API
+    void SetLevel(std::unique_ptr<ULevel> InLevel);
+    ULevel* GetLevel() const { return Level.get(); }
 
     ACameraActor* GetCameraActor() { return MainCameraActor; }
     void SetCameraActor(ACameraActor* InCamera) { MainCameraActor = InCamera; }
@@ -65,7 +68,7 @@ public:
     virtual void Tick(float DeltaSeconds);
 
     /** === 필요한 엑터 게터 === */
-    const TArray<AActor*>& GetActors() { return Actors; }
+    const TArray<AActor*>& GetActors() { static TArray<AActor*> Empty; return Level ? Level->GetActors() : Empty; }
     const TArray<AActor*>& GetEditorActors() { return EditorActors; }
     AGizmoActor* GetGizmoActor() { return GizmoActor; }
     AGridActor* GetGridActor() { return GridActor; }
@@ -84,11 +87,14 @@ private:
     AGridActor* GridActor = nullptr;
     AGizmoActor* GizmoActor = nullptr;
 
-    /** === 액터 관리 === */
-    TArray<AActor*> Actors;
+    /** === 레벨 컨테이너 === */
+    std::unique_ptr<ULevel> Level;
 
     // Object naming system
     TMap<FString, int32> ObjectTypeCounts;
+
+    // Internal helper to register spawned actors into current level
+    void AddActorToLevel(AActor* Actor);
 
     // Per-world render settings
     URenderSettings RenderSettings;
@@ -118,7 +124,7 @@ inline T* UWorld::SpawnActor(const FTransform& Transform)
     NewActor->SetWorld(this);
 
     // 월드에 등록
-    Actors.Add(NewActor);
+    AddActorToLevel(NewActor);
 
     return NewActor;
 }

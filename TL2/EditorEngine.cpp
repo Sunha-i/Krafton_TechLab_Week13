@@ -267,3 +267,31 @@ void UEditorEngine::Shutdown()
     ObjectFactory::DeleteAll(true);
     SaveIniFile();
 }
+
+
+void UEditorEngine::StartPIE()
+{
+    //UWorld* EditorWorld = GEditor->GetEditorWorldContext().World();
+
+    //UWorld* PIEWorld = UWorld::DuplicateWorldForPIE(EditorWorld, ...);
+
+    //GWorld = PIEWorld;
+
+    //// AActor::BeginPlay()
+    //PIEWorld->InitializeActorsForPlay();
+
+    UE_LOG("START PIE CLICKED");
+}
+
+void UEditorEngine::EndPIE()
+{
+    //if (GWorld && GWorld->IsPIEWorld())
+    //{
+    //    GWorld->CleanupWorld();
+    //    delete GWorld;
+    //}
+
+    //GWorld = GEditor->GetEditorWorldContext().World();
+
+    UE_LOG("END PIE CLICKED");
+}

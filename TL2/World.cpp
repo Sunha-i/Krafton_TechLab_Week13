@@ -24,12 +24,14 @@
 #include "GridActor.h"
 #include "StaticMeshComponent.h"
 #include "Frustum.h"
+#include "Level.h"
 
 UWorld::UWorld()
 	: Partition(new UWorldPartitionManager())
 {
+	Level = std::make_unique<ULevel>();
 	FObjManager::Preload();
-	CreateNewScene();
+	CreateLevel();
 
 	InitializeGrid();
 	InitializeGizmo();
@@ -37,11 +39,14 @@ UWorld::UWorld()
 
 UWorld::~UWorld()
 {
-	for (AActor* Actor : Actors)
+if (Level)
 	{
-		ObjectFactory::DeleteObject(Actor);
+		for (AActor* Actor : Level->GetActors())
+		{
+			ObjectFactory::DeleteObject(Actor);
+		}
+		Level->Clear();
 	}
-	Actors.clear();
 	for (AActor* Actor : EditorActors)
 	{
 		ObjectFactory::DeleteObject(Actor);
@@ -75,10 +80,13 @@ void UWorld::Tick(float DeltaSeconds)
 {
 	Partition->Update(DeltaSeconds, /*budget*/256);
 
-	//순서 바꾸면 안댐
-	for (AActor* Actor : Actors)
+//순서 바꾸면 안댐
+	if (Level)
 	{
-		if (Actor) Actor->Tick(DeltaSeconds);
+		for (AActor* Actor : Level->GetActors())
+		{
+			if (Actor) Actor->Tick(DeltaSeconds);
+		}
 	}
 	for (AActor* EditorActor : EditorActors)
 	{
@@ -114,14 +122,11 @@ bool UWorld::DestroyActor(AActor* Actor)
 		UI.ResetPickedActor();
 	}
 
-	// 배열에서 제거 시도
-	auto it = std::find(Actors.begin(), Actors.end(), Actor);
-	if (it != Actors.end())
+// 레벨에서 제거 시도
+	if (Level && Level->RemoveActor(Actor))
 	{
 		// 옥트리에서 제거
 		OnActorDestroyed(Actor);
-
-		Actors.erase(it);
 
 		// 메모리 해제
 		ObjectFactory::DeleteObject(Actor);
@@ -132,7 +137,7 @@ bool UWorld::DestroyActor(AActor* Actor)
 		return true; // 성공적으로 삭제
 	}
 
-	return false; // 월드에 없는 액터
+	return false; // 레벨에 없는 액터
 }
 
 void UWorld::OnActorSpawned(AActor* Actor)
@@ -175,237 +180,54 @@ inline FString RemoveObjExtension(const FString& FileName)
 	return FileName;
 }
 
-void UWorld::CreateNewScene()
+void UWorld::CreateLevel()
 {
-	// Safety: clear interactions that may hold stale pointers
+	// DEPRECATED shim: forward to LevelService
 	SELECTION.ClearSelection();
 	UI.ResetPickedActor();
 
-	for (AActor* Actor : Actors)
-	{
-		ObjectFactory::DeleteObject(Actor);
-	}
-	Actors.Empty();
-
+	SetLevel(ULevelService::CreateNewLevel());
 	// 이름 카운터 초기화: 씬을 새로 시작할 때 각 BaseName 별 suffix를 0부터 다시 시작
 	ObjectTypeCounts.clear();
-
-	Partition->Clear();
 }
 
-void UWorld::LoadScene(const FString& SceneName)
+void UWorld::SetLevel(std::unique_ptr<ULevel> InLevel)
 {
-	namespace fs = std::filesystem;
-	fs::path path = fs::path("Scene") / SceneName;
-	if (path.extension().string() != ".Scene")
-	{
-		path.replace_extension(".Scene");
-	}
+    // Make UI/selection safe before destroying previous actors
+    SELECTION.ClearSelection();
+    UI.ResetPickedActor();
 
-	const FString FilePath = path.make_preferred().string();
-
-	// [1] 로드 시작 전 현재 카운터 백업
-	const uint32 PreLoadNext = UObject::PeekNextUUID();
-
-	// [2] 파일 NextUUID는 현재보다 클 때만 반영(절대 하향 설정 금지)
-	uint32 LoadedNextUUID = 0;
-	if (FSceneLoader::TryReadNextUUID(FilePath, LoadedNextUUID))
-	{
-		if (LoadedNextUUID > UObject::PeekNextUUID())
-		{
-			UObject::SetNextUUID(LoadedNextUUID);
-		}
-	}
-
-	// [3] 기존 씬 비우기
-	CreateNewScene();
-
-    // [4] 로드
-    FPerspectiveCameraData CamData{};
-    const TArray<FPrimitiveData>& Primitives = FSceneLoader::Load(FilePath, &CamData);
-
-    // 마우스 델타 초기화
-    const FVector2D CurrentMousePos = INPUT.GetMousePosition();
-	INPUT.SetLastMousePosition(CurrentMousePos);
-
-    // 카메라 적용
-    if (MainCameraActor && MainCameraActor->GetCameraComponent())
+    // Cleanup current
+    if (Level)
     {
-        UCameraComponent* Cam = MainCameraActor->GetCameraComponent();
-
-        // 위치/회전(월드 트랜스폼)
-        MainCameraActor->SetActorLocation(CamData.Location);
-        MainCameraActor->SetActorRotation(FQuat::MakeFromEuler(CamData.Rotation));
-
-        // 입력 경로와 동일한 방식으로 각도/회전 적용
-        // 매핑: Pitch = CamData.Rotation.Y, Yaw = CamData.Rotation.Z
-        MainCameraActor->SetAnglesImmediate(CamData.Rotation.Y, CamData.Rotation.Z);
-
-		// UIManager의 카메라 회전 상태도 동기화
-		UI.UpdateMouseRotation(CamData.Rotation.Y, CamData.Rotation.Z);
-
-        // 프로젝션 파라미터
-        Cam->SetFOV(CamData.FOV);
-        Cam->SetClipPlanes(CamData.NearClip, CamData.FarClip);
-
-		// UI 위젯에 현재 카메라 상태로 재동기화 요청
-		UI.SyncCameraControlFromCamera();
-    }
-
-	// 1) 현재 월드에서 이미 사용 중인 UUID 수집(엔진 액터 + 기즈모)
-	std::unordered_set<uint32> UsedUUIDs;
-	auto AddUUID = [&](AActor* A) { if (A) UsedUUIDs.insert(A->UUID); };
-	for (AActor* Eng : EditorActors) 
-	{
-		AddUUID(Eng);
-	}
-	AddUUID(GizmoActor); // Gizmo는 EngineActors에 안 들어갈 수 있으므로 명시 추가
-
-	uint32 MaxAssignedUUID = 0;
-	// 벌크 삽입을 위해 액터들을 먼저 모두 생성
-	TArray<AActor*> SpawnedActors;
-	SpawnedActors.reserve(Primitives.size());
-
-	for (const FPrimitiveData& Primitive : Primitives)
-	{
-		// 스폰 시 필요한 초기 트랜스포은 그대로 넘김
-		AStaticMeshActor* StaticMeshActor = SpawnActor<AStaticMeshActor>(
-			FTransform(Primitive.Location,
-				SceneRotUtil::QuatFromEulerZYX_Deg(Primitive.Rotation),
-				Primitive.Scale));
-
-		// 스폰 시점에 자동 발급된 고유 UUID (충돌 시 폴백으로 사용)
-		uint32 Assigned = StaticMeshActor->UUID;
-
-		// 우선 스폰된 UUID를 사용 중으로 등록
-		UsedUUIDs.insert(Assigned);
-
-		// 2) 파일의 UUID를 우선 적용하되, 충돌이면 스폰된 UUID 유지
-		if (Primitive.UUID != 0)
-		{
-			if (UsedUUIDs.find(Primitive.UUID) == UsedUUIDs.end())
-			{
-				// 스폰된 ID 등록 해제 후 교체
-				UsedUUIDs.erase(Assigned);
-				StaticMeshActor->UUID = Primitive.UUID;
-				Assigned = Primitive.UUID;
-				UsedUUIDs.insert(Assigned);
-			}
-			else
-			{
-				// 충돌: 파일 UUID 사용 불가 → 경고 로그 및 스폰된 고유 UUID 유지
-				UE_LOG("LoadScene: UUID collision detected (%u). Keeping generated %u for actor.",
-					Primitive.UUID, Assigned);
-			}
-		}
-
-		MaxAssignedUUID = std::max(MaxAssignedUUID, Assigned);
-
-		if (UStaticMeshComponent* SMC = StaticMeshActor->GetStaticMeshComponent())
-		{
-			FPrimitiveData Temp = Primitive;
-			SMC->Serialize(true, Temp);
-
-			FString LoadedAssetPath;
-			if (UStaticMesh* Mesh = SMC->GetStaticMesh())
-			{
-				LoadedAssetPath = Mesh->GetAssetPathFileName();
-			}
-
-			if (LoadedAssetPath == "Data/Sphere.obj")
-			{
-				StaticMeshActor->SetCollisionComponent(EPrimitiveType::Sphere);
-			}
-			else
-			{
-				StaticMeshActor->SetCollisionComponent();
-			}
-
-			FString BaseName = "StaticMesh";
-			if (!LoadedAssetPath.empty())
-			{
-				BaseName = RemoveObjExtension(LoadedAssetPath);
-			}
-			StaticMeshActor->SetName(GenerateUniqueActorName(BaseName));
-		}
-		// 벌크 삽입을 위해 목록에 추가
-		SpawnedActors.push_back(StaticMeshActor);
-	}
-	
-	// 모든 액터를 한 번에 벌크 등록 하여 성능 최적화
-	if (!SpawnedActors.empty())
-	{
-		UE_LOG("LoadScene: Using bulk registration for %zu actors\r\n", SpawnedActors.size());
-		Partition->BulkRegister(SpawnedActors);
-	}
-
-	// 3) 최종 보정: 전역 카운터는 절대 하향 금지 + 현재 사용된 최대값 이후로 설정
-	const uint32 DuringLoadNext = UObject::PeekNextUUID();
-	const uint32 SafeNext = std::max({ DuringLoadNext, MaxAssignedUUID + 1, PreLoadNext });
-	UObject::SetNextUUID(SafeNext);
-}
-
-void UWorld::SaveScene(const FString& SceneName)
-{
-	TArray<FPrimitiveData> Primitives;
-
-    for (AActor* Actor : Actors)
-    {
-        if (AStaticMeshActor* MeshActor = Cast<AStaticMeshActor>(Actor))
+        for (AActor* Actor : Level->GetActors())
         {
-            FPrimitiveData Data;
-            Data.UUID = Actor->UUID;
-            Data.Type = "StaticMeshComp";
-            if (UStaticMeshComponent* SMC = MeshActor->GetStaticMeshComponent())
-            {
-                SMC->Serialize(false, Data); // 여기서 RotUtil 적용됨(상위 Serialize)
-            }
-            Primitives.push_back(Data);
+            ObjectFactory::DeleteObject(Actor);
         }
-        else
+        Level->Clear();
+    }
+    // Clear spatial indices
+    Partition->Clear();
+
+    Level = std::move(InLevel);
+
+    // Adopt actors: set world and register
+    if (Level)
+    {
+		Partition->BulkRegister(Level->GetActors());
+        for (AActor* A : Level->GetActors())
         {
-            FPrimitiveData Data;
-            Data.UUID = Actor->UUID;
-            Data.Type = "Actor";
-
-            if (UPrimitiveComponent* Prim = Cast<UPrimitiveComponent>(Actor->GetRootComponent()))
-            {
-                Prim->Serialize(false, Data); // 여기서 RotUtil 적용됨
-            }
-            else
-            {
-                // 루트가 Primitive가 아닐 때도 동일 규칙으로 저장
-                Data.Location = Actor->GetActorLocation();
-                Data.Rotation = SceneRotUtil::EulerZYX_Deg_FromQuat(Actor->GetActorRotation());
-                Data.Scale = Actor->GetActorScale();
-            }
-
-            Data.ObjStaticMeshAsset.clear();
-            Primitives.push_back(Data);
+            if (!A) continue;
+            A->SetWorld(this);
         }
     }
 
-    // 카메라 데이터 채우기
-    const FPerspectiveCameraData* CamPtr = nullptr;
-    FPerspectiveCameraData CamData;
-    if (MainCameraActor && MainCameraActor->GetCameraComponent())
-    {
-        UCameraComponent* Cam = MainCameraActor->GetCameraComponent();
+    // Clean any dangling selection references just in case
+    SELECTION.CleanupInvalidActors();
+}
 
-        CamData.Location = MainCameraActor->GetActorLocation();
-
-        // 내부 누적 각도로 저장: Pitch=Y, Yaw=Z, Roll=0
-        CamData.Rotation.X = 0.0f;
-        CamData.Rotation.Y = MainCameraActor->GetCameraPitch();
-        CamData.Rotation.Z = MainCameraActor->GetCameraYaw();
-
-        CamData.FOV = Cam->GetFOV();
-        CamData.NearClip = Cam->GetNearClip();
-        CamData.FarClip = Cam->GetFarClip();
-        CamPtr = &CamData;
-    }
-
-    // Scene 디렉터리에 저장
-    FSceneLoader::Save(Primitives, CamPtr, SceneName);
+void UWorld::AddActorToLevel(AActor* Actor)
+{
+	if (Level) Level->AddActor(Actor);
 }
 

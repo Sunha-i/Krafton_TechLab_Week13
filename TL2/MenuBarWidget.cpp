@@ -2,6 +2,7 @@
 #include "MenuBarWidget.h"
 #include "USlateManager.h"
 #include "ImGui/imgui.h"
+#include <EditorEngine.h>
 
 // 필요하다면 외부 free 함수 사용 가능 (동일 TU가 아닐 경우 extern 선언이 필요)
 // extern void LoadSplitterConfig(SSplitter* RootSplitter);
@@ -120,6 +121,32 @@ void UMenuBarWidget::RenderWidget()
             (WindowAction ? WindowAction : [this](auto a) { OnWindowMenuAction(a); })("reset_layout");
 
         ImGui::EndMenu();
+    }
+
+    // ===== PIE Controls (center-ish) =====
+    {
+        // Try to position roughly centered
+        float w = ImGui::GetWindowWidth();
+        float totalBtnW = 200.0f; // approx for two buttons and spacing
+        float startX = (w - totalBtnW) * 0.5f;
+        if (startX > 0.0f)
+        {
+            ImGui::SameLine(startX / ImGui::GetFontSize());
+        }
+#ifdef _EDITOR
+        extern UEditorEngine GEngine;
+        if (ImGui::Button("Start PIE"))
+        {
+            GEngine.StartPIE();
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("End PIE"))
+        {
+            GEngine.EndPIE();
+        }
+#else
+        ImGui::Text("PIE unavailable");
+#endif
     }
 
     // ===== Help =====

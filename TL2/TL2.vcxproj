@@ -161,6 +161,7 @@
   <ItemGroup>
     <ClCompile Include="ActorComponent.cpp" />
     <ClCompile Include="BVHierachy.cpp" />
+    <ClCompile Include="Level.cpp" />
     <ClCompile Include="MeshBVH.cpp" />
     <ClCompile Include="Occlusion.cpp" />
     <ClCompile Include="PipelineStateManager.cpp" />
@@ -336,6 +337,7 @@
   <ItemGroup>
     <ClInclude Include="ActorComponent.h" />
     <ClInclude Include="BVHierachy.h" />
+    <ClInclude Include="Level.h" />
     <ClInclude Include="MeshBVH.h" />
     <ClInclude Include="Occlusion.h" />
     <ClInclude Include="PipelineStateManager.h" />
