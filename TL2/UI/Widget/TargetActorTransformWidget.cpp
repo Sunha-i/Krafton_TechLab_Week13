@@ -13,6 +13,7 @@
 #include "ResourceManager.h"    
 #include "TextRenderComponent.h"
 #include "CameraComponent.h"
+#include "BillboardComponent.h"
 using namespace std;
 
 //// UE_LOG 대체 매크로
@@ -67,8 +68,12 @@ namespace
 		static TArray<FAddableComponentDescriptor> Options = []()
 			{
 				TArray<FAddableComponentDescriptor> Result;
-				Result.push_back({ "Static Mesh Component", UStaticMeshComponent::StaticClass(), "Static mesh 컴포넌트" });
-				Result.push_back({ "Text Render Component", UTextRenderComponent::StaticClass(), "빌보드 텍스트 표시" });
+				Result.push_back({ "Static Mesh Component", UStaticMeshComponent::StaticClass(), "Static mesh 렌더링용 컴포넌트" });
+				Result.push_back({ "Camera Component", UCameraComponent::StaticClass(), "카메라 뷰/프로젝션 제공" });
+				Result.push_back({ "Text Render Component", UTextRenderComponent::StaticClass(), "텍스트 표시" });
+				Result.push_back({ "Line Component", ULineComponent::StaticClass(), "라인/디버그 드로잉" });
+				Result.push_back({ "AABB Component", UAABoundingBoxComponent::StaticClass(), "바운딩 박스 시각화" });
+				Result.push_back({ "Billboard Component", UBillboardComponent::StaticClass(), "빌보드 텍스쳐 표시" });
 				return Result;
 			}();
 		return Options;
@@ -753,6 +758,39 @@ void UTargetActorTransformWidget::RenderWidget()
 
 		ImGui::Spacing();
 		ImGui::Separator();
+
+		// BillboardComponent 전용 텍스처 선택 드롭다운
+		if (USceneComponent* EditingCompBB = GetEditingComponent())
+		{
+			if (UBillboardComponent* Billboard = Cast<UBillboardComponent>(EditingCompBB))
+			{
+				ImGui::Text("Billboard Texture");
+			
+				int currentIdx = -1;
+				if (UMaterial* M = Billboard->GetMaterial())
+				{
+					const FString& cur = M->GetTextName();
+					for (int i = 0; i < 3; ++i)
+					{
+						const FString item = kDisplayItems[i];
+						if (cur.size() >= item.size() && cur.compare(cur.size() - item.size(), item.size(), item) == 0)
+						{
+							currentIdx = i;
+							break;
+						}
+					}
+				}
+				ImGui::SetNextItemWidth(240);
+				if (ImGui::Combo("Texture", &currentIdx, kDisplayItems, 3))
+				{
+					if (currentIdx >= 0 && currentIdx < 3)
+					{
+						Billboard->SetTexture(kFullPaths[currentIdx]);
+					}
+				}
+				ImGui::Separator();
+			}
+		}
 
 		// Actor가 AStaticMeshActor인 경우 StaticMesh 변경 UI
 		if (UStaticMeshComponent* TargetSMC = GetEditingStaticMeshComponent())
