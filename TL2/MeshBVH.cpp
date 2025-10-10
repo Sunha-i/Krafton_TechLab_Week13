@@ -279,7 +279,7 @@ int FMeshBVH::BuildRecursive(uint32 Start, uint32 Count, const TArray<FNormalVer
 	// -------------------------------
 	// 분할 축 선택 (가장 긴 축)
 	// -------------------------------
-	FVector Extent = Node.Bounds.GetExtent();
+	FVector Extent = Node.Bounds.GetHalfExtent();
 	EAxis Axis = EAxis::X;
 
 	if (Extent.Y > Extent.X && Extent.Y >= Extent.Z)
