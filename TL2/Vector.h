@@ -907,7 +907,7 @@ inline FMatrix FQuat::ToMatrix() const
         2.0f * (XY + WZ), 1.0f - 2.0f * (XX + ZZ), 2.0f * (YZ - WX), 0.0f,
         2.0f * (XZ - WY), 2.0f * (YZ + WX), 1.0f - 2.0f * (XX + YY), 0.0f,
         0.0f, 0.0f, 0.0f, 1.0f
-    );
+    ).Transpose();
 }
 
 // Row-major + 행벡터(p' = p * M), Left-Handed: forward = +Z
