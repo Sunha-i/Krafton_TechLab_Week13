@@ -63,6 +63,15 @@ static inline float ClampPitch(float P)
     return std::clamp(P, -89.9f, 89.9f);
 }
 
+/**
+ * @brief 입력받은 오일러 각도(Roll, Pitch, Yaw)로 액터의 회전을 설정합니다.
+ */
+void ACameraActor::SetRotationFromEulerAngles(FVector InEulerAngles)
+{
+    // Roll은 사용하지 않으므로 Pitch, Yaw만 추출하여 설정합니다.
+    SetAnglesImmediate(InEulerAngles.Y, InEulerAngles.Z);
+}
+
 void ACameraActor::SetAnglesImmediate(float InPitchDeg, float InYawDeg)
 {
     // 내부 상태 갱신

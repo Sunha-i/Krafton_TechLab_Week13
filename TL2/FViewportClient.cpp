@@ -42,9 +42,6 @@ void FViewportClient::Draw(FViewport* Viewport)
     case EViewportType::Perspective:
     {
         Camera->GetCameraComponent()->SetProjectionMode(ECameraProjectionMode::Perspective);
-        PerspectiveCameraPosition = Camera->GetActorLocation();
-        PerspectiveCameraRotation = Camera->GetActorRotation();
-        PerspectiveCameraFov = Camera->GetCameraComponent()->GetFOV();
         break;
     }
     default: // 모든 Orthographic 케이스
@@ -73,7 +70,7 @@ void FViewportClient::SetupCameraMode()
     case EViewportType::Perspective:
 
         Camera->SetActorLocation(PerspectiveCameraPosition);
-        Camera->SetActorRotation(PerspectiveCameraRotation);
+        Camera->SetRotationFromEulerAngles(PerspectiveCameraRotation);
         Camera->GetCameraComponent()->SetFOV(PerspectiveCameraFov);
         Camera->GetCameraComponent()->SetClipPlanes(0.1f, 1000.0f);
         break;

@@ -280,7 +280,7 @@ void USceneIOWidget::LoadLevel(const FString& InFilePath)
 		{
 			FPerspectiveCameraData& CamData = Loaded.Camera;
 			CamActor->SetActorLocation(CamData.Location);
-			CamActor->SetActorRotation(FQuat::MakeFromEuler(CamData.Rotation));
+			CamActor->SetRotationFromEulerAngles(CamData.Rotation);
 			if (auto* CamComp = CamActor->GetCameraComponent())
 			{
 				CamComp->SetFOV(CamData.FOV);
