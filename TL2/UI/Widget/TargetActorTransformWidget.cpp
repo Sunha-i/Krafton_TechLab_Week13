@@ -78,7 +78,7 @@ namespace
 		return Options;
 	}
 
-	bool TryAttachComponentToActor(AActor& Actor, UClass* ComponentClass)
+	bool TryAttachComponentToActor(AActor& Actor, UClass* ComponentClass, USceneComponent*& SelectedComponent)
 	{
 		if (!ComponentClass || !ComponentClass->IsChildOf(UActorComponent::StaticClass()))
 			return false;
@@ -114,6 +114,8 @@ namespace
 
 				SceneComp->SetupAttachment(Root, EAttachmentRule::KeepRelative);
 			}
+
+			SelectedComponent = SceneComp;
 		}
 
 		// AddOwnedComponent 경유 (Register/Initialize 포함)
@@ -160,7 +162,8 @@ namespace
 
 		ImGuiTreeNodeFlags NodeFlags =
 			ImGuiTreeNodeFlags_OpenOnArrow |
-			ImGuiTreeNodeFlags_SpanAvailWidth;
+			ImGuiTreeNodeFlags_SpanAvailWidth |
+			ImGuiTreeNodeFlags_DefaultOpen;
 
 		if (!bHasChildren)
 		{
@@ -414,7 +417,7 @@ void UTargetActorTransformWidget::RenderHeader()
 			ImGui::PushID(Descriptor.Label);
 			if (ImGui::Selectable(Descriptor.Label))
 			{
-				if (TryAttachComponentToActor(*SelectedActor, Descriptor.Class))
+				if (TryAttachComponentToActor(*SelectedActor, Descriptor.Class, SelectedComponent))
 				{
 					ImGui::CloseCurrentPopup();
 				}
@@ -503,7 +506,18 @@ void UTargetActorTransformWidget::RenderComponentHierarchy()
 	// 컴포넌트 삭제 실행
 	if (ComponentPendingRemoval)
 	{
-		if (SelectedComponent == ComponentPendingRemoval) SelectedComponent = nullptr;
+		if (SelectedComponent == ComponentPendingRemoval) 
+			SelectedComponent = nullptr;
+
+		if (ComponentPendingRemoval->GetAttachParent())
+		{
+			SelectedComponent = ComponentPendingRemoval->GetAttachParent();
+		}
+		else
+		{
+			SelectedComponent = ComponentPendingRemoval->GetOwner()->RootComponent;
+		}
+
 		SelectedActor->RemoveOwnedComponent(ComponentPendingRemoval);
 		ComponentPendingRemoval = nullptr;
 	}
