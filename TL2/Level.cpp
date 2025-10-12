@@ -66,14 +66,14 @@ FLoadedLevel ULevelService::LoadLevel(const FString& SceneName)
                 LoadedAssetPath = Mesh->GetAssetPathFileName();
             }
 
-            if (LoadedAssetPath == "Data/Sphere.obj")
-            {
-                StaticMeshActor->SetCollisionComponent(EPrimitiveType::Sphere);
-            }
-            else
-            {
-                StaticMeshActor->SetCollisionComponent();
-            }
+            //if (LoadedAssetPath == "Data/Sphere.obj")
+            //{
+            //    StaticMeshActor->SetCollisionComponent(EPrimitiveType::Sphere);
+            //}
+            //else
+            //{
+            //    StaticMeshActor->SetCollisionComponent();
+            //}
 
             FString BaseName = "StaticMesh";
             if (!LoadedAssetPath.empty())
