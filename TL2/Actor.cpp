@@ -1,4 +1,4 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "Actor.h"
 #include "SceneComponent.h"
 #include "ObjectFactory.h"
@@ -87,8 +87,11 @@ void AActor::SetRootComponent(USceneComponent* InRoot)
 		return;
 	}
 
-	// 기존 루트가 있으면 Detach 처리 (필요 시)
+	// 루트 교체
+	USceneComponent* TempRootComponent = RootComponent;
 	RootComponent = InRoot;
+	RemoveOwnedComponent(TempRootComponent);
+
 	if (RootComponent)
 	{
 		RootComponent->SetOwner(this);
@@ -466,6 +469,10 @@ void AActor::Serialize(const bool bInIsLoading, JSON& InOutHandle)
 			uint32 RootUUID;
 			FJsonSerializer::ReadUint32(InOutHandle, "RootComponentId", RootUUID);
 
+			FString NameStrTemp;
+			FJsonSerializer::ReadString(InOutHandle, "Name", NameStrTemp);
+			SetName(NameStrTemp);
+
 			JSON ComponentsJson;
 			if (FJsonSerializer::ReadArray(InOutHandle, "OwnedComponents", ComponentsJson))
 			{
@@ -485,7 +492,7 @@ void AActor::Serialize(const bool bInIsLoading, JSON& InOutHandle)
 					if (RootUUID == NewComponent->GetSceneId())
 					{
 						USceneComponent* RootComponentTemp = Cast<USceneComponent>(NewComponent);
-						assert(RootComponent);
+						assert(RootComponentTemp);
 						SetRootComponent(RootComponentTemp);
 					}
 
@@ -508,6 +515,7 @@ void AActor::Serialize(const bool bInIsLoading, JSON& InOutHandle)
 				Components.append(ComponentJson);
 			}
 			InOutHandle["OwnedComponents"] = Components;
+			InOutHandle["Name"] = GetName().ToString();
 		}
 	}
 }

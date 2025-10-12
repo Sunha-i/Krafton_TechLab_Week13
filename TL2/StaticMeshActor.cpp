@@ -63,3 +63,10 @@ void AStaticMeshActor::DuplicateSubObjects()
         }
     }
 }
+
+void AStaticMeshActor::Serialize(const bool bInIsLoading, JSON& InOutHandle)
+{
+    Super::Serialize(bInIsLoading, InOutHandle);
+
+    StaticMeshComponent = Cast<UStaticMeshComponent>(RootComponent);
+}

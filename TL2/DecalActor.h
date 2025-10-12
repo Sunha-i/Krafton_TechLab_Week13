@@ -20,6 +20,8 @@ public:
     void DuplicateSubObjects() override;
     DECLARE_DUPLICATE(ADecalActor)
 
+    // Serialize
+    void Serialize(const bool bInIsLoading, JSON& InOutHandle) override;
 protected:
     //UBillboardComponent* BillboardComp = nullptr;
     UDecalComponent* DecalComponent;

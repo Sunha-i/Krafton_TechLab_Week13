@@ -310,6 +310,10 @@ void USceneComponent::Serialize(const bool bInIsLoading, JSON& InOutHandle)
         RelativeRotation = FQuat::MakeFromEuler(EulerAngle);
         FJsonSerializer::ReadVector(InOutHandle, "Scale", RelativeScale, FVector::One());
 
+        // 해당 객체의 Transform을 위에서 읽은 값을 기반으로 변경 후, 자식에게 전파
+        UpdateRelativeTransform();
+        OnTransformUpdated();
+
         // 나중에 자식의 Serialize 호출될 때 부모인 이 객체를 찾기 위해 Map에 추가
         FJsonSerializer::ReadUint32(InOutHandle, "Id", SceneId);
         SceneIdMap.Add(SceneId, this);

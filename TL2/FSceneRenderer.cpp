@@ -247,7 +247,7 @@ void FSceneRenderer::RenderDecalPass()
 		// 임시로 PrimitiveComponent가 아닌 UStaticMeshComponent를 받도록 함
 		for (UStaticMeshComponent* SMC : IntersectedStaticMeshComponents)
 		{
-			if (!SMC || !SMC->GetOwner()->IsActorVisible())
+			if (!SMC || !SMC->GetOwner() || !SMC->GetOwner()->IsActorVisible())
 				continue; // Skip hidden actor's component
 			
 			FDecalStatManager::GetInstance().IncrementAffectedMeshCount();

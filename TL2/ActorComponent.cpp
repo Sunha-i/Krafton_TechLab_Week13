@@ -71,6 +71,7 @@ void UActorComponent::DestroyComponent()
     // 등록 중이면 우선 해제(EndPlay 포함)
     if (bRegistered) UnregisterComponent();
 
+    //DeleteObject(this);
     // Owner 참조 끊기
     //Owner = nullptr;
 }

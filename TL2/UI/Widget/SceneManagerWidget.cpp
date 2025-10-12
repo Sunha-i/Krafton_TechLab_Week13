@@ -47,15 +47,19 @@ void USceneManagerWidget::Update()
     
     // 액터 수 변화 감지만 수행 (최소한의 검사)
     static size_t LastActorCount = 0;
-    
+
     UWorld* World = GetCurrentWorld();
+    static ULevel* LastLevel = nullptr; // 레벨이 새로 로드됐는지 감지하기 위함.
+
     if (World)
     {
         size_t CurrentActorCount = World->GetActors().size();
-        if (CurrentActorCount != LastActorCount)
+        ULevel* CurrentLevel = World->GetLevel();
+        if (CurrentActorCount != LastActorCount || CurrentLevel != LastLevel)
         {
             RefreshActorTree();
             LastActorCount = CurrentActorCount;
+            LastLevel = CurrentLevel;
             return; // 새로고침 후 이번 프레임은 더 이상 처리하지 않음
         }
         

@@ -201,7 +201,23 @@ void ULevel::Serialize(const bool bInIsLoading, JSON& InOutHandle)
 
                 UWorld* World = UUIManager::GetInstance().GetWorld();
 
-                AActor* NewActor = World->SpawnActor(NewClass);
+                // 유효성 검사: Class가 유효하고 AActor를 상속했는지 확인
+                if (!NewClass || !NewClass->IsChildOf(AActor::StaticClass()))
+                {
+                    UE_LOG("SpawnActor failed: Invalid class provided.");
+                    return;
+                }
+
+                // ObjectFactory를 통해 UClass*로부터 객체 인스턴스 생성
+                AActor* NewActor = Cast<AActor>(ObjectFactory::NewObject(NewClass));
+                if (!NewActor)
+                {
+                    UE_LOG("SpawnActor failed: ObjectFactory could not create an instance of");
+                    return;
+                }
+
+                AddActor(NewActor);
+
                 if (NewActor)
                 {
                     NewActor->Serialize(bInIsLoading, ActorDataJson);
