@@ -810,33 +810,6 @@ struct alignas(16) FMatrix
 	static FMatrix OrthoLH_XForward(float Width, float Height, float Xn, float Xf);
 };
 
-//Without Last RC
-inline FVector operator*(const FVector& P, const FMatrix& M)
-{
-	FVector Result;
-
-	// 1. 동차 좌표(Homogeneous Coordinate)의 w 값을 계산합니다.
-	// 아핀 변환(이동, 회전, 스케일)만 있는 경우 이 값은 보통 1.0이 됩니다.
-	float w = P.X * M.M[0][3] + P.Y * M.M[1][3] + P.Z * M.M[2][3] + M.M[3][3];
-
-	// 2. x, y, z 좌표를 계산합니다.
-	// 기존 연산에 이동(Translation) 부분을 더해줍니다 (M[3][0], M[3][1], M[3][2]).
-	Result.X = P.X * M.M[0][0] + P.Y * M.M[1][0] + P.Z * M.M[2][0] + M.M[3][0];
-	Result.Y = P.X * M.M[0][1] + P.Y * M.M[1][1] + P.Z * M.M[2][1] + M.M[3][1];
-	Result.Z = P.X * M.M[0][2] + P.Y * M.M[1][2] + P.Z * M.M[2][2] + M.M[3][2];
-
-	// 3. 원근 나눗셈(Perspective Divide)을 수행합니다.
-	// w가 0에 가까운 매우 작은 값이 아닐 때만 나눗셈을 수행하여 안정성을 확보합니다.
-	if (std::fabs(w) > KINDA_SMALL_NUMBER)
-	{
-		Result.X /= w;
-		Result.Y /= w;
-		Result.Z /= w;
-	}
-
-	return Result;
-}
-
 // ─────────────────────────────
 // 전역 연산자들
 // ─────────────────────────────
@@ -857,6 +830,35 @@ inline FVector4 operator*(const FVector4& V, const FMatrix& M)
 	result = _mm_add_ps(result, _mm_mul_ps(vW, M.Rows[3]));
 
 	return FVector4(result);
+}
+
+// P를 점으로 계산
+inline FVector operator*(const FVector& P, const FMatrix& M)
+{
+	// 1. FVector(x, y, z)를 동차 좌표계의 점 FVector4(x, y, z, 1.0)으로 확장합니다.
+	//    FromPoint 헬퍼 함수가 이 역할을 수행합니다.
+	const FVector4 Result4D = FVector4::FromPoint(P) * M;
+
+	// 2. 원근 나눗셈(Perspective Divide)을 수행합니다.
+	//    동차 좌표를 다시 3D 데카르트 좌표로 변환하기 위해 w로 나눕니다.
+	const float W = Result4D.W;
+
+	// w가 0에 매우 가까우면 나눗셈을 수행할 수 없으므로 안정성을 위해 확인합니다.
+	// 이런 경우는 보통 점이 투영 평면(카메라의 z=0)에 정확히 위치할 때 발생합니다.
+	if (std::fabs(W) > KINDA_SMALL_NUMBER)
+	{
+		// 나눗셈 대신 역수를 곱하는 것이 일반적으로 약간 더 빠릅니다.
+		const float InvW = 1.0f / W;
+		return FVector(
+			Result4D.X * InvW,
+			Result4D.Y * InvW,
+			Result4D.Z * InvW
+		);
+	}
+
+	// w가 0에 가까우면, 점이 무한대에 위치한 것으로 간주합니다.
+	// 나눗셈을 생략하고 결과를 반환하여 NaN/INF 값 생성을 방지합니다.
+	return FVector(Result4D.X, Result4D.Y, Result4D.Z);
 }
 
 // SIMD-accelerated matrix multiplication
