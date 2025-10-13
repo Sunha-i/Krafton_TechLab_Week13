@@ -1096,7 +1096,7 @@ inline FTransform FTransform::operator*(const FTransform& Other) const
 	FTransform Result;
 
 	// 회전 결합
-	Result.Rotation = Other.Rotation * Rotation;
+	Result.Rotation = Rotation * Other.Rotation;
 	Result.Rotation.Normalize();
 
 	// 스케일 결합 (component-wise)

@@ -36,17 +36,18 @@ AGizmoActor::AGizmoActor()
 	ArrowY->SetColor(FVector(0.0f, 1.0f, 0.0f));
 	ArrowZ->SetColor(FVector(0.0f, 0.0f, 1.0f));
 
-	ArrowX->SetupAttachment(RootComponent);
-	ArrowY->SetupAttachment(RootComponent);
-	ArrowZ->SetupAttachment(RootComponent);
+	ArrowX->SetupAttachment(RootComponent, EAttachmentRule::KeepRelative);
+	ArrowY->SetupAttachment(RootComponent, EAttachmentRule::KeepRelative);
+	ArrowZ->SetupAttachment(RootComponent, EAttachmentRule::KeepRelative);
 
 	ArrowX->SetDefaultScale({ 1.0f * GizmoTotalSize, 1.0f * GizmoTotalSize, 3.0f * GizmoTotalSize });
 	ArrowY->SetDefaultScale({ 1.0f * GizmoTotalSize, 1.0f * GizmoTotalSize, 3.0f * GizmoTotalSize });
 	ArrowZ->SetDefaultScale({ 1.0f * GizmoTotalSize, 1.0f * GizmoTotalSize, 3.0f * GizmoTotalSize });
 
-	if (ArrowX) ArrowX->SetRelativeRotation(FQuat::MakeFromEulerZYX(FVector(0, 0, 0)));
-	if (ArrowY) ArrowY->SetRelativeRotation(FQuat::MakeFromEulerZYX(FVector(0, 0, 90)));
-	if (ArrowZ) ArrowZ->SetRelativeRotation(FQuat::MakeFromEulerZYX(FVector(0, -90, 0)));
+	// NOTE: 화살표 Mesh가 아래 방향으로 보고 있어서 이렇게 처리
+	if (ArrowX) ArrowX->SetRelativeRotation(FQuat::MakeFromEulerZYX(FVector(0, -90, 0)));
+	if (ArrowY) ArrowY->SetRelativeRotation(FQuat::MakeFromEulerZYX(FVector(90, 0, 0)));
+	if (ArrowZ) ArrowZ->SetRelativeRotation(FQuat::MakeFromEulerZYX(FVector(0, 180, 0)));
 
 
 	AddOwnedComponent(ArrowX);
@@ -69,9 +70,9 @@ AGizmoActor::AGizmoActor()
 	RotateY->SetColor(FVector(0.0f, 1.0f, 0.0f));
 	RotateZ->SetColor(FVector(0.0f, 0.0f, 1.0f));
 
-	RotateX->SetupAttachment(RootComponent);
-	RotateY->SetupAttachment(RootComponent);
-	RotateZ->SetupAttachment(RootComponent);
+	RotateX->SetupAttachment(RootComponent, EAttachmentRule::KeepRelative);
+	RotateY->SetupAttachment(RootComponent, EAttachmentRule::KeepRelative);
+	RotateZ->SetupAttachment(RootComponent, EAttachmentRule::KeepRelative);
 
 	RotateX->SetDefaultScale({ 0.025f * GizmoTotalSize, 0.025f * GizmoTotalSize, 0.025f * GizmoTotalSize });
 	RotateY->SetDefaultScale({ 0.025f * GizmoTotalSize, 0.025f * GizmoTotalSize, 0.025f * GizmoTotalSize });
@@ -84,9 +85,9 @@ AGizmoActor::AGizmoActor()
 	GizmoRotateComponents.Add(RotateY);
 	GizmoRotateComponents.Add(RotateZ);
 
-	if (RotateX) RotateX->SetRelativeRotation(FQuat::MakeFromEulerZYX(FVector(0, 90, 0)));
-	if (RotateY) RotateY->SetRelativeRotation(FQuat::MakeFromEulerZYX(FVector(90, 0, 0)));
-	if (RotateZ) RotateZ->SetRelativeRotation(FQuat::MakeFromEulerZYX(FVector(0, 0, 0)));
+	if (RotateX) RotateX->SetRelativeRotation(FQuat::MakeFromEulerZYX(FVector(0, 0, 0)));
+	if (RotateY) RotateY->SetRelativeRotation(FQuat::MakeFromEulerZYX(FVector(0, 0, 90)));
+	if (RotateZ) RotateZ->SetRelativeRotation(FQuat::MakeFromEulerZYX(FVector(0, 90, 0)));
 
 	//======= Scale Component 생성 =======
 	ScaleX = NewObject<UGizmoScaleComponent>();
@@ -101,17 +102,17 @@ AGizmoActor::AGizmoActor()
 	ScaleY->SetColor(FVector(0.0f, 1.0f, 0.0f));
 	ScaleZ->SetColor(FVector(0.0f, 0.0f, 1.0f));
 
-	ScaleX->SetupAttachment(RootComponent);
-	ScaleY->SetupAttachment(RootComponent);
-	ScaleZ->SetupAttachment(RootComponent);
+	ScaleX->SetupAttachment(RootComponent, EAttachmentRule::KeepRelative);
+	ScaleY->SetupAttachment(RootComponent, EAttachmentRule::KeepRelative);
+	ScaleZ->SetupAttachment(RootComponent, EAttachmentRule::KeepRelative);
 
 	ScaleX->SetDefaultScale({ 0.025f * GizmoTotalSize, 0.025f * GizmoTotalSize, 0.025f * GizmoTotalSize });
 	ScaleY->SetDefaultScale({ 0.025f * GizmoTotalSize, 0.025f * GizmoTotalSize, 0.025f * GizmoTotalSize });
 	ScaleZ->SetDefaultScale({ 0.025f * GizmoTotalSize, 0.025f * GizmoTotalSize, 0.025f * GizmoTotalSize });
 
-	if (ScaleX) ScaleX->SetRelativeRotation(FQuat::MakeFromEulerZYX(FVector(0, 90, 0)));
-	if (ScaleY) ScaleY->SetRelativeRotation(FQuat::MakeFromEulerZYX(FVector(-90, 0, 0)));
-	if (ScaleZ) ScaleZ->SetRelativeRotation(FQuat::MakeFromEulerZYX(FVector(0, 0, 0)));
+	if (ScaleX) ScaleX->SetRelativeRotation(FQuat::MakeFromEulerZYX(FVector(0, 0, 0)));
+	if (ScaleY) ScaleY->SetRelativeRotation(FQuat::MakeFromEulerZYX(FVector(0, 0, 90)));
+	if (ScaleZ) ScaleZ->SetRelativeRotation(FQuat::MakeFromEulerZYX(FVector(0, -90, 0)));
 
 	AddOwnedComponent(ScaleX);
 	AddOwnedComponent(ScaleY);
@@ -179,39 +180,14 @@ void AGizmoActor::SetSpaceWorldMatrix(EGizmoSpace NewSpace, AActor* PickedActor)
 
 	if (NewSpace == EGizmoSpace::Local || CurrentMode == EGizmoMode::Scale)
 	{
-		// 타겟 액터 회전 가져오기
+		// [수정] 기즈모 액터 자체를 타겟의 회전으로 설정합니다.
 		FQuat TargetRot = PickedActor->GetActorRotation();
-
-		// ───────── Translate Gizmo ─────────
-	   // ArrowX->AddRelativeRotation(AC);
-		   // 월드 고정 → 기즈모 축은 항상 X/Y/Z
-		if (ArrowX) ArrowX->SetRelativeRotation(TargetRot * FQuat::MakeFromEulerZYX(FVector(0, 0, 0)));
-		if (ArrowY) ArrowY->SetRelativeRotation(TargetRot * FQuat::MakeFromEulerZYX(FVector(0, 0, 90)));
-		if (ArrowZ) ArrowZ->SetRelativeRotation(TargetRot * FQuat::MakeFromEulerZYX(FVector(0, -90, 0)));
-
-		if (ScaleX) ScaleX->SetRelativeRotation(TargetRot * FQuat::MakeFromEulerZYX(FVector(0, 90, 0)));
-		if (ScaleY) ScaleY->SetRelativeRotation(TargetRot * FQuat::MakeFromEulerZYX(FVector(-90, 0, 0)));
-		if (ScaleZ) ScaleZ->SetRelativeRotation(TargetRot * FQuat::MakeFromEulerZYX(FVector(0, 0, 0)));
-
-		if (RotateX) RotateX->SetRelativeRotation(TargetRot * FQuat::MakeFromEulerZYX(FVector(0, 90, 0)));
-		if (RotateY) RotateY->SetRelativeRotation(TargetRot * FQuat::MakeFromEulerZYX(FVector(90, 0, 0)));
-		if (RotateZ) RotateZ->SetRelativeRotation(TargetRot * FQuat::MakeFromEulerZYX(FVector(0, 0, 0)));
+		SetActorRotation(TargetRot);
 	}
 	else if (NewSpace == EGizmoSpace::World)
 	{
-		// 월드 고정 → 기즈모 축은 항상 X/Y/Z
-		   // 월드 고정 → 기즈모 축은 항상 X/Y/Z
-		if (ArrowX) ArrowX->SetRelativeRotation(FQuat::MakeFromEulerZYX(FVector(0, 0, 0)));
-		if (ArrowY) ArrowY->SetRelativeRotation(FQuat::MakeFromEulerZYX(FVector(0, 0, 90)));
-		if (ArrowZ) ArrowZ->SetRelativeRotation(FQuat::MakeFromEulerZYX(FVector(0, -90, 0)));
-
-		if (ScaleX) ScaleX->SetRelativeRotation(FQuat::MakeFromEulerZYX(FVector(0, 90, 0)));
-		if (ScaleY) ScaleY->SetRelativeRotation(FQuat::MakeFromEulerZYX(FVector(-90, 0, 0)));
-		if (ScaleZ) ScaleZ->SetRelativeRotation(FQuat::MakeFromEulerZYX(FVector(0, 0, 0)));
-
-		if (RotateX) RotateX->SetRelativeRotation(FQuat::MakeFromEulerZYX(FVector(0, 90, 0)));
-		if (RotateY) RotateY->SetRelativeRotation(FQuat::MakeFromEulerZYX(FVector(90, 0, 0)));
-		if (RotateZ) RotateZ->SetRelativeRotation(FQuat::MakeFromEulerZYX(FVector(0, 0, 0)));
+		// [수정] 기즈모 액터를 월드 축에 정렬 (단위 회전으로 설정)
+		SetActorRotation(FQuat::Identity());
 	}
 }
 
