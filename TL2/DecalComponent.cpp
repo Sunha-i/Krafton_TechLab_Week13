@@ -135,7 +135,7 @@ void UDecalComponent::RenderDebugVolume(URenderer* Renderer, const FMatrix& View
 	TArray<FVector> EndPoints;
 	TArray<FVector4> Colors;
 	
-	TArray<FVector> Coners = GetOBB().GetCorners();
+	TArray<FVector> Coners = GetWorldOBB().GetCorners();
 
 	const int Edges[12][2] = {
 		{6, 4}, {7, 5}, {6, 7}, {4, 5}, // 앞면
@@ -172,7 +172,7 @@ void UDecalComponent::SetDecalTexture(const FString& TexturePath)
 FAABB UDecalComponent::GetWorldAABB() const
 {
     // Step 1: Build the decal's oriented box so we can inspect its world-space corners.
-    const FOBB DecalOBB = GetOBB();
+    const FOBB DecalOBB = GetWorldOBB();
 
     // Step 2: Initialize min/max accumulators that will grow to the final axis-aligned bounds.
     FVector MinBounds(FLT_MAX, FLT_MAX, FLT_MAX);
@@ -209,7 +209,7 @@ FAABB UDecalComponent::GetWorldAABB() const
     return FAABB(MinBounds, MaxBounds);
 }
 
-FOBB UDecalComponent::GetOBB() const
+FOBB UDecalComponent::GetWorldOBB() const
 {
     const FVector Center = GetWorldLocation();
     const FVector HalfExtent = GetWorldScale() / 2.0f;
@@ -228,7 +228,7 @@ FOBB UDecalComponent::GetOBB() const
 
 FMatrix UDecalComponent::GetDecalProjectionMatrix() const
 {
-    const FOBB Obb = GetOBB();
+    const FOBB Obb = GetWorldOBB();
 
 	// yup to zup 행렬이 적용이 안되게 함: x방향 projection 행렬을 적용하기 위해.
 	const FMatrix DecalWorld = FMatrix::FromTRS(GetWorldLocation(), GetWorldRotation(), {1.0f, 1.0f, 1.0f});

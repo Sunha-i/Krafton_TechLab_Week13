@@ -1,11 +1,10 @@
 ﻿#pragma once
 
-#include <vector>
-
 struct Frustum;
 struct FRay; // forward declaration for ray type
 class UStaticMeshComponent;
 class AActor;
+struct FOBB;
 
 /**
  * @brief Broad phase BVH based on UStaticMeshComponent
@@ -35,6 +34,7 @@ public:
     void QueryRayClosest(const FRay& Ray, AActor*& OutActor, OUT float& OutBestT) const;
     void QueryFrustum(const Frustum& InFrustum);
     TArray<UStaticMeshComponent*> QueryIntersectedComponents(const FAABB& InBound) const;
+    TArray<UStaticMeshComponent*> QueryIntersectedComponents(const FOBB& InBound) const;
 
     void DebugDraw(URenderer* Renderer) const;
 

@@ -72,7 +72,7 @@ void UPerspectiveDecalComponent::RenderDebugVolume(URenderer* Renderer, const FM
 
 FMatrix UPerspectiveDecalComponent::GetDecalProjectionMatrix() const
 {
-	const FOBB Obb = GetOBB();
+	const FOBB Obb = GetWorldOBB();
 
 	FVector WorldScale = GetWorldScale();
 	FVector WorldLocation = GetWorldLocation();

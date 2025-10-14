@@ -1,15 +1,17 @@
 ﻿#include "pch.h"
-#include "BVHierarchy.h"
-#include "Actor.h"
-#include "AABoundingBoxComponent.h" // FBound helpers
-#include "Vector.h"
 #include <algorithm>
-#include "Frustum.h"
-#include "Picking.h" // FRay
 #include <cfloat>
 #include <cmath>
 #include <functional>
 #include <queue>
+#include "BVHierarchy.h"
+#include "Actor.h"
+#include "Collision.h"
+#include "Vector.h"
+#include "OBB.h"
+#include "Frustum.h"
+#include "Picking.h" // FRay
+
 #include "StaticMeshComponent.h"
 
 namespace {
@@ -191,6 +193,48 @@ TArray<UStaticMeshComponent*> FBVHierarchy::QueryIntersectedComponents(const FAA
                     const FAABB* Cached = StaticMeshComponentBounds.Find(Component);
                     const FAABB Box = Cached ? *Cached : Component->GetWorldAABB();
                     if (InBound.Intersects(Box))
+                    {
+                        IntersectedComponents.insert(Component);
+                    }
+                }
+            }
+            // 현재 노드가 leaf가 아닌 경우 -> child 있으면 search stack에 추가
+            else
+            {
+                if (Node.Left >= 0) IdxStack.push_back({ Node.Left });
+                if (Node.Right >= 0) IdxStack.push_back({ Node.Right });
+            }
+        }
+    }
+    return IntersectedComponents.Array();
+}
+
+TArray<UStaticMeshComponent*> FBVHierarchy::QueryIntersectedComponents(const FOBB& InBound) const
+{
+    TSet<UStaticMeshComponent*> IntersectedComponents;
+    if (Nodes.empty())
+        return TArray<UStaticMeshComponent*>();
+    TArray<int32> IdxStack;
+    IdxStack.push_back({ 0 }); // Index 0 is always root node (BuildLBVHFromMap 참고)
+
+    while (!IdxStack.empty())
+    {
+        int32 Idx = IdxStack.back();
+        IdxStack.pop_back();
+        const FLBVHNode& Node = Nodes[Idx];
+        if (Collision::Intersects(Node.Bounds, InBound))
+        {
+            // 현재 노드와 InBound가 겹쳤고 leaf인 경우 -> 각 액터 순회 돌면서 InBound와 겹치는지 검사
+            if (Node.IsLeaf())
+            {
+                for (int32 i = 0; i < Node.Count; ++i)
+                {
+                    UStaticMeshComponent* Component = StaticMeshComponentArray[Node.First + i];
+                    if (!Component || StaticMeshComponentBounds.find(Component) == StaticMeshComponentBounds.end())
+                        continue;
+                    const FAABB* Cached = StaticMeshComponentBounds.Find(Component);
+                    const FAABB Box = Cached ? *Cached : Component->GetWorldAABB();
+                    if (Collision::Intersects(Box, InBound))
                     {
                         IntersectedComponents.insert(Component);
                     }

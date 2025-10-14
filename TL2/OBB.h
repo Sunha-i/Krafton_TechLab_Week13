@@ -22,6 +22,4 @@ struct FOBB
 
     // Contain 연산을 위한 헬퍼 함수
     TArray<FVector> GetCorners() const;
-private:
-    
 };

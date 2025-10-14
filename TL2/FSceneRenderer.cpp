@@ -21,6 +21,7 @@
 #include "SelectionManager.h"
 #include "StaticMeshComponent.h"
 #include "DecalStatManager.h"
+#include "OBB.h"
 
 FSceneRenderer::FSceneRenderer(UWorld* InWorld, ACameraActor* InCamera, FViewport* InViewport, URenderer* InOwnerRenderer)
 	: World(InWorld)
@@ -240,8 +241,8 @@ void FSceneRenderer::RenderDecalPass()
 		TArray<UPrimitiveComponent*> TargetPrimitives;
 
 		// 1. Decal의 World AABB와 충돌한 모든 StaticMeshComponent 쿼리
-		const FAABB DecalAABB = Decal->GetWorldAABB();
-		TArray<UStaticMeshComponent*> IntersectedStaticMeshComponents = BVH->QueryIntersectedComponents(DecalAABB);
+		const FOBB DecalOBB = Decal->GetWorldOBB();
+		TArray<UStaticMeshComponent*> IntersectedStaticMeshComponents = BVH->QueryIntersectedComponents(DecalOBB);
 
 		// 2. 충돌한 모든 visible Actor의 PrimitiveComponent를 TargetPrimitives에 추가
 		// Actor에 기본으로 붙어있는 TextRenderComponent, BoundingBoxComponent는 decal 적용 안되게 하기 위해,

@@ -44,7 +44,7 @@ public:
 
 	// Decal Volume & Bounds API
 	FAABB GetWorldAABB() const;
-	FOBB GetOBB() const;
+	FOBB GetWorldOBB() const;
 
 	// Projection & UV Mapping API
 	virtual FMatrix GetDecalProjectionMatrix() const;   // NOTE: FakeSpotLight 를 위해서 가상 함수로 선언

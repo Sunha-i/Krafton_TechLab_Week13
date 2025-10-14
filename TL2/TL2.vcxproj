@@ -163,6 +163,7 @@
     <ClCompile Include="ActorComponent.cpp" />
     <ClCompile Include="BillboardComponent.cpp" />
     <ClCompile Include="BVHierarchy.cpp" />
+    <ClCompile Include="Collision.cpp" />
     <ClCompile Include="DecalActor.cpp" />
     <ClCompile Include="DecalComponent.cpp" />
     <ClCompile Include="FakeSpotLightActor.cpp" />
@@ -362,6 +363,7 @@
   <ItemGroup>
     <ClInclude Include="AABB.h" />
     <ClInclude Include="ActorComponent.h" />
+    <ClInclude Include="Collision.h" />
     <ClInclude Include="DecalActor.h" />
     <ClInclude Include="BillboardComponent.h" />
     <ClInclude Include="BVHierarchy.h" />
