@@ -863,6 +863,31 @@ struct alignas(16) FMatrix
 		
 		return invProj;
 	}
+
+	FMatrix InverseOrthographicProjection() const
+	{
+		// Orthographic projection matrix structure:
+	// [2/W,   0,    0,   0]
+	// [0,   2/H,    0,   0]
+	// [0,     0, 1/DZ,   0]
+	// [0, -Zn/DZ,   0,   1]
+	// Inverse:
+	// [W/2,   0,    0,   0]
+	// [0,   H/2,    0,   0]
+	// [0,     0,  DZ,   0]
+	// [0, Zn,      0,   1]
+		float W = 2.0f / (M[0][0] != 0.0f ? M[0][0] : 1e-6f);
+		float H = 2.0f / (M[1][1] != 0.0f ? M[1][1] : 1e-6f);
+		float DZ = 1.0f / (M[2][2] != 0.0f ? M[2][2] : 1e-6f);
+		float Zn = -M[3][2] * DZ;
+
+		FMatrix inv{};
+		inv.Rows[0] = _mm_set_ps(0.0f, 0.0f, 0.0f, W * 0.5f);
+		inv.Rows[1] = _mm_set_ps(0.0f, 0.0f, H * 0.5f, 0.0f);
+		inv.Rows[2] = _mm_set_ps(0.0f, DZ, 0.0f, 0.0f);
+		inv.Rows[3] = _mm_set_ps(1.0f, Zn, 0.0f, 0.0f);
+		return inv;
+	}
 };
 
 // ─────────────────────────────

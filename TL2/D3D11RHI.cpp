@@ -23,7 +23,8 @@ struct PostProcessBufferType // b0
 {
     float Near;
     float Far;
-    float Padding[2]; // 16바이트 정렬을 위한 패딩
+    int IsOrthographic; // 0 = Perspective, 1 = Orthographic
+    float Padding; // 16바이트 정렬을 위한 패딩
 };
 
 static_assert(sizeof(PostProcessBufferType) % 16 == 0, "PostProcessBufferType size must be multiple of 16!");
@@ -489,7 +490,7 @@ void D3D11RHI::UpdateColorConstantBuffers(const FVector4& InColor)
 }
 
 // D3D11RHI.cpp에 구현 추가
-void D3D11RHI::UpdatePostProcessCB(float Near, float Far)
+void D3D11RHI::UpdatePostProcessCB(float Near, float Far, bool IsOrthographic)
 {
     if (!PostProcessCB) return;
 
@@ -499,6 +500,7 @@ void D3D11RHI::UpdatePostProcessCB(float Near, float Far)
         auto* dataPtr = reinterpret_cast<PostProcessBufferType*>(mapped.pData);
         dataPtr->Near = Near;
         dataPtr->Far = Far;
+        dataPtr->IsOrthographic = IsOrthographic;
         DeviceContext->Unmap(PostProcessCB, 0);
         DeviceContext->PSSetConstantBuffers(0, 1, &PostProcessCB);
     }

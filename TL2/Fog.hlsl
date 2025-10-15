@@ -139,7 +139,7 @@ float4 mainPS(PS_INPUT input) : SV_TARGET
     
     float oy = cameraWorldPos.z;
     float dy = rayDir.z;
-
+    
     float baseExp = exp(-FogHeightFalloff * (oy - FogHeight));
 
     float FogIntegral = 0.0;

@@ -67,7 +67,7 @@ public:
 	void UpdateFireBallConstantBuffers(const FVector& Center, float Radius, float Intensity, float Falloff, const FLinearColor& Color);
 
 	// D3D11RHI.h에 선언 추가
-	void UpdatePostProcessCB(float Near, float Far);
+	void UpdatePostProcessCB(float Near, float Far, bool IsOrthographic);
 	void UpdateInvViewProjCB(const FMatrix& InvView, const FMatrix& InvProj);
 	void UpdateFogCB(float FogDensity, float FogHeightFalloff, float StartDistance,
 		float FogCutoffDistance, const FVector4& FogInscatteringColor,

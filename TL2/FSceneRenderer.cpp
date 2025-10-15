@@ -208,6 +208,8 @@ void FSceneRenderer::PrepareView()
 	//RHIDevice->OnResize(Viewport->GetSizeX(), Viewport->GetSizeY());
 	float ClearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
 	RHIDevice->GetDeviceContext()->ClearRenderTargetView(RHIDevice->GetSceneRTV(), ClearColor);
+
+	RHIDevice->ClearDepthBuffer(1.0f, 0);                 // 깊이값 초기화
 }
 
 void FSceneRenderer::GatherVisibleProxies()
@@ -539,9 +541,18 @@ void FSceneRenderer::RenderPostProcessingPasses()
 	RHIDevice->GetDeviceContext()->PSSetSamplers(0, 2, Samplers);
 
 	// 상수 버퍼 업데이트
-	RHIDevice->UpdatePostProcessCB(ZNear, ZFar);
+	ECameraProjectionMode ProjectionMode = Camera->GetCameraComponent()->GetProjectionMode();
+	RHIDevice->UpdatePostProcessCB(ZNear, ZFar, ProjectionMode == ECameraProjectionMode::Orthographic);
 	FMatrix InvView = ViewMatrix.InverseAffine();
-	FMatrix InvProjection = ProjectionMatrix.InversePerspectiveProjection();
+	FMatrix InvProjection;
+	if(ProjectionMode == ECameraProjectionMode::Perspective)
+	{
+		InvProjection = ProjectionMatrix.InversePerspectiveProjection();
+	}
+	else
+	{
+		InvProjection = ProjectionMatrix.InverseOrthographicProjection();
+	}
 	RHIDevice->UpdateInvViewProjCB(InvView, InvProjection);
 	UHeightFogComponent* F = FogComponent;
 	RHIDevice->UpdateFogCB(F->GetFogDensity(), F->GetFogHeightFalloff(), F->GetStartDistance(), F->GetFogCutoffDistance(), F->GetFogInscatteringColor()->ToFVector4(), F->GetFogMaxOpacity(), F->GetFogHeight());
@@ -628,7 +639,8 @@ void FSceneRenderer::RenderSceneDepthPostProcess()
     RHIDevice->GetDeviceContext()->PSSetSamplers(1, 1, &SamplerState); 
 
     // 상수 버퍼 업데이트
-    RHIDevice->UpdatePostProcessCB(ZNear, ZFar);
+	ECameraProjectionMode ProjectionMode = Camera->GetCameraComponent()->GetProjectionMode();
+	RHIDevice->UpdatePostProcessCB(ZNear, ZFar, ProjectionMode == ECameraProjectionMode::Orthographic);
 
     // Draw
     RHIDevice->GetDeviceContext()->DrawIndexed(IndexCount, 0, 0);
@@ -802,7 +814,8 @@ void FSceneRenderer::ApplyScreenEffectsPass()
 	RHIDevice->GetDeviceContext()->PSSetSamplers(1, 1, &SamplerState);
 
 	// 상수 버퍼 업데이트
-	RHIDevice->UpdatePostProcessCB(ZNear, ZFar);
+	ECameraProjectionMode ProjectionMode = Camera->GetCameraComponent()->GetProjectionMode();
+	RHIDevice->UpdatePostProcessCB(ZNear, ZFar, ProjectionMode == ECameraProjectionMode::Orthographic);
 
 	// Draw
 	RHIDevice->GetDeviceContext()->DrawIndexed(IndexCount, 0, 0);
