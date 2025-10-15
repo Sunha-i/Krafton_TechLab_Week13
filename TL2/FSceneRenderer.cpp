@@ -181,6 +181,8 @@ bool FSceneRenderer::IsValid() const
 
 void FSceneRenderer::PrepareView()
 {
+	RHIDevice->RSSetViewport();
+
 	float ViewportAspectRatio = static_cast<float>(Viewport->GetSizeX()) / static_cast<float>(Viewport->GetSizeY());
 	if (Viewport->GetSizeY() == 0) ViewportAspectRatio = 1.0f;
 
@@ -199,6 +201,8 @@ void FSceneRenderer::PrepareView()
 
 	EffectiveViewMode = World->GetRenderSettings().GetViewModeIndex();
 
+	
+	//RHIDevice->OnResize(Viewport->GetSizeX(), Viewport->GetSizeY());
 	float ClearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
 	RHIDevice->GetDeviceContext()->ClearRenderTargetView(RHIDevice->GetSceneRTV(), ClearColor);
 }
