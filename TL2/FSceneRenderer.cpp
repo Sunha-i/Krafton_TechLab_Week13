@@ -54,22 +54,22 @@ void FSceneRenderer::Render()
 	// 2. 렌더링할 대상 수집 (Cull + Gather)
 	GatherVisibleProxies();
 
-	if(EffectiveViewMode == EViewModeIndex::VMI_Lit)
+	if (EffectiveViewMode == EViewModeIndex::VMI_Lit)
 	{
 		RenderLitPath();
 	}
-	else if(EffectiveViewMode == EViewModeIndex::VMI_Wireframe)
+	else if (EffectiveViewMode == EViewModeIndex::VMI_Wireframe)
 	{
 		RenderWireframePath();
 	}
-	else if(EffectiveViewMode == EViewModeIndex::VMI_SceneDepth)
+	else if (EffectiveViewMode == EViewModeIndex::VMI_SceneDepth)
 	{
 		RenderSceneDepthPath();
 	}
 
-    // 3. 공통 오버레이(Overlay) 렌더링
-    RenderEditorPrimitivesPass();	// 기즈모, 그리드 출력
-    RenderDebugPass();	// 빌보드나 선택한 물체의 경계 출력
+	// 3. 공통 오버레이(Overlay) 렌더링
+	RenderEditorPrimitivesPass();	// 기즈모, 그리드 출력
+	RenderDebugPass();	// 빌보드나 선택한 물체의 경계 출력
 
 	// --- 렌더링 종료 ---
 	FinalizeFrame();
@@ -86,20 +86,21 @@ void FSceneRenderer::RenderLitPath()
 	RenderOpaquePass();
 	RenderDecalPass();
 
-	// 이곳에서 Post 프로세싱 처리
+	// 후처리 체인 실행
+	RenderPostProcessingPasses();
 }
 
 void FSceneRenderer::RenderWireframePath()
 {
 	// 상태 변경: Wireframe으로 레스터라이즈 모드 설정하도록 설정
-    // RHI->RSSetState(EViewModeIndex::VMI_Wireframe);
+	// RHI->RSSetState(EViewModeIndex::VMI_Wireframe);
 
 	RenderOpaquePass();
 
 	// Wireframe은 Post 프로세싱 처리하지 않음
 
-    // 상태 복구: 원래의 Lit(Solid) 상태로 되돌림 (매우 중요!)
-    // RHI->RSSetState(EViewModeIndex::VMI_Lit);
+	// 상태 복구: 원래의 Lit(Solid) 상태로 되돌림 (매우 중요!)
+	// RHI->RSSetState(EViewModeIndex::VMI_Lit);
 }
 
 void FSceneRenderer::RenderSceneDepthPath()
@@ -108,7 +109,8 @@ void FSceneRenderer::RenderSceneDepthPath()
 	RenderOpaquePass();
 	RenderDecalPass();
 
-	// 이곳에서 SceneDepth Post 프로세싱 처리
+	// SceneDepth Post 프로세싱 처리
+	RenderSceneDepthPostProcess();
 }
 
 //====================================================================================
@@ -147,7 +149,7 @@ void FSceneRenderer::PrepareView()
 
 void FSceneRenderer::GatherVisibleProxies()
 {
-	
+
 	// NOTE: 일단 컴포넌트 단위와 데칼 관련 이슈 해결까지 컬링 무시
 	//// 2-1. 절두체 컬링 수행 -> 결과가 멤버 변수 PotentiallyVisibleActors에 저장됨
 	//PerformFrustumCulling();
@@ -302,7 +304,7 @@ void FSceneRenderer::RenderDecalPass()
 			AActor* Owner = SMC->GetOwner();
 			if (!Owner || !Owner->IsActorVisible())
 				continue;
-			
+
 			FDecalStatManager::GetInstance().IncrementAffectedMeshCount();
 			TargetPrimitives.push_back(SMC);
 		}
@@ -324,6 +326,85 @@ void FSceneRenderer::RenderDecalPass()
 
 	RHI->RSSetState(EViewModeIndex::VMI_Lit);
 	RHI->OMSetBlendState(false); // 상태 복구
+}
+
+void FSceneRenderer::RenderPostProcessingPasses()
+{
+	//// 1-1. 적용할 효과 목록을 구성합니다. (설정에 따라 동적으로 생성)
+	//std::vector<IPostProcessEffect*> effectChain;
+	//if (World->GetRenderSettings().IsFogEnabled())
+	//{
+	//	effectChain.push_back(&FogEffect);
+	//}
+	//if (World->GetRenderSettings().IsFXAAEnabled())
+	//{
+	//	effectChain.push_back(&FXAAEffect);
+	//}
+	//// ... 다른 효과들도 추가 ...
+
+	//// 1-2. 핑퐁에 사용할 렌더 타겟 2개를 가져옵니다.
+	//RenderTarget* PostProcessRT_A = OwnerRenderer->GetPostProcessRT_A();
+	//RenderTarget* PostProcessRT_B = OwnerRenderer->GetPostProcessRT_B();
+
+	//// 1-3. Base Pass의 결과물이 첫 번째 소스(Source)가 됩니다.
+	////     (Base Pass가 PostProcessRT_A에 그려졌다고 가정)
+	//RenderTarget* sourceRT = PostProcessRT_A;
+	//RenderTarget* destinationRT = PostProcessRT_B;
+
+	//// 1-4. [엣지 케이스] 적용할 효과가 없다면, 원본 이미지를 화면에 복사하고 종료합니다.
+	//if (effectChain.empty())
+	//{
+	//	RHI->CopyTexture(RHI->GetBackBuffer(), sourceRT->GetTexture());
+	//	return;
+	//}
+
+	//// 2. 후처리 체인을 순회하며 실행합니다.
+	//for (size_t i = 0; i < effectChain.size(); ++i)
+	//{
+	//	IPostProcessEffect* currentEffect = effectChain[i];
+
+	//	// 2-1. [핵심] 마지막 효과인지 판단하여 최종 목적지를 설정합니다.
+	//	if (i == effectChain.size() - 1)
+	//	{
+	//		// 마지막 효과는 최종 화면(Back Buffer)에 직접 그립니다.
+	//		RHI->SetRenderTarget(RHI->GetBackBufferRTV(), nullptr);
+	//	}
+	//	else
+	//	{
+	//		// 중간 과정은 임시 버퍼(destinationRT)에 그립니다.
+	//		RHI->SetRenderTarget(destinationRT->GetRTV(), nullptr);
+	//	}
+
+	//	// 2-2. 이전 단계의 결과물(sourceRT)을 입력 텍스처로 설정합니다.
+	//	RHI->SetShaderResource(0, sourceRT->GetSRV());
+
+	//	// 2-3. 현재 효과를 적용합니다. (내부적으로 FullScreenQuad를 그림)
+	//	currentEffect->Apply(RHI);
+
+	//	// 2-4. [핵심] 다음 단계를 위해 소스와 목적지의 역할을 맞바꿉니다.
+	//	std::swap(sourceRT, destinationRT);
+	//}
+}
+
+void FSceneRenderer::RenderSceneDepthPostProcess()
+{
+	// 이런식으로 코드 작성?
+
+	//// 1. 최종 목적지를 화면(Back Buffer)으로 설정.
+	////    깊이 버퍼는 더 이상 쓰거나 테스트하지 않으므로 nullptr로 설정.
+	//RHI->SetRenderTarget(RHI->GetBackBufferRTV(), nullptr);
+
+	//// 2. 뎁스 시각화 전용 셰이더를 파이프라인에 바인딩.
+	//RHI->SetVertexShader("FullScreenQuad.vs");
+	//RHI->SetPixelShader("SceneDepthVisualizer.ps");
+
+	//// 3. Opaque Pass에서 생성된 깊이 버퍼를 셰이더가 읽을 수 있도록
+	////    ShaderResourceView(SRV)로 변환하여 바인딩.
+	////    (RHI에 깊이 버퍼의 SRV를 가져오는 함수가 필요합니다.)
+	//RHI->SetShaderResource(0, RHI->GetDepthBufferSRV());
+
+	//// 4. 화면 전체를 덮는 사각형을 그림.
+	//RHI->DrawFullScreenQuad();
 }
 
 void FSceneRenderer::RenderEditorPrimitivesPass()

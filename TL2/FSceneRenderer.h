@@ -59,6 +59,9 @@ private:
 	/** @brief 데칼(Decal)을 렌더링하는 패스입니다. */
 	void RenderDecalPass();
 
+	void RenderPostProcessingPasses();
+	void RenderSceneDepthPostProcess();
+
 	/** @brief 그리드 등 에디터 전용 객체들을 렌더링하는 패스입니다. */
 	void RenderEditorPrimitivesPass();
 
