@@ -53,7 +53,6 @@ private:
     bool bPrimitives = true;
     bool bStaticMeshes = true;
     bool bDecals = true;
-    bool bWireframe = false;
     bool bBillboardText = false;
     bool bBoundingBoxes = false;
     bool bGrid = true;

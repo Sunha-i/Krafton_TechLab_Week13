@@ -17,7 +17,6 @@ void UShowFlagWidget::Initialize()
     // 기본값으로 초기화
     bPrimitives = true;
     bStaticMeshes = true; 
-    bWireframe = false;
     bBillboardText = false;
     bBoundingBoxes = false;
     bGrid = true;
@@ -70,7 +69,6 @@ void UShowFlagWidget::RenderWidget()
                 
                 RenderShowFlagCheckbox("Bounds", EEngineShowFlags::SF_BoundingBoxes, World);
                 ImGui::SameLine();
-                RenderShowFlagCheckbox("Wireframe", EEngineShowFlags::SF_Wireframe, World);
             }
             else
             {
@@ -111,7 +109,6 @@ void UShowFlagWidget::SyncWithWorld(UWorld* World)
     bPrimitives = World->GetRenderSettings().IsShowFlagEnabled(EEngineShowFlags::SF_Primitives);
     bStaticMeshes = World->GetRenderSettings().IsShowFlagEnabled(EEngineShowFlags::SF_StaticMeshes);
     bDecals = World->GetRenderSettings().IsShowFlagEnabled(EEngineShowFlags::SF_Decals);
-    bWireframe = World->GetRenderSettings().IsShowFlagEnabled(EEngineShowFlags::SF_Wireframe);
     bBillboardText = World->GetRenderSettings().IsShowFlagEnabled(EEngineShowFlags::SF_BillboardText);
     bBoundingBoxes = World->GetRenderSettings().IsShowFlagEnabled(EEngineShowFlags::SF_BoundingBoxes);
     bGrid = World->GetRenderSettings().IsShowFlagEnabled(EEngineShowFlags::SF_Grid);
@@ -160,10 +157,6 @@ void UShowFlagWidget::RenderShowFlagCheckbox(const char* Label, EEngineShowFlags
         case EEngineShowFlags::SF_StaticMeshes:
             ImGui::Text("Static Mesh 액터들 표시/숨김");
             ImGui::Text("일반적인 3D 메시 오브젝트들의 가시성을 제어합니다.");
-            break;
-        case EEngineShowFlags::SF_Wireframe:
-            ImGui::Text("와이어프레임 오버레이 표시/숨김");
-            ImGui::Text("3D 모델의 와이어프레임을 표시합니다.");
             break;
         case EEngineShowFlags::SF_BillboardText:
             ImGui::Text("오브젝트 위의 UUID 텍스트 표시/숨김");
@@ -216,7 +209,6 @@ bool bPrimitivesEnabled = World->GetRenderSettings().IsShowFlagEnabled(EEngineSh
         
         ImGui::Indent(15.0f);
         RenderShowFlagCheckbox("Static Meshes", EEngineShowFlags::SF_StaticMeshes, World);
-        RenderShowFlagCheckbox("Wireframe", EEngineShowFlags::SF_Wireframe, World);
         ImGui::Unindent(15.0f);
         
         if (!bPrimitivesEnabled)

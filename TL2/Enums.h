@@ -383,7 +383,6 @@ enum class EEngineShowFlags : uint64
     // Primitive rendering
     SF_Primitives = 1ull << 0,    // Show/hide all primitive geometry
     SF_StaticMeshes = 1ull << 1,  // Show/hide static mesh actors
-    SF_Wireframe = 1ull << 2,     // Show wireframe overlay
 
     // Debug features
     SF_BillboardText = 1ull << 3, // Show/hide UUID text above objects

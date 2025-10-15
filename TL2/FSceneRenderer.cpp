@@ -115,12 +115,16 @@ void FSceneRenderer::RenderWireframePath()
 	// 상태 변경: Wireframe으로 레스터라이즈 모드 설정하도록 설정
 	RHIDevice->RSSetState(ERasterizerMode::Wireframe);
 
-	RenderOpaquePass();
+	RHIDevice->OMSetRenderTargets(ERTVMode::Scene);
 
-	// Wireframe은 Post 프로세싱 처리하지 않음
+	RenderOpaquePass();
 
 	// 상태 복구: 원래의 Lit(Solid) 상태로 되돌림 (매우 중요!)
 	RHIDevice->RSSetState(ERasterizerMode::Solid);
+
+	// Wireframe은 Post 프로세싱 처리하지 않음
+	Blit(RHI_SRV_Index::Scene, ERTVMode::PostProcessDestination);
+	RHIDevice->SwapPostProcessTextures();
 }
 
 void FSceneRenderer::RenderSceneDepthPath()
@@ -194,10 +198,6 @@ void FSceneRenderer::PrepareView()
 	}
 
 	EffectiveViewMode = World->GetRenderSettings().GetViewModeIndex();
-	if (World->GetRenderSettings().IsShowFlagEnabled(EEngineShowFlags::SF_Wireframe))
-	{
-		EffectiveViewMode = EViewModeIndex::VMI_Wireframe;
-	}
 
 	float ClearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
 	RHIDevice->GetDeviceContext()->ClearRenderTargetView(RHIDevice->GetSceneRTV(), ClearColor);
