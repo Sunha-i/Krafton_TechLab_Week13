@@ -73,10 +73,13 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LibraryPath>ThirdParty\DirectXTK\Bin\$(Configuration)\;$(LibraryPath)</LibraryPath>
+    <OutDir>$(SolutionDir)Binaries\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)Intermediate\$(ProjectName)\$(Configuration)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <IntDir>$(Platform)\$(Configuration)\</IntDir>
+    <IntDir>$(SolutionDir)Intermediate\$(ProjectName)\$(Configuration)\</IntDir>
     <LibraryPath>ThirdParty\DirectXTK\Bin\$(Configuration)\;$(LibraryPath)</LibraryPath>
+    <OutDir>$(SolutionDir)Binaries\$(Configuration)\</OutDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -134,6 +137,17 @@
       <AdditionalDependencies>DirectXTK.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalOptions>/IGNORE:4099 %(AdditionalOptions)</AdditionalOptions>
     </Link>
+    <PreBuildEvent>
+      <Command>if "$(Configuration)"=="Release" (
+    robocopy "$(ProjectDir)Data" "$(OutDir)Data" /E /XO /MT:8 /NFL /NDL /NJH /NJS /nc /ns /np
+    robocopy "$(ProjectDir)Shaders" "$(OutDir)Shaders" /E /XO /MT:8 /NFL /NDL /NJH /NJS /nc /ns /np
+    robocopy "$(ProjectDir)ThirdParty\DirectXTK" "$(OutDir)ThirdParty\DirectXTK" /E /XO /MT:8 /NFL /NDL /NJH /NJS
+  /nc /ns /np
+    if exist "$(ProjectDir)editor.ini" xcopy /Y /D "$(ProjectDir)editor.ini" "$(OutDir)"
+    if exist "$(ProjectDir)imgui.ini" xcopy /Y /D "$(ProjectDir)imgui.ini" "$(OutDir)"
+    if %ERRORLEVEL% LEQ 7 exit 0
+  )</Command>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -158,6 +172,17 @@
       <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalOptions>/IGNORE:4099 %(AdditionalOptions)</AdditionalOptions>
     </Link>
+    <PreBuildEvent>
+      <Command>if "$(Configuration)"=="Release" (
+    robocopy "$(ProjectDir)Data" "$(OutDir)Data" /E /XO /MT:8 /NFL /NDL /NJH /NJS /nc /ns /np
+    robocopy "$(ProjectDir)Shaders" "$(OutDir)Shaders" /E /XO /MT:8 /NFL /NDL /NJH /NJS /nc /ns /np
+    robocopy "$(ProjectDir)ThirdParty\DirectXTK" "$(OutDir)ThirdParty\DirectXTK" /E /XO /MT:8 /NFL /NDL /NJH /NJS
+  /nc /ns /np
+    if exist "$(ProjectDir)editor.ini" xcopy /Y /D "$(ProjectDir)editor.ini" "$(OutDir)"
+    if exist "$(ProjectDir)imgui.ini" xcopy /Y /D "$(ProjectDir)imgui.ini" "$(OutDir)"
+    if %ERRORLEVEL% LEQ 7 exit 0
+  )</Command>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">

@@ -3,7 +3,7 @@
 
 #include "SceneComponent.h"
 
-class FLinearColor;
+struct FLinearColor;
 
 class UHeightFogComponent : public USceneComponent
 {

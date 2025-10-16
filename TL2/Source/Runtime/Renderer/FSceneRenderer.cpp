@@ -772,8 +772,8 @@ void FSceneRenderer::ApplyScreenEffectsPass()
 	}
 
 	RHIDevice->UpdateFXAACB(
-		FVector2D(RHIDevice->GetViewportWidth(), RHIDevice->GetViewportHeight()),
-		FVector2D(1.0f / RHIDevice->GetViewportWidth(), 1.0f / RHIDevice->GetViewportHeight()),
+		FVector2D(static_cast<float>(RHIDevice->GetViewportWidth()), static_cast<float>(RHIDevice->GetViewportHeight())),
+		FVector2D(1.0f / static_cast<float>(RHIDevice->GetViewportWidth()), 1.0f / static_cast<float>(RHIDevice->GetViewportHeight())),
 		0.0833f,
 		0.166f,
 		1.0f,	// 0.75 가 기본값이지만 효과 강조를 위해 1로 설정
