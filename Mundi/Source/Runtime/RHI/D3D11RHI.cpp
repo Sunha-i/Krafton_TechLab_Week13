@@ -716,6 +716,7 @@ void D3D11RHI::DrawFullScreenQuad()
     DeviceContext->IASetVertexBuffers(0, 0, nullptr, nullptr, nullptr);
     DeviceContext->IASetIndexBuffer(nullptr, DXGI_FORMAT_UNKNOWN, 0);
     DeviceContext->IASetInputLayout(nullptr); // Input Layout도 필요 없습니다.
+    DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
     // 2. 정점 셰이더를 3번 실행하여 삼각형 하나를 그리도록 명령합니다.
     //    이 삼각형은 화면보다 더 크게 그려져 전체를 덮게 됩니다.

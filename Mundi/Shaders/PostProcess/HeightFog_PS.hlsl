@@ -4,12 +4,6 @@ Texture2D g_PrePathResultTex : register(t1);
 SamplerState g_LinearClampSample : register(s0);
 SamplerState g_PointClampSample : register(s1);
 
-struct VS_INPUT
-{
-    float3 position : POSITION; // Input position from vertex buffer
-    float2 texCoord : TEXCOORD0;
-};
-
 struct PS_INPUT
 {
     float4 position : SV_POSITION; // Transformed position to pass to the pixel shader
@@ -39,17 +33,6 @@ cbuffer FogCB : register(b2)
     
     float FogMaxOpacity;
     float FogHeight; // fog base height
-    
-}
-
-PS_INPUT mainVS(VS_INPUT input)
-{
-    PS_INPUT output;
-    
-    output.position = float4(input.position, 1.0f);
-    output.texCoord = input.texCoord;
-    
-    return output;
 }
 
 float4 mainPS(PS_INPUT input) : SV_TARGET

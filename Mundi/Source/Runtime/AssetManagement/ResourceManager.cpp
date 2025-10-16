@@ -507,8 +507,8 @@ void UResourceManager::InitShaderILMap()
                  D3D11_INPUT_PER_VERTEX_DATA, 0 });
     layout.Add({ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,    0, 48,
                  D3D11_INPUT_PER_VERTEX_DATA, 0 });
-    ShaderToInputLayoutMap["Shaders/Effects/Fog.hlsl"] = layout;
-    ShaderToInputLayoutMap["Shaders/Utility/SceneDepth.hlsl"] = layout;
+    ShaderToInputLayoutMap["Shaders/PostProcess/HeightFog_PS.hlsl"] = layout;
+    ShaderToInputLayoutMap["Shaders/Utility/SceneDepth_PS.hlsl"] = layout;
     layout.clear();
     
     ShaderToInputLayoutMap["Shaders/Utility/FullScreenTriangle_VS.hlsl"] = {};  // FullScreenTriangle 는 InputLayout을 사용하지 않는다

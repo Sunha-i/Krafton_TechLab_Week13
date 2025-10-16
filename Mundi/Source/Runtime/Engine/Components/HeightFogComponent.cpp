@@ -10,8 +10,7 @@ UHeightFogComponent::UHeightFogComponent()
 {
 	// 사막 느낌
 	FogInscatteringColor = new FLinearColor(0.93f, 0.79f, 0.69f, 1.0f);
-	FullScreenQuadMesh = UResourceManager::GetInstance().Load<UStaticMesh>("Data/FullScreenQuad.obj");
-	HeightFogShader = UResourceManager::GetInstance().Load<UShader>("Shaders/Effects/Fog.hlsl");
+	HeightFogShader = UResourceManager::GetInstance().Load<UShader>("Shaders/PostProcess/HeightFog_PS.hlsl");
 }
 
 UHeightFogComponent::~UHeightFogComponent()
@@ -41,16 +40,6 @@ void UHeightFogComponent::Serialize(const bool bInIsLoading, JSON& InOutHandle)
 			FogInscatteringColor = new FLinearColor(ColorVec);
 		}
 
-		// Load FullScreenQuadMesh
-		if (InOutHandle.hasKey("FullScreenQuadMesh"))
-		{
-			FString meshPath = InOutHandle["FullScreenQuadMesh"].ToString();
-			if (!meshPath.empty())
-			{
-				FullScreenQuadMesh = UResourceManager::GetInstance().Load<UStaticMesh>(meshPath.c_str());
-			}
-		}
-
 		// Load HeightFogShader
 		if (InOutHandle.hasKey("HeightFogShader"))
 		{
@@ -74,16 +63,6 @@ void UHeightFogComponent::Serialize(const bool bInIsLoading, JSON& InOutHandle)
 		if (FogInscatteringColor != nullptr)
 		{
 			InOutHandle["FogInscatteringColor"] = FJsonSerializer::Vector4ToJson(FogInscatteringColor->ToFVector4());
-		}
-
-		// Save FullScreenQuadMesh
-		if (FullScreenQuadMesh != nullptr)
-		{
-			InOutHandle["FullScreenQuadMesh"] = FullScreenQuadMesh->GetFilePath();
-		}
-		else
-		{
-			InOutHandle["FullScreenQuadMesh"] = "";
 		}
 
 		// Save HeightFogShader

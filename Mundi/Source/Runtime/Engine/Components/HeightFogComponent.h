@@ -54,6 +54,5 @@ private:
     FLinearColor* FogInscatteringColor = nullptr;
 
     // Full Screen Quad Resources
-    class UStaticMesh* FullScreenQuadMesh = nullptr;
     class UShader* HeightFogShader = nullptr;
 };
