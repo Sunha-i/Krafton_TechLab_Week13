@@ -5,9 +5,6 @@
     <FxCompile Include="Shaders\StaticMesh\StaticMeshShader.hlsl">
       <Filter>Shaders\StaticMesh</Filter>
     </FxCompile>
-    <FxCompile Include="Shaders\Primitives\Primitive.hlsl">
-      <Filter>Shaders\Primitives</Filter>
-    </FxCompile>
     <FxCompile Include="Shaders\Effects\Decal.hlsl">
       <Filter>Shaders\Effects</Filter>
     </FxCompile>
@@ -37,6 +34,9 @@
     </FxCompile>
     <FxCompile Include="Shaders\UI\TextBillboard.hlsl">
       <Filter>Shaders\UI</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\Materials\UberLit.hlsl">
+      <Filter>Shaders\Materials</Filter>
     </FxCompile>
   </ItemGroup>
   <!-- Root Files -->
@@ -951,9 +951,6 @@
     <Filter Include="Shaders\StaticMesh">
       <UniqueIdentifier>{5429eccc-3696-4915-b82b-d420a986eabd}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Shaders\Primitives">
-      <UniqueIdentifier>{48d97db0-ade0-4fcb-91d8-648fb70142d3}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Shaders\Effects">
       <UniqueIdentifier>{126a3a03-cee3-40bc-bcc3-97275c14170b}</UniqueIdentifier>
     </Filter>
@@ -971,6 +968,9 @@
     </Filter>
     <Filter Include="ThirdParty\ImGui">
       <UniqueIdentifier>{fd9d6ba4-0c5b-4430-9f20-eddd804a5e9c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shaders\Materials">
+      <UniqueIdentifier>{094e78f9-5758-43d4-bc74-4c2002bdf39c}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>
