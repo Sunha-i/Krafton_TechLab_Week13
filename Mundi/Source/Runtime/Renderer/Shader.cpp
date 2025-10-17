@@ -56,14 +56,14 @@ void UShader::Load(const FString& InShaderPath, ID3D11Device* InDevice, const TA
 	FWideString WFilePath(InShaderPath.begin(), InShaderPath.end());
 
 	// --- [핵심] TArray<FShaderMacro>를 D3D_SHADER_MACRO* 형태로 변환 ---
-	std::vector<D3D_SHADER_MACRO> Defines;
-	std::vector<std::pair<std::string, std::string>> MacroStrings; // 포인터 유효성 유지를 위한 저장소
+	TArray<D3D_SHADER_MACRO> Defines;
+	TArray<TPair<FString, FString>> MacroStrings; // 포인터 유효성 유지를 위한 저장소
 	MacroStrings.reserve(InMacros.Num());
 	for (const FShaderMacro& Macro : InMacros)
 	{
 		MacroStrings.emplace_back(
-			std::string(Macro.Name.begin(), Macro.Name.end()),
-			std::string(Macro.Definition.begin(), Macro.Definition.end())
+			FString(Macro.Name.begin(), Macro.Name.end()),
+			FString(Macro.Definition.begin(), Macro.Definition.end())
 		);
 		Defines.push_back({ MacroStrings.back().first.c_str(), MacroStrings.back().second.c_str() });
 	}
