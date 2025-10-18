@@ -110,6 +110,10 @@ void FSceneRenderer::RenderLitPath()
 
 void FSceneRenderer::RenderWireframePath()
 {
+	RHIDevice->OMSetRenderTargets(ERTVMode::SceneIdTarget);
+
+	RenderOpaquePass();
+
 	// 상태 변경: Wireframe으로 레스터라이즈 모드 설정하도록 설정
 	RHIDevice->RSSetState(ERasterizerMode::Wireframe);
 

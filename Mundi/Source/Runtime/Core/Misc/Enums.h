@@ -341,6 +341,7 @@ enum class ERTVMode : uint32
 {
 	BackBufferWithDepth,
 	BackBufferWithoutDepth,
+    SceneIdTarget,
     SceneColorTarget,
     SceneColorTargetWithoutDepth,
     SceneColorTargetWithId, //모델 그릴때만 사용, 후처리는 별도
