@@ -10,6 +10,8 @@
 #include "RenderManager.h"
 #include "RenderSettings.h"
 #include "EditorEngine.h"
+#include "PrimitiveComponent.h"
+
 FVector FViewportClient::CameraAddPosition{};
 
 FViewportClient::FViewportClient()

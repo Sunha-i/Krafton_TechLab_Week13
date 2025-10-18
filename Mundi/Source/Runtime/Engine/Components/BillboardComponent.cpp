@@ -12,6 +12,12 @@
 
 IMPLEMENT_CLASS(UBillboardComponent)
 
+BEGIN_PROPERTIES(UBillboardComponent)
+	MARK_AS_COMPONENT("빌보드 컴포넌트", "항상 카메라를 향하는 2D 아이콘을 표시합니다.")
+	ADD_PROPERTY_RANGE(float, Width, "Billboard", 1.0f, 1000.0f, true, "빌보드 너비입니다.")
+	ADD_PROPERTY_RANGE(float, Height, "Billboard", 1.0f, 1000.0f, true, "빌보드 높이입니다.")
+END_PROPERTIES()
+
 UBillboardComponent::UBillboardComponent()
 {
 	auto& RM = UResourceManager::GetInstance();
@@ -72,6 +78,9 @@ void UBillboardComponent::Serialize(const bool bInIsLoading, JSON& InOutHandle)
 		InOutHandle["Height"] = Height;
 		InOutHandle["TextureName"] = TextureName;
 	}
+
+	// 리플렉션 기반 자동 직렬화
+	AutoSerialize(bInIsLoading, InOutHandle, UBillboardComponent::StaticClass());
 }
 
 // 여기서만 Cull_Back을 꺼야함. 

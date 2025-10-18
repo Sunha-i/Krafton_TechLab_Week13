@@ -1,6 +1,7 @@
 ﻿#include "pch.h"
 #include "SelectionManager.h"
 #include "Actor.h"
+#include "SceneComponent.h"
 
 IMPLEMENT_CLASS(USelectionManager)
 

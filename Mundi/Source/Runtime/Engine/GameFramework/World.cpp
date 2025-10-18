@@ -6,7 +6,6 @@
 #include "CameraComponent.h"
 #include "ObjectFactory.h"
 #include "TextRenderComponent.h"
-#include "AABoundingBoxComponent.h"
 #include "FViewport.h"
 #include "Windows/SViewportWindow.h"
 #include "USlateManager.h"

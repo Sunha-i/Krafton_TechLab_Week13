@@ -5,6 +5,7 @@ class UMeshComponent : public UPrimitiveComponent
 {
 public:
     DECLARE_CLASS(UMeshComponent, UPrimitiveComponent)
+
     UMeshComponent();
 
 protected:
@@ -13,7 +14,4 @@ protected:
 public:
     void DuplicateSubObjects() override;
     DECLARE_DUPLICATE(UMeshComponent)
-
-protected:
-
 };
