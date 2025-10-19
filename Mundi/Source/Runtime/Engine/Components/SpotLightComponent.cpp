@@ -1,6 +1,7 @@
 ﻿#include "pch.h"
 #include "SpotLightComponent.h"
 #include "BillboardComponent.h"
+#include "Gizmo/GizmoArrowComponent.h"
 
 IMPLEMENT_CLASS(USpotLightComponent)
 
@@ -111,12 +112,59 @@ void USpotLightComponent::UpdateLightData()
 
 	// Cone 각도 유효성 검사 (UI에서 변경된 경우를 대비)
 	ValidateConeAngles();
+
+	// Update direction gizmo to reflect any changes
+	UpdateDirectionGizmo();
 }
 
 void USpotLightComponent::OnRegister()
 {
 	Super_t::OnRegister();
 	SpriteComponent->SetTextureName("Data/UI/Icons/SpotLight_64x.png");
+
+	// Create Direction Gizmo if not already created
+	if (!DirectionGizmo)
+	{
+		DirectionGizmo = NewObject<UGizmoArrowComponent>();
+		DirectionGizmo->SetOwner(this->GetOwner());
+		DirectionGizmo->SetupAttachment(this, EAttachmentRule::KeepRelative);
+
+		// Add to owner's component list (similar to SpriteComponent)
+		this->GetOwner()->AddOwnedComponent(DirectionGizmo);
+
+		// Hide from Scene UI and disable picking
+		DirectionGizmo->SetEditability(false);
+		// DirectionGizmo->SetCanEverPick(false);
+
+		// Set gizmo mesh (using the same mesh as GizmoActor's arrow)
+		DirectionGizmo->SetStaticMesh("Data/Gizmo/TranslationHandle.obj");
+		DirectionGizmo->SetMaterialByName(0, "Shaders/StaticMesh/StaticMeshShader.hlsl");
+
+		// Set default scale
+		DirectionGizmo->SetDefaultScale(FVector(0.5f, 0.5f, 0.5f));
+
+		// Update gizmo properties to match light
+		UpdateDirectionGizmo();
+	}
+}
+
+void USpotLightComponent::UpdateDirectionGizmo()
+{
+	if (!DirectionGizmo)
+		return;
+
+	// Set direction to match light direction
+	FVector LightDir = GetDirection();
+	DirectionGizmo->SetDirection(LightDir);
+
+	// Set color to match light color (with intensity and temperature)
+	FLinearColor LightColorWithIntensity = GetLightColorWithIntensity();
+	DirectionGizmo->SetColor(FVector(LightColorWithIntensity.R, LightColorWithIntensity.G, LightColorWithIntensity.B));
+
+	// Set relative rotation to point in light direction
+	// Arrow mesh points along +X axis by default
+	FQuat Rotation = GetWorldRotation();
+	DirectionGizmo->SetRelativeRotation(Rotation);
 }
 
 void USpotLightComponent::RenderDebugVolume(URenderer* Renderer, const FMatrix& View, const FMatrix& Proj) const
