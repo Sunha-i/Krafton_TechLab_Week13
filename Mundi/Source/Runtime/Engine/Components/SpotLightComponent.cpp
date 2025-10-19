@@ -156,18 +156,13 @@ void USpotLightComponent::UpdateDirectionGizmo()
 	if (!DirectionGizmo)
 		return;
 
-	// Set direction to match light direction
+	// Set direction to match light direction (used for hovering/picking, not for rendering)
 	FVector LightDir = GetDirection();
 	DirectionGizmo->SetDirection(LightDir);
 
 	// Set color to match light color (with intensity and temperature)
 	FLinearColor LightColorWithIntensity = GetLightColorWithIntensity();
 	DirectionGizmo->SetColor(FVector(LightColorWithIntensity.R, LightColorWithIntensity.G, LightColorWithIntensity.B));
-
-	// Set relative rotation to point in light direction
-	// Arrow mesh points along +X axis by default
-	FQuat Rotation = GetWorldRotation();
-	DirectionGizmo->SetRelativeRotation(Rotation);
 }
 
 void USpotLightComponent::RenderDebugVolume(URenderer* Renderer, const FMatrix& View, const FMatrix& Proj) const
