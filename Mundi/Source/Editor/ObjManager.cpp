@@ -350,30 +350,50 @@ FStaticMesh* FObjManager::LoadObjStaticMeshAsset(const FString& PathFileName)
 		}
 	}
 
+	// 기본 머티리얼 주입 로직을 헬퍼 람다로 분리합니다.
+	auto EnsureDefaultMaterial = [&](FStaticMesh* Mesh, TArray<FMaterialInfo>& Materials)
+		{
+			if (Mesh->GroupInfos.size() > 0 && Materials.empty())
+			{
+				UE_LOG("No materials found for '%s'. Assigning default 'uberlit' material.", NormalizedPathStr.c_str());
+
+				FMaterialInfo DefaultMaterialInfo;
+				UMaterial* DefaultMaterial = UResourceManager::GetInstance().GetDefaultMaterial();
+				DefaultMaterialInfo.MaterialName = DefaultMaterial->GetMaterialInfo().MaterialName;
+				Materials.Add(DefaultMaterialInfo);
+
+				TArray<FGroupInfo>& GroupInfos = Mesh->GroupInfos;
+				for (FGroupInfo& Group : GroupInfos)
+				{
+					if (Group.InitialMaterialName.empty())
+					{
+						Group.InitialMaterialName = DefaultMaterialInfo.MaterialName;
+					}
+				}
+				return true; // 변경됨
+			}
+			return false; // 변경 없음
+		};
+
 	// 캐시 로드에 실패했거나, 처음부터 재생성이 필요했던 경우
 	if (!bLoadedSuccessfully)
 	{
-		// 이전에 실패했을 경우를 대비하여 객체를 다시 생성
-		if (NewFStaticMesh == nullptr)
-		{
-			NewFStaticMesh = new FStaticMesh();
-		}
-
+		if (NewFStaticMesh == nullptr) { NewFStaticMesh = new FStaticMesh(); }
 		UE_LOG("Regenerating cache for '%s'...", NormalizedPathStr.c_str());
 
-		// .obj 및 .mtl 파일 파싱
 		FObjInfo RawObjInfo;
 		if (!FObjImporter::LoadObjModel(NormalizedPathStr, &RawObjInfo, MaterialInfos, true))
 		{
-			UE_LOG("Failed to load and parse .obj model: %s", NormalizedPathStr.c_str());
 			delete NewFStaticMesh;
 			return nullptr;
 		}
 
-		// FStaticMesh 데이터로 변환
 		FObjImporter::ConvertToStaticMesh(RawObjInfo, MaterialInfos, NewFStaticMesh);
 
-		// 새로운 캐시 파일(.bin) 저장
+		// 캐시 저장 *직전에* 기본 머티리얼 로직을 호출합니다.
+		EnsureDefaultMaterial(NewFStaticMesh, MaterialInfos);
+
+		// 새로운 캐시 파일(.bin) 저장 (이제 올바른 데이터가 저장됨)
 		FWindowsBinWriter Writer(BinPathFileName);
 		Writer << *NewFStaticMesh;
 		Writer.Close();
@@ -384,42 +404,19 @@ FStaticMesh* FObjManager::LoadObjStaticMeshAsset(const FString& PathFileName)
 
 		UE_LOG("Cache regeneration complete for '%s'.", NormalizedPathStr.c_str());
 	}
-
-	// 이 시점에서 NewFStaticMesh와 MaterialInfos는
-	// 캐시에서 로드되었거나(2번), .obj/.mtl로부터 파싱(3번)되었습니다.
-	// 지오메트리 그룹(GroupInfos)은 있으나 머티리얼 정보(MaterialInfos)가 없는지 확인합니다.
-	if (NewFStaticMesh->GroupInfos.size() > 0 && MaterialInfos.empty())
+	else
 	{
-		UE_LOG("No materials found for '%s'. Assigning default 'uberlit' material.", NormalizedPathStr.c_str());
-
-		// 1. 기본 FMaterialInfo를 생성합니다.
-		FMaterialInfo DefaultMaterialInfo;
-		UMaterial* DefaultMaterial = UResourceManager::GetInstance().GetDefaultMaterial();
-		DefaultMaterialInfo.MaterialName = DefaultMaterial->GetMaterialInfo().MaterialName; // 엔진 기본 머티리얼 경로
-		MaterialInfos.Add(DefaultMaterialInfo);
-
-		// 2. FStaticMesh의 모든 그룹이 이 기본 머티리얼을 참조하도록 보장합니다.
-		TArray<FGroupInfo>& GroupInfos = NewFStaticMesh->GroupInfos; // 비-상수 참조
-		for (FGroupInfo& Group : GroupInfos)
+		// 캐시 로드에 성공한 경우(bLoadedSuccessfully == true)
+		// 구버전 캐시(기본 머티리얼이 없는)일 수 있으므로, 동일한 검사를 수행합니다.
+		if (EnsureDefaultMaterial(NewFStaticMesh, MaterialInfos))
 		{
-			if (Group.InitialMaterialName.empty())
-			{
-				Group.InitialMaterialName = DefaultMaterialInfo.MaterialName;
-			}
-		}
-
-		// 3. 이 수정 사항을 캐시에도 반영합니다.
-		//    만약 캐시에서 로드한 경우(bLoadedSuccessfully == true),
-		//    캐시가 오래된 것이므로 갱신해주는 것이 좋습니다. (1번 옵션의 구현)
-		if (bLoadedSuccessfully)
-		{
+			// 변경된 경우, 캐시를 갱신합니다.
 			UE_LOG("Updating outdated cache for '%s' with default material.", NormalizedPathStr.c_str());
 			try
 			{
 				FWindowsBinWriter Writer(BinPathFileName);
 				Writer << *NewFStaticMesh;
 				Writer.Close();
-
 				FWindowsBinWriter MatWriter(MatBinPathFileName);
 				Serialization::WriteArray<FMaterialInfo>(MatWriter, MaterialInfos);
 				MatWriter.Close();
@@ -429,11 +426,6 @@ FStaticMesh* FObjManager::LoadObjStaticMeshAsset(const FString& PathFileName)
 				UE_LOG("Failed to update cache for default material: %s", e.what());
 			}
 		}
-		// else: 캐시를 방금 재생성한 경우(bLoadedSuccessfully == false)
-		// 어차피 이 함수 윗부분의 if (!bLoadedSuccessfully) 블록 안에서
-		// 이 수정된 NewFStaticMesh와 MaterialInfos를 저장했을 것입니다.
-		// (만약 저장 로직이 이 블록보다 위에 있다면, 
-		//  이 로직을 if (!bLoadedSuccessfully) 블록 내부, 저장 직전에도 배치해야 합니다.)
 	}
 
 	// 4. 머티리얼 및 텍스처 경로 처리 (공통 로직)
@@ -462,12 +454,31 @@ FStaticMesh* FObjManager::LoadObjStaticMeshAsset(const FString& PathFileName)
 		FixPath(MaterialInfo.EmissiveTextureFileName);
 	}
 
+	// 루프가 시작되기 전에 기본 UberLit 셰이더 포인터를 한 번만 가져옵니다.
+	UShader* DefaultUberlitShader = nullptr;
+	if (UMaterial* DefaultMaterial = UResourceManager::GetInstance().GetDefaultMaterial())
+	{
+		DefaultUberlitShader = DefaultMaterial->GetShader();
+	}
+
+	if (DefaultUberlitShader == nullptr)
+	{
+		UE_LOG("CRITICAL: Default Uberlit Shader not found. OBJ materials may fail.");
+	}
+
 	for (const FMaterialInfo& InMaterialInfo : MaterialInfos)
 	{
 		if (!UResourceManager::GetInstance().Get<UMaterial>(InMaterialInfo.MaterialName))
 		{
 			UMaterial* Material = NewObject<UMaterial>();
 			Material->SetMaterialInfo(InMaterialInfo);
+
+			// 모든 OBJ 파생 머티리얼의 셰이더가 없으면 기본 셰이더로 강제 설정합니다.
+			if (!Material->GetShader())
+			{
+				Material->SetShader(DefaultUberlitShader);
+			}
+
 			UResourceManager::GetInstance().Add<UMaterial>(InMaterialInfo.MaterialName, Material);
 		}
 	}

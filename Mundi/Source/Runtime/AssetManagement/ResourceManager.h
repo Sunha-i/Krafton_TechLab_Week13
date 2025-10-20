@@ -73,6 +73,7 @@ public:
 
 	// --- 디버그 및 기본 메시 생성 ---
 	void CreateDefaultShader();
+	void CreateDefaultMaterial();
 	void CreateAxisMesh(float Length, const FString& FilePath);
 	void CreateGridMesh(int N, const FString& FilePath);
 	void CreateBoxWireframeMesh(const FVector& Min, const FVector& Max, const FString& FilePath);
@@ -125,6 +126,8 @@ private:
 
 	// Cache for per-mesh BVHs to avoid rebuilding for identical OBJ assets
 	TMap<FString, FMeshBVH*> MeshBVHCache;
+
+	UMaterial* DefaultMaterialInstance;
 };
 
 //-----definition
@@ -195,7 +198,7 @@ inline UShader* UResourceManager::Load(const FString& InFilePath, TArray<FShader
 		UShader* Resource = NewObject<UShader>();
 		// UShader::Load는 이제 매크로 인자를 받도록 수정되어야 함
 		Resource->Load(InFilePath, Device, InMacros);
-		Resource->SetFilePath(InFilePath); // 원본 경로 저장
+		Resource->SetFilePath(UniqueKey); // 이름 저장
 
 		// 4. 고유 키로 리소스 맵에 저장
 		Resources[typeIndex][UniqueKey] = Resource;

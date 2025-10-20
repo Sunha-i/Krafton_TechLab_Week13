@@ -42,6 +42,7 @@ public:
 
 	void SetTexture(EMaterialTextureSlot Slot, const FString& TexturePath);
 	const FMaterialInfo& GetMaterialInfo() const { return MaterialInfo; }
+	void SetMaterialName(FString& InMaterialName) { MaterialInfo.MaterialName = InMaterialName; }
 
 	UTexture* GetTexture(EMaterialTextureSlot Slot) const;
 

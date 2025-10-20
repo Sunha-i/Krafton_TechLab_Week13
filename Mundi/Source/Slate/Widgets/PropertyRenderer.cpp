@@ -586,7 +586,7 @@ bool UPropertyRenderer::RenderSingleMaterialSlot(const char* Label, UMaterial** 
 		strncpy_s(ShaderPathBuffer, sizeof(ShaderPathBuffer), CurrentShaderPath.c_str(), _TRUNCATE);
 
 		FString ShaderLabel = "Shader##" + FString(Label);
-		ImGui::SetNextItemWidth(220);
+		ImGui::SetNextItemWidth(400);
 
 		// ImGui::BeginDisabled(true)로 감싸 위젯을 시각적으로 비활성화합니다.
 		ImGui::BeginDisabled(true);

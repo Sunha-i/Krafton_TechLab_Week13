@@ -10,17 +10,6 @@ UMaterial::UMaterial()
 {
 	// 배열 크기를 미리 할당 (Enum 값 사용)
 	ResolvedTextures.resize(static_cast<size_t>(EMaterialTextureSlot::Max));
-
-	// 기본 Material 생성 (기본 Phong 셰이더 사용)
-	FString ShaderPath = "Shaders/Materials/UberLit.hlsl";
-	TArray<FShaderMacro> DefaultMacros;
-	DefaultMacros.push_back(FShaderMacro{ "LIGHTING_MODEL_PHONG", "1" });
-
-	UShader* DefaultShader = UResourceManager::GetInstance().Load<UShader>(ShaderPath, DefaultMacros);
-	if (DefaultShader)
-	{
-		SetShader(DefaultShader);
-	}
 }
 
 // 해당 경로의 셰이더 또는 텍스쳐를 로드해서 머티리얼로 생성 후 반환한다
