@@ -30,6 +30,7 @@ public:
 private:
     void RenderToolbar();
     void RenderGizmoModeButtons();
+    void RenderGizmoSpaceButton();
     void LoadToolbarIcons(ID3D11Device* Device);
 
 private:
@@ -51,4 +52,6 @@ private:
     UTexture* IconMove = nullptr;
     UTexture* IconRotate = nullptr;
     UTexture* IconScale = nullptr;
+    UTexture* IconWorldSpace = nullptr;
+    UTexture* IconLocalSpace = nullptr;
 };
