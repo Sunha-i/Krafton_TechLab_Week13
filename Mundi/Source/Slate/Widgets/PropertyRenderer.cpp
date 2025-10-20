@@ -517,7 +517,7 @@ bool UPropertyRenderer::RenderMaterialArrayProperty(const FProperty& Prop, void*
 	bool bArrayChanged = false;
 
 	// 배열의 각 요소를 순회하며 헬퍼 함수 호출 (매개변수 없음)
-	for (uint32 MaterialIndex = 0; MaterialIndex < MaterialSlots->Num(); ++MaterialIndex)
+	for (int32 MaterialIndex = 0; MaterialIndex < MaterialSlots->Num(); ++MaterialIndex)
 	{
 		FString Label = FString(Prop.Name) + " [" + std::to_string(MaterialIndex) + "]";
 		UMaterial** MaterialPtr = &(*MaterialSlots)[MaterialIndex];
