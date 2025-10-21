@@ -39,11 +39,6 @@ public:
 	void SetMaterialByUser(const uint32 InMaterialSlotIndex, const FString& InMaterialName);
 	const TArray<UMaterialInterface*> GetMaterialSlots() const { return MaterialSlots; }
 
-	bool IsChangedMaterialByUser() const
-	{
-		return bChangedMaterialByUser;
-	}
-
 	FAABB GetWorldAABB() const;
 
 	void DuplicateSubObjects() override;
@@ -57,6 +52,4 @@ protected:
 	UStaticMesh* StaticMesh = nullptr;
 	TArray<UMaterialInterface*> MaterialSlots;
 	TArray<UMaterialInstanceDynamic*> DynamicMaterialInstances;
-
-	bool bChangedMaterialByUser = false;
 };

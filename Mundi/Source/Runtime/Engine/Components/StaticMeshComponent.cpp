@@ -220,33 +220,53 @@ void UStaticMeshComponent::Serialize(const bool bInIsLoading, JSON& InOutHandle)
 	}
 }
 
-void UStaticMeshComponent::SetMaterialByUser(const uint32 InMaterialSlotIndex, const FString& InMaterialName)
-{
-	assert((0 <= InMaterialSlotIndex && InMaterialSlotIndex < MaterialSlots.size()) && "out of range InMaterialSlotIndex");
-
-	if (0 <= InMaterialSlotIndex && InMaterialSlotIndex < MaterialSlots.size())
-	{
-		// 이제 UMaterialInterface를 로드해야 하지만, ResourceManager는 UMaterial만 지원할 수 있습니다.
-		// 따라서 UMaterial을 로드하고 인터페이스 포인터로 할당합니다.
-		MaterialSlots[InMaterialSlotIndex] = UResourceManager::GetInstance().Load<UMaterial>(InMaterialName);
-		bChangedMaterialByUser = true;
-	}
-	else
-	{
-		UE_LOG("out of range InMaterialSlotIndex: %d", InMaterialSlotIndex);
-	}
-}
-
 void UStaticMeshComponent::SetMaterial(uint32 InElementIndex, UMaterialInterface* InNewMaterial)
 {
-	if (0 <= InElementIndex && InElementIndex < static_cast<uint32>(MaterialSlots.Num()))
-	{
-		MaterialSlots[InElementIndex] = InNewMaterial;
-	}
-	else
+	if (InElementIndex >= static_cast<uint32>(MaterialSlots.Num()))
 	{
 		UE_LOG("out of range InMaterialSlotIndex: %d", InElementIndex);
+		return;
 	}
+
+	// 1. 현재 슬롯에 할당된 머티리얼을 가져옵니다.
+	UMaterialInterface* OldMaterial = MaterialSlots[InElementIndex];
+
+	// 2. 교체될 새 머티리얼이 현재 머티리얼과 동일하면 아무것도 하지 않습니다.
+	if (OldMaterial == InNewMaterial)
+	{
+		return;
+	}
+
+	// 3. 기존 머티리얼이 이 컴포넌트가 소유한 MID인지 확인합니다.
+	if (OldMaterial != nullptr)
+	{
+		UMaterialInstanceDynamic* OldMID = Cast<UMaterialInstanceDynamic>(OldMaterial);
+		if (OldMID)
+		{
+			// 4. 소유권 리스트(DynamicMaterialInstances)에서 이 MID를 찾아 제거합니다.
+			// TArray::Remove()는 첫 번째로 발견된 항목만 제거합니다.
+			int32 RemovedCount = DynamicMaterialInstances.Remove(OldMID);
+
+			if (RemovedCount > 0)
+			{
+				// 5. 소유권 리스트에서 제거된 것이 확인되면, 메모리에서 삭제합니다.
+				delete OldMID;
+			}
+			else
+			{
+				// 경고: MaterialSlots에는 MID가 있었으나, 소유권 리스트에 없는 경우입니다.
+				// 이는 DuplicateSubObjects 등이 잘못 구현되었을 때 발생할 수 있습니다.
+				UE_LOG("Warning: SetMaterial is replacing a MID that was not tracked by DynamicMaterialInstances.");
+				// 이 경우 delete를 호출하면 다른 객체가 소유한 메모리를 해제할 수 있으므로
+				// delete를 호출하지 않는 것이 더 안전할 수 있습니다. (혹은 delete 호출 후 크래시로 버그를 잡습니다.)
+				// 여기서는 삭제를 시도합니다.
+				delete OldMID;
+			}
+		}
+	}
+
+	// 6. 새 머티리얼을 슬롯에 할당합니다.
+	MaterialSlots[InElementIndex] = InNewMaterial;
 }
 
 UMaterialInstanceDynamic* UStaticMeshComponent::CreateAndSetMaterialInstanceDynamic(uint32 ElementIndex)
@@ -269,12 +289,12 @@ UMaterialInstanceDynamic* UStaticMeshComponent::CreateAndSetMaterialInstanceDyna
     {
         DynamicMaterialInstances.Add(NewMID); // 소멸자에서 해제하기 위해 추적
         SetMaterial(ElementIndex, NewMID);    // 슬롯에 새로 만든 MID 설정
+		NewMID->SetFilePath("(Instance) "+CurrentMaterial->GetFilePath());
         return NewMID;
     }
 
     return nullptr;
 }
-
 
 FAABB UStaticMeshComponent::GetWorldAABB() const
 {

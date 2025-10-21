@@ -543,45 +543,72 @@ bool UPropertyRenderer::RenderSingleMaterialSlot(const char* Label, UMaterialInt
 		return false;
 	}
 
-	// --- UMaterialInterface 애셋 선택 콤보박스 ---
+	// --- ImGui::BeginCombo / EndCombo 사용 ---
+
+	// 1. 콤보박스에 현재 표시될 "미리보기 값"을 설정합니다.
+	// CurrentMaterial이 유효하면 그 경로를, 아니면 "None"을 사용합니다.
 	FString CurrentMaterialPath = (CurrentMaterial) ? CurrentMaterial->GetFilePath() : "None";
 
-	int SelectedMaterialIdx = 0; // "None"
-	for (int j = 0; j < (int)CachedMaterialPaths.size(); ++j)
-	{
-		if (CachedMaterialPaths[j] == CurrentMaterialPath)
-		{
-			SelectedMaterialIdx = j + 1;
-			break;
-		}
-	}
-
 	ImGui::SetNextItemWidth(240);
-	if (ImGui::Combo(Label, &SelectedMaterialIdx, CachedMaterialItems.data(), static_cast<int>(CachedMaterialItems.size())))
+	// 2. BeginCombo를 호출합니다. PreviewValue가 캐시 목록에 없어도 그대로 표시됩니다.
+	if (ImGui::BeginCombo(Label, CurrentMaterialPath.c_str()))
 	{
-		FString SelectedPath = "None";
-		if (SelectedMaterialIdx > 0)
-		{
-			SelectedPath = CachedMaterialPaths[SelectedMaterialIdx - 1];
-		}
+		// 3. 드롭다운 목록을 수동으로 렌더링합니다.
+		// 기존 로직과 동일하게 CachedMaterialItems[0]은 "None"이라고 가정합니다.
 
-		if (UPrimitiveComponent* PrimitiveComponent = Cast<UPrimitiveComponent>(OwningObject))
+		// "None" 옵션
+		bool bIsNoneSelected = (CurrentMaterial == nullptr);
+		if (ImGui::Selectable(CachedMaterialItems[0], bIsNoneSelected))
 		{
-			// "None"을 선택한 경우
-			if (SelectedMaterialIdx == 0)
+			bElementChanged = true;
+			if (UPrimitiveComponent* PrimitiveComponent = Cast<UPrimitiveComponent>(OwningObject))
 			{
 				PrimitiveComponent->SetMaterial(MaterialIndex, nullptr);
 			}
 			else
 			{
-				PrimitiveComponent->SetMaterialByName(MaterialIndex, SelectedPath);
+				*MaterialPtr = nullptr;
 			}
 		}
-		else
+
+		// "None"을 선택했을 때 포커스를 줍니다.
+		if (bIsNoneSelected)
 		{
-			// 다른 컴포넌트는 Set 함수를 모르기 때문에 그냥 대입 처리
-			*MaterialPtr = (SelectedMaterialIdx == 0) ? nullptr : UResourceManager::GetInstance().Load<UMaterial>(SelectedPath);
+			ImGui::SetItemDefaultFocus();
 		}
+
+		// 캐시된 머티리얼 목록 (CachedMaterialPaths[j]가 CachedMaterialItems[j+1]에 해당)
+		for (int j = 0; j < (int)CachedMaterialPaths.size(); ++j)
+		{
+			const FString& Path = CachedMaterialPaths[j];
+			// CachedMaterialItems[0]은 "None"이므로 j+1 인덱스를 사용합니다.
+			const char* DisplayName = CachedMaterialItems[j + 1];
+
+			bool bIsSelected = (CurrentMaterialPath == Path);
+
+			if (ImGui::Selectable(DisplayName, bIsSelected))
+			{
+				bElementChanged = true;
+				if (UPrimitiveComponent* PrimitiveComponent = Cast<UPrimitiveComponent>(OwningObject))
+				{
+					PrimitiveComponent->SetMaterialByName(MaterialIndex, Path);
+				}
+				else
+				{
+					// UPrimitiveComponent가 아닌 경우 리소스를 로드하여 직접 할당
+					*MaterialPtr = UResourceManager::GetInstance().Load<UMaterial>(Path);
+				}
+			}
+
+			// 현재 선택된 항목이 뷰에 보이도록 스크롤합니다.
+			if (bIsSelected)
+			{
+				ImGui::SetItemDefaultFocus();
+			}
+		}
+
+		// 4. EndCombo를 호출하여 콤보박스를 닫습니다.
+		ImGui::EndCombo();
 
 		bElementChanged = true;
 		CurrentMaterial = *MaterialPtr;
