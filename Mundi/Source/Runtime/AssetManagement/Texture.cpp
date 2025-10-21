@@ -61,43 +61,51 @@ void UTexture::Load(const FString& InFilePath, ID3D11Device* InDevice)
 {
 	assert(InDevice);
 
-	// 확장자 판별
-	std::filesystem::path SourcePath(InFilePath);
-	std::string Extension = SourcePath.extension().string();
-	std::transform(Extension.begin(), Extension.end(), Extension.begin(), ::tolower);
-
 	// 실제로 로드할 파일 경로 결정
 	FString ActualLoadPath = InFilePath;
 
-	// DDS가 아닌 경우 → DDS 캐시 확인 및 생성
-	if (Extension != ".dds")
+#ifdef USE_DDS_CACHE
+	// DDS 캐싱 활성화 시: DDS 변환 및 캐시 사용
 	{
-		FString DDSCachePath = FTextureConverter::GetDDSCachePath(InFilePath);
+		// 확장자 판별
+		std::filesystem::path SourcePath(InFilePath);
+		std::string Extension = SourcePath.extension().string();
+		std::transform(Extension.begin(), Extension.end(), Extension.begin(), ::tolower);
 
-		// 캐시 유효성 검사
-		if (FTextureConverter::ShouldRegenerateDDS(InFilePath, DDSCachePath))
+		// DDS가 아닌 경우 → DDS 캐시 확인 및 생성
+		if (Extension != ".dds")
 		{
-			printf("[UTexture] Converting texture to DDS: %s\n", InFilePath.c_str());
+			FString DDSCachePath = FTextureConverter::GetDDSCachePath(InFilePath);
 
-			// DDS 변환 시도
-			if (FTextureConverter::ConvertToDDS(InFilePath, DDSCachePath))
+			// 캐시 유효성 검사
+			if (FTextureConverter::ShouldRegenerateDDS(InFilePath, DDSCachePath))
 			{
-				ActualLoadPath = DDSCachePath; // DDS 캐시 사용
+				UE_LOG("[UTexture] Converting texture to DDS: %s", InFilePath.c_str());
+
+				// DDS 변환 시도
+				if (FTextureConverter::ConvertToDDS(InFilePath, DDSCachePath))
+				{
+					ActualLoadPath = DDSCachePath; // DDS 캐시 사용
+				}
+				else
+				{
+					UE_LOG("[UTexture] DDS conversion failed, loading original format: %s",
+					       InFilePath.c_str());
+					// 변환 실패 시 원본 포맷으로 로드 (fallback)
+				}
 			}
 			else
 			{
-				printf("[UTexture] DDS conversion failed, loading original format: %s\n",
-				       InFilePath.c_str());
-				// 변환 실패 시 원본 포맷으로 로드 (fallback)
+				// 기존 DDS 캐시 사용
+				ActualLoadPath = DDSCachePath;
+				UE_LOG("[UTexture] Using cached DDS: %s", DDSCachePath.c_str());
 			}
 		}
-		else
-		{
-			// 기존 DDS 캐시 사용
-			ActualLoadPath = DDSCachePath;
-			printf("[UTexture] Using cached DDS: %s\n", DDSCachePath.c_str());
-		}
 	}
+#else
+	// DDS 캐싱 비활성화 시: 원본 파일만 로드
+	UE_LOG("[UTexture] Loading original texture (DDS cache disabled): %s", InFilePath.c_str());
+#endif
 
 	// UTF-8 -> UTF-16 (Windows) 안전 변환: 한글/비ASCII 경로 대응
 	int needed = ::MultiByteToWideChar(CP_UTF8, 0, ActualLoadPath.c_str(), -1, nullptr, 0);
@@ -155,7 +163,7 @@ void UTexture::Load(const FString& InFilePath, ID3D11Device* InDevice)
 	}
 	else
 	{
-		printf("[UTexture] Failed to load texture: %s (HRESULT: 0x%08X)\n",
+		UE_LOG("[UTexture] Failed to load texture: %s (HRESULT: 0x%08X)",
 		       ActualLoadPath.c_str(), hr);
 	}
 

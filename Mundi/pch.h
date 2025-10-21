@@ -1,5 +1,9 @@
 ﻿#pragma once
 
+// Feature Flags
+// Uncomment to enable DDS texture caching (faster loading, uses Data/TextureCache/)
+#define USE_DDS_CACHE
+
 // Linker
 #pragma comment(lib, "user32")
 #pragma comment(lib, "d3d11")

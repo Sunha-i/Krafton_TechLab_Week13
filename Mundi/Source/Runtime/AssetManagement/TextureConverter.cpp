@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file TextureConverter.cpp
  * @brief Implementation of texture conversion utilities using DirectXTex
  */
@@ -51,7 +51,7 @@ bool FTextureConverter::ConvertToDDS(
 
 	if (!std::filesystem::exists(SourceFile))
 	{
-		printf("[TextureConverter] Source file not found: %s\n", SourcePath.c_str());
+		UE_LOG("[TextureConverter] Source file not found: %s", SourcePath.c_str());
 		return false;
 	}
 
@@ -85,7 +85,7 @@ bool FTextureConverter::ConvertToDDS(
 
 	if (FAILED(hr))
 	{
-		printf("[TextureConverter] Failed to load source image: %s (HRESULT: 0x%08X)\n",
+		UE_LOG("[TextureConverter] Failed to load source image: %s (HRESULT: 0x%08X)",
 		       SourcePath.c_str(), hr);
 		return false;
 	}
@@ -102,7 +102,7 @@ bool FTextureConverter::ConvertToDDS(
 
 		if (width != alignedWidth || height != alignedHeight)
 		{
-			printf("[TextureConverter] Resizing %s from %dx%d to %dx%d for block compression\n",
+			UE_LOG("[TextureConverter] Resizing %s from %dx%d to %dx%d for block compression",
 			       SourcePath.c_str(), (int)width, (int)height,
 			       (int)alignedWidth, (int)alignedHeight);
 
@@ -117,7 +117,7 @@ bool FTextureConverter::ConvertToDDS(
 			}
 			else
 			{
-				printf("[TextureConverter] Warning: Resize failed, continuing with original size\n");
+				UE_LOG("[TextureConverter] Warning: Resize failed, continuing with original size");
 			}
 		}
 	}
@@ -146,7 +146,7 @@ bool FTextureConverter::ConvertToDDS(
 
 		if (FAILED(hr))
 		{
-			printf("[TextureConverter] Compression failed: %s (HRESULT: 0x%08X)\n",
+			UE_LOG("[TextureConverter] Compression failed: %s (HRESULT: 0x%08X)",
 			       SourcePath.c_str(), hr);
 			return false;
 		}
@@ -168,12 +168,12 @@ bool FTextureConverter::ConvertToDDS(
 
 	if (FAILED(hr))
 	{
-		printf("[TextureConverter] Failed to save DDS file: %s (HRESULT: 0x%08X)\n",
+		UE_LOG("[TextureConverter] Failed to save DDS file: %s (HRESULT: 0x%08X)",
 		       FinalOutputPath.c_str(), hr);
 		return false;
 	}
 
-	printf("[TextureConverter] Successfully converted: %s -> %s\n",
+	UE_LOG("[TextureConverter] Successfully converted: %s -> %s",
 	       SourcePath.c_str(), FinalOutputPath.c_str());
 	return true;
 }
@@ -281,7 +281,7 @@ void FTextureConverter::EnsureCacheDirectoryExists(const FString& CachePath)
 
 		if (ec)
 		{
-			printf("[TextureConverter] Failed to create cache directory: %s\n",
+			UE_LOG("[TextureConverter] Failed to create cache directory: %s",
 			       WideToUTF8(Directory.wstring()).c_str());
 		}
 	}
