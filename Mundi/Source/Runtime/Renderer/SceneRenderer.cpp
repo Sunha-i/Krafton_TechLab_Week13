@@ -611,9 +611,10 @@ void FSceneRenderer::RenderDecalPass()
 		// 임시로 PrimitiveComponent가 아닌 UStaticMeshComponent를 받도록 함
 		for (UStaticMeshComponent* SMC : IntersectedStaticMeshComponents)
 		{
-			if (!SMC)
+			// 기즈모에 데칼 입히면 안되므로 에디팅이 안되는 Component는 데칼 그리지 않음
+			if (!SMC || !SMC->IsEditable())
 				continue;
-
+			
 			AActor* Owner = SMC->GetOwner();
 			if (!Owner || !Owner->IsActorVisible())
 				continue;
@@ -852,7 +853,10 @@ void FSceneRenderer::RenderDebugPass()
 	// 그리드 라인 수집
 	for (ULineComponent* LineComponent : Proxies.EditorLines)
 	{
-		LineComponent->CollectLineBatches(OwnerRenderer);
+		if (GWorld->GetRenderSettings().IsShowFlagEnabled(EEngineShowFlags::SF_Grid))
+		{
+			LineComponent->CollectLineBatches(OwnerRenderer);
+		}
 	}
 
 	// 선택된 액터의 디버그 볼륨 렌더링

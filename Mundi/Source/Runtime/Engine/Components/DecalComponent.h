@@ -58,8 +58,11 @@ public:
 	// Tick
 	virtual void TickComponent(float DeltaTime) override;
 
+	void OnRegister(UWorld* InWorld) override;
+
 private:
 	UTexture* DecalTexture = nullptr;
+	UGizmoArrowComponent* DirectionGizmo = nullptr;
 
 	bool bIsVisible = true;
 	float DecalOpacity = 1.0f;

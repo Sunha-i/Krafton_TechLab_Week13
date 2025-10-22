@@ -4,13 +4,14 @@
 #include "OBB.h"
 #include "StaticMeshComponent.h"
 #include "JsonSerializer.h"
+#include "BillboardComponent.h"
+#include "Gizmo/GizmoArrowComponent.h"
 
 IMPLEMENT_CLASS(UDecalComponent)
 
 BEGIN_PROPERTIES(UDecalComponent)
 	MARK_AS_COMPONENT("데칼 컴포넌트", "표면에 투영되는 데칼 효과를 생성합니다.")
 	ADD_PROPERTY_TEXTURE(UTexture*, DecalTexture, "Decal", true, "데칼 텍스처입니다.")
-	ADD_PROPERTY(bool, bIsVisible, "Decal", true, "데칼 가시성입니다.")
 	ADD_PROPERTY_RANGE(float, DecalOpacity, "Decal", 0.0f, 1.0f, true, "데칼 불투명도입니다.")
 	ADD_PROPERTY_RANGE(float, FadeSpeed, "Decal", 0.0f, 10.0f, true, "페이드 속도입니다 (초당 변화량).")
 END_PROPERTIES()
@@ -49,6 +50,29 @@ void UDecalComponent::TickComponent(float DeltaTime)
 	{
 		DecalOpacity = 1.0f;
 		FadeDirection = -1; // 다시 감소 시작
+	}
+}
+
+void UDecalComponent::OnRegister(UWorld* InWorld)
+{
+	if (!SpriteComponent)
+	{
+		CREATE_EDITOR_COMPONENT(SpriteComponent, UBillboardComponent);
+		SpriteComponent->SetTextureName("Data/UI/Icons/S_DecalActorIcon.dds");
+
+		CREATE_EDITOR_COMPONENT(DirectionGizmo, UGizmoArrowComponent);
+		// Set gizmo mesh (using the same mesh as GizmoActor's arrow)
+		DirectionGizmo->SetStaticMesh("Data/Gizmo/TranslationHandle.obj");
+		DirectionGizmo->SetMaterialByName(0, "Shaders/UI/Gizmo.hlsl");
+
+		// Use world-space scale (not screen-constant scale like typical gizmos)
+		DirectionGizmo->SetUseScreenConstantScale(false);
+
+		// Set default scale
+		DirectionGizmo->SetDefaultScale(FVector(0.5f, 0.3f, 0.3f));
+		DirectionGizmo->SetDirection(FVector(0.5f, 0.0f, 0.0f));
+		DirectionGizmo->SetColor(FVector(0.62f, 0.125f, 0.94f));
+
 	}
 }
 
