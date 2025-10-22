@@ -144,26 +144,35 @@ void UUIWindow::RenderWindow()
 
 	if (ImGui::Begin(Config.WindowTitle.c_str(), &bIsOpen, Config.WindowFlags))
 	{
-		if (!bIsResized)
+		// 초기화: 처음 한 번만 비율 계산
+		if (!bIsRatioInitialized && !bIsResized)
 		{
 			const ImGuiViewport* viewport = ImGui::GetMainViewport();
 			ImVec2 currentPos = ImGui::GetWindowPos();
 			ImVec2 currentSize = ImGui::GetWindowSize();
 			ImVec2 pivot = { 0.f, 0.f };
 
-			PositionRatio.x = (currentPos.x - viewport->WorkPos.x + currentSize.x * pivot.x) / viewport->WorkSize.x;
-			PositionRatio.y = (currentPos.y - viewport->WorkPos.y + currentSize.y * pivot.y) / viewport->WorkSize.y;
+			// 뷰포트 크기가 유효한 경우에만 비율 계산
+			if (viewport->WorkSize.x > 0 && viewport->WorkSize.y > 0)
+			{
+				PositionRatio.x = (currentPos.x - viewport->WorkPos.x + currentSize.x * pivot.x) / viewport->WorkSize.x;
+				PositionRatio.y = (currentPos.y - viewport->WorkPos.y + currentSize.y * pivot.y) / viewport->WorkSize.y;
 
-			SizeRatio.x = currentSize.x  / viewport->WorkSize.x;
-			SizeRatio.y = currentSize.y  / viewport->WorkSize.y;
+				SizeRatio.x = currentSize.x  / viewport->WorkSize.x;
+				SizeRatio.y = currentSize.y  / viewport->WorkSize.y;
+
+				bIsRatioInitialized = true;
+			}
 		}
+
 		// 실제 UI 컨텐츠 렌더링
 		RenderWidget();
 
 		// 윈도우 정보 업데이트
 		UpdateWindowInfo();
 	}
-	//ClampWindow();
+
+	// 메인 윈도우가 리사이즈되었을 때: 저장된 비율로 크기 조정
 	if (bIsResized)
 	{
 		OnMainWindowResized();

@@ -165,4 +165,5 @@ private:
 	ImVec2 PositionRatio = { 0.5f, 0.5f };
 	ImVec2 SizeRatio = { 0.5f, 0.5f };
 	bool bIsResized = false;
+	bool bIsRatioInitialized = false;
 };
