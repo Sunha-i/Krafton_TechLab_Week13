@@ -13,8 +13,8 @@ BEGIN_PROPERTIES(USceneComponent)
 	ADD_PROPERTY(FVector, RelativeLocation, "Transform", true, "로컬 위치입니다.")
 	ADD_PROPERTY(FVector, RelativeRotationEuler, "Transform", true, "로컬 회전입니다 (Degrees, ZYX Euler).")
 	ADD_PROPERTY(FVector, RelativeScale, "Transform", true, "로컬 스케일입니다.")
-    ADD_PROPERTY(bool, bIsVisible, "렌더러", true, "프리미티브를 씬에 표시합니다")
-    ADD_PROPERTY(bool, bHiddenInGame, "렌더러", true, "게임에서 숨깁니다")
+    ADD_PROPERTY(bool, bIsVisible, "렌더링", true, "프리미티브를 씬에 표시합니다")
+    ADD_PROPERTY(bool, bHiddenInGame, "렌더링", true, "게임에서 숨깁니다")
 END_PROPERTIES()
 
 // USceneComponent.cpp
