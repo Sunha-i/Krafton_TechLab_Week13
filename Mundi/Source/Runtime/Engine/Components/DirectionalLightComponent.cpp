@@ -33,8 +33,8 @@ void UDirectionalLightComponent::GetShadowRenderRequests(FSceneView* View, TArra
 	FMatrix RotInv = GetWorldRotation().Inverse().ToMatrix();
 
 	TArray<FVector> CameraFrustum = View->Camera->GetFrustumVertices(View->Viewport);
-	CameraFrustum * View->Camera->GetViewMatrix().InverseAffine();
-	CameraFrustum * ShadowMapView;
+	CameraFrustum *= View->Camera->GetViewMatrix().InverseAffine();
+	CameraFrustum *= ShadowMapView;
 
 	FAABB CameraFrustumAABB = FAABB(CameraFrustum);
 
