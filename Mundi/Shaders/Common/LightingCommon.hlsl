@@ -493,7 +493,7 @@ float SampleShadowPCF(float PixelDepth, float2 AtlasUV,
         float2(-0.103009, 0.134190), float2(-0.485496, 0.106886),
         float2(-0.354784, -0.320412), float2(0.166412, -0.244837)
     };
-    
+ 
     [loop]
     for (int i = 0; i < SampleCount; i++)
     {

@@ -48,4 +48,8 @@ private:
 	float CascadedOverlapValue = 0.2f;
 	bool bOverrideCameraLightPerspective = false;
 	TArray<float> CascadedSliceDepth;
+
+	//로그용
+	float CascadedAreaColorDebugValue = 0;
+	int CascadedAreaShadowDebugValue = -1;
 };

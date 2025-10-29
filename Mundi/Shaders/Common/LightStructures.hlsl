@@ -29,12 +29,16 @@ struct FDirectionalLightInfo
     float3 Direction;   // 12 bytes - FVector
     uint bCastShadows;
     
-    float4 CascadedSliceDepth[CASCADED_MAX / 4 + 1];
+    uint bCascaded;
     uint CascadeCount; // 4 bytes
-    uint bCascaded; 
+    float CascadedOverlapValue;
+    float CascadedAreaColorDebugValue;
     
-    float2 DirectionalLightInfoPadding;
+    float CascadedAreaShadowDebugValue;
+    float3 DirectionalLightInfoPadding;
     
+    float4 CascadedSliceDepth[CASCADED_MAX / 4 + 1];
+
     FShadowMapData Cascades[CASCADED_MAX];
 };
 

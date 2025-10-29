@@ -7,7 +7,7 @@
 // --- 조명 모델 선택 ---
 // #define LIGHTING_MODEL_GOURAUD 1
 // #define LIGHTING_MODEL_LAMBERT 1
-// #define LIGHTING_MODEL_PHONG 1
+ #define LIGHTING_MODEL_PHONG 1
 
 // --- Material 구조체 (OBJ 머티리얼 정보) ---
 // 주의: SPECULAR_COLOR 매크로에서 사용하므로 include 전에 정의 필요
@@ -153,52 +153,54 @@ float GetDirectionalShadowAtt(float3 WorldPos, float3 L, float3 N)
 float GetCascadedShadowAtt(float3 WorldPos)
 {
     float4 ViewPos = mul(float4(WorldPos, 1), ViewMatrix);
-    int PrevIdx;
-    int NextIdx;
+    int CurIdx;
+    bool bNeedLerp;
+    float LerpValue;
+    
     for (int i = 0; i < DirectionalLight.CascadeCount;i++)
     {
         float CurFar = DirectionalLight.CascadedSliceDepth[(i + 1) / 4][(i + 1) % 4];
         if (ViewPos.z < CurFar)
         {
-            float CurNear = DirectionalLight.CascadedSliceDepth[i / 4][i % 4];
-            float CurCenter = (CurFar + CurNear) * 0.5f;
-            if (ViewPos.z > CurCenter)
-            {
-                //다음꺼랑 비교  
-                PrevIdx = i;
-                NextIdx = i == DirectionalLight.CascadeCount - 1 ? -1 : i + 1;
-            }
-            else
-            {
-                //이전꺼랑 비교
-                PrevIdx = i == 0 ? -1 : i - 1;
-                NextIdx = i;
-            }
+            CurIdx = i;
             break;
         }        
     }
     
-    
-    float2 PrevUV;
-    bool InPrevShadow;
-    if(PrevIdx != -1)
+    if (DirectionalLight.CascadedAreaShadowDebugValue != -1 && DirectionalLight.CascadedAreaShadowDebugValue != CurIdx)
     {
-        PrevUV = mul(float4(WorldPos, 1), DirectionalLight.Cascades[PrevIdx].ShadowViewProjMatrix).xy;
-        InPrevShadow = PrevUV.x <= 1 && PrevUV.x >= 0 && PrevUV.y <= 1 && PrevUV.y >= 0;
+        return 0;
     }
-    
-    float2 NextUV;
-    bool InNextShadow;
-    if (NextIdx != -1)
+    float PrevFar = CurIdx == 0 ? 0 : DirectionalLight.CascadedSliceDepth[CurIdx / 4][CurIdx % 4];
+    float ExtensionPrevFar = PrevFar + PrevFar * DirectionalLight.CascadedOverlapValue;
+    if (CurIdx > 0 && ViewPos.z < ExtensionPrevFar)
     {
-        NextUV = mul(float4(WorldPos, 1), DirectionalLight.Cascades[NextIdx].ShadowViewProjMatrix).xy;
-        InNextShadow = NextUV.x <= 1 && NextUV.x >= 0 && NextUV.y <= 1 && NextUV.y >= 0;
+        bNeedLerp = true;
+        LerpValue = (ViewPos.z - PrevFar) / ExtensionPrevFar;
     }
+
+    float Width, Height;
+    g_ShadowAtlas2D.GetDimensions(Width, Height);
+    float2 TexSizeRCP = float2(1.0f / Width, 1.0f / Height);
+    float2 FilterRadiusUV = 1.5f * TexSizeRCP;
     
-    if(InPrevShadow && InNextShadow)
+    float3 CurUV = mul(float4(WorldPos, 1), DirectionalLight.Cascades[CurIdx].ShadowViewProjMatrix).xyz;
+    float2 CurAtlasUV = CurUV.xy * DirectionalLight.Cascades[CurIdx].AtlasScaleOffset.xy + DirectionalLight.Cascades[CurIdx].AtlasScaleOffset.zw;
+    float CurShadowFactor = SampleShadowPCF(CurUV.z - 0.0025f, CurAtlasUV, DirectionalLight.Cascades[CurIdx].SampleCount, FilterRadiusUV, g_ShadowAtlas2D, g_ShadowSample);
+    
+    if (bNeedLerp)
     {
-        
+        int PrevIdx = CurIdx - 1;
+        float3 PrevUV = mul(float4(WorldPos, 1), DirectionalLight.Cascades[PrevIdx].ShadowViewProjMatrix).xyz;
+        float2 PrevAtlasUV = PrevUV.xy * DirectionalLight.Cascades[PrevIdx].AtlasScaleOffset.xy + DirectionalLight.Cascades[PrevIdx].AtlasScaleOffset.zw;
+        float PrevShadowFactor = SampleShadowPCF(PrevUV.z - 0.0025f, PrevAtlasUV, DirectionalLight.Cascades[PrevIdx].SampleCount, FilterRadiusUV, g_ShadowAtlas2D, g_ShadowSample);
+        return LerpValue * CurShadowFactor + (1 - LerpValue) * PrevShadowFactor;
     }
+    else
+    {
+        return CurShadowFactor;
+    }
+ 
 }
     
 //================================================================================================
@@ -307,29 +309,26 @@ PS_OUTPUT mainPS(PS_INPUT Input)
     //Output.UUID = UUID;
     
     //CSM 구간 시각화
-    //float3 Color[8] = {  
-    //    float3(1, 0, 0),
-    //    float3(0, 1, 0 ),
-    //    float3(1, 1, 0 ),
-    //    float3(0, 0, 1 ),
-    //    float3(1, 0, 1 ),
-    //    float3(0, 1, 1 ),
-    //    float3(1, 1, 1 ),
-    //    float3(0.5f, 1,1)
-    //};
-    //int CascadeCount = DirectionalLight.CascadeCount;
-    //float4 ViewPos = mul(float4(Input.WorldPos, 1), ViewMatrix);
-    //for (int i = 0; i < CascadeCount; i++)
-    //{
-    //    if (ViewPos.z < DirectionalLight.CascadedSliceDepth[(i + 1) / 4][(i + 1) % 4])
-    //    {
-    //        Output.Color = float4(Color[i], 1);
-    //        break;
-    //    }
-    //}
-    //return Output;
-    
-    
+    float3 Color[2] =
+    {
+        float3(1, 0, 0),
+        float3(0, 1, 0)
+    };
+    int CascadeCount = DirectionalLight.CascadeCount;
+
+    float4 ViewPos = mul(float4(Input.WorldPos, 1), ViewMatrix);
+
+    float3 CascadeAreaDebugColor;
+    float CascadeAreaDebugBlendValue = DirectionalLight.bCascaded ? DirectionalLight.CascadedAreaColorDebugValue : 0;
+    for (int i = 0; i < CascadeCount; i++)
+    {
+        if (ViewPos.z < DirectionalLight.CascadedSliceDepth[(i + 1) / 4][(i + 1) % 4])
+        {
+            CascadeAreaDebugColor = Color[i % 2];
+            break;
+        }
+    }
+
     // UV 스크롤링 적용 (활성화된 경우)
     float2 uv = Input.TexCoord;
     //if (bHasMaterial && bHasTexture)
@@ -355,7 +354,7 @@ PS_OUTPUT mainPS(PS_INPUT Input)
 #endif
     
     // 텍스처 샘플링
-        float4 texColor = g_DiffuseTexColor.Sample(g_Sample, uv) * float4(Material.DiffuseColor, 1.0f);
+    float4 texColor = g_DiffuseTexColor.Sample(g_Sample, uv) * float4(Material.DiffuseColor, 1.0f);
 
     // 머티리얼의 SpecularExponent 사용, 머티리얼이 없으면 기본값 사용
     float specPower = bHasMaterial ? Material.SpecularExponent : 32.0f;
@@ -392,6 +391,7 @@ PS_OUTPUT mainPS(PS_INPUT Input)
     }
 
     Output.Color = finalPixel;
+    Output.Color.rgb = (1 - CascadeAreaDebugBlendValue) * Output.Color.rgb + CascadeAreaDebugBlendValue * CascadeAreaDebugColor;
     return Output;
 
 #elif LIGHTING_MODEL_LAMBERT
@@ -493,6 +493,7 @@ PS_OUTPUT mainPS(PS_INPUT Input)
     }
 
     Output.Color = float4(litColor, finalAlpha);
+    Output.Color.rgb = (1 - CascadeAreaDebugBlendValue) * Output.Color.rgb + CascadeAreaDebugBlendValue * CascadeAreaDebugColor;
     return Output;
 
 #elif LIGHTING_MODEL_PHONG
@@ -538,8 +539,7 @@ PS_OUTPUT mainPS(PS_INPUT Input)
     // Directional light (diffuse + specular)
     float3 DirectionalLightColor =  CalculateDirectionalLight(DirectionalLight, normal, viewDir, baseColor, true, specPower);
     
-    float DirectionalShadowAtt = CalculateSpotLightShadowFactor(Input.WorldPos, DirectionalLight.Cascades[0], g_ShadowAtlas2D, g_ShadowSample);
-        
+    float DirectionalShadowAtt = DirectionalLight.bCascaded ? GetCascadedShadowAtt(Input.WorldPos) : CalculateSpotLightShadowFactor(Input.WorldPos, DirectionalLight.Cascades[0], g_ShadowAtlas2D, g_ShadowSample);
     //float DirectionalShadowAtt = GetDirectionalShadowAtt(Input.WorldPos, -DirectionalLight.Direction, Input.Normal);
     
     litColor += DirectionalLightColor * DirectionalShadowAtt;
@@ -605,8 +605,9 @@ PS_OUTPUT mainPS(PS_INPUT Input)
     {
         finalAlpha *= (1.0f - Material.Transparency);
     }
-
+    
     Output.Color = float4(litColor, finalAlpha);
+    Output.Color.rgb = (1 - CascadeAreaDebugBlendValue) * Output.Color.rgb + CascadeAreaDebugBlendValue * CascadeAreaDebugColor;
     return Output;
 
 #else
