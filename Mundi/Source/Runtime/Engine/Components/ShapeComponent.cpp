@@ -6,10 +6,14 @@
 
 IMPLEMENT_CLASS(UShapeComponent)
 
-UShapeComponent::UShapeComponent()
+BEGIN_PROPERTIES(UShapeComponent)
+    ADD_PROPERTY(bool, bShapeIsVisible, "Shape", true, "Shape를 가시화 변수입니다.")
+    ADD_PROPERTY(bool, bShapeHiddenInGame, "Shape", true, "Shape를 PIE 모드에서의 가시화 변수입니다.")
+ END_PROPERTIES()
+
+UShapeComponent::UShapeComponent() : bShapeIsVisible(true), bShapeHiddenInGame(true)
 {
-    ShapeColor = FVector4(0.2f, 0.8f, 1.0f, 1.0f);
-    bGenerateOverlapEvents = true;
+    ShapeColor = FVector4(0.2f, 0.8f, 1.0f, 1.0f); 
 }
 
  
@@ -80,10 +84,7 @@ void UShapeComponent::UpdateOverlaps()
 
     //for( UShapeComponent* Comp : Prev)
     //OnComponentEndOverlap.Broadcast(this, Comp);
-
-    //공개 리스트 갱신
-    //OverlapInfo <= Now
-    //Prec <= Now
+     
 }
 
 FAABB UShapeComponent::GetWorldAABB() const

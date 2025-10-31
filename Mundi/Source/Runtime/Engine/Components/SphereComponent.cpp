@@ -31,6 +31,12 @@ void USphereComponent::GetShape(FShape& Out) const
 
 void USphereComponent::RenderDebugVolume(URenderer* Renderer) const
 {
+    if (!bShapeIsVisible) return;
+    if (GetOwner() && (GetOwner()->GetWorld()->bPie))
+    {
+        if (bShapeHiddenInGame)
+            return;
+    }
     // Draw three great circles to visualize the sphere (XY, XZ, YZ planes) 
     const FVector Center = GetWorldLocation();
     const float Radius = SphereRadius;

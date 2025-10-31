@@ -28,6 +28,8 @@ class UShapeComponent : public UPrimitiveComponent
 { 
 public:  
     DECLARE_CLASS(UShapeComponent, UPrimitiveComponent) 
+	GENERATED_REFLECTION_BODY();
+
 	UShapeComponent(); 
 
 	virtual void GetShape(FShape& OutShape) const {};
@@ -49,6 +51,8 @@ protected:
     
 	FVector4 ShapeColor ; 
 	bool bDrawOnlyIfSelected;  
+	bool bShapeIsVisible;
+	bool bShapeHiddenInGame;
 	TArray<FOverlapInfo> OverlapInfos; 
 	//TODO: float LineThickness;
 

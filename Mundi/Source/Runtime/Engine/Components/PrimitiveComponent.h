@@ -21,7 +21,7 @@ public:
     DECLARE_CLASS(UPrimitiveComponent, USceneComponent)
     GENERATED_REFLECTION_BODY();
 
-    UPrimitiveComponent() = default;
+    UPrimitiveComponent();
     virtual ~UPrimitiveComponent() = default;
 
     // 이 프리미티브를 렌더링하는 데 필요한 FMeshBatchElement를 수집합니다.

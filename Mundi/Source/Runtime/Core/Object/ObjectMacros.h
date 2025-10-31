@@ -201,7 +201,7 @@ public:
 		Prop.Metadata.Add(FName("FileExtension"), InExtension); \
 		Class->AddProperty(Prop); \
 	}
-
+  
 // 클래스 메타데이터 설정 매크로
 // StaticRegisterProperties() 함수 내에서 사용
 
@@ -237,3 +237,4 @@ public:
 	this->GetOwner()->AddOwnedComponent(InVariableName);\
 	InVariableName->SetEditability(false);\
 	InVariableName->SetHiddenInGame(true);
+

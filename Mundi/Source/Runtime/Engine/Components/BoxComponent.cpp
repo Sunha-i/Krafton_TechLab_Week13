@@ -29,6 +29,14 @@ void UBoxComponent::GetShape(FShape& Out) const
 
 void UBoxComponent::RenderDebugVolume(URenderer* Renderer) const
 {
+	if (!bShapeIsVisible) return;
+	if (GetOwner() && (GetOwner()->GetWorld()->bPie))
+	{
+		if (bShapeHiddenInGame)
+			return;
+	}
+
+
 	const FVector Extent = BoxExtent;
 	const FTransform WorldTransform = GetWorldTransform();
 
