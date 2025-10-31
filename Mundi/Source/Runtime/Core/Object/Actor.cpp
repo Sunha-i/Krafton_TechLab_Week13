@@ -29,6 +29,10 @@ AActor::~AActor()
 
 void AActor::BeginPlay()
 {
+	LuaGameObject = new FGameObject();
+	LuaGameObject->Location = FVector(0, 0, 0);
+	LuaGameObject->Velocity = FVector(10, 0, 0);
+	
 	// 컴포넌트들 Initialize/BeginPlay 순회
 	for (UActorComponent* Comp : OwnedComponents)
 		if (Comp) Comp->InitializeComponent();
@@ -40,7 +44,7 @@ void AActor::Tick(float DeltaSeconds)
 {
 	// 에디터에서 틱 Off면 스킵
 	if (!bTickInEditor && World->bPie == false) return;
-
+	
 	for (UActorComponent* Comp : OwnedComponents)
 	{
 		if (Comp && Comp->IsComponentTickEnabled())
@@ -48,6 +52,8 @@ void AActor::Tick(float DeltaSeconds)
 			Comp->TickComponent(DeltaSeconds /*, … 필요 인자*/);
 		}
 	}
+
+	SetActorLocation(LuaGameObject->Location);
 }
 void AActor::EndPlay(EEndPlayReason Reason)
 {

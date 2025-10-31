@@ -1,7 +1,6 @@
 ﻿#include "pch.h"
 #include "LuaScriptComponent.h"
-
-#include <state.hpp>
+#include "sol/state.hpp"
 
 IMPLEMENT_CLASS(ULuaScriptComponent)
 
@@ -15,64 +14,61 @@ ULuaScriptComponent::ULuaScriptComponent()
 
 ULuaScriptComponent::~ULuaScriptComponent()
 {
+	if (Lua)
+	{
+		delete Lua;
+		Lua = nullptr;
+	}
 }
 
 void ULuaScriptComponent::BeginPlay()
 {
-	sol::state lua;
-	lua.open_libraries(sol::lib::base);
+	Lua = new sol::state();
 
-	lua.new_usertype<FVector>("Vector",
+	Lua->open_libraries(sol::lib::base);
+
+	Lua->new_usertype<FVector>("Vector",
 		sol::constructors<FVector(), FVector(float, float, float)>(),
-		"x", &FVector::X,
-		"y", &FVector::Y,
-		"z", &FVector::Z,
+		"X", &FVector::X,
+		"Y", &FVector::Y,
+		"Z", &FVector::Z,
 		sol::meta_function::addition, [](const FVector& a, const FVector& b) { return FVector(a.X + b.X, a.Y + b.Y, a.Z + b.Z); },
 		sol::meta_function::multiplication, [](const FVector& v, float f) { return v * f; }
 	);
 
-	lua.new_usertype<GameObject>("GameObject",
-		"UUID", &GameObject::UUID,
-		"Location", &GameObject::Location,
-		"Velocity", &GameObject::Velocity,
-		"PrintLocation", &GameObject::PrintLocation
+	Lua->new_usertype<FGameObject>("GameObject",
+		"UUID", &FGameObject::UUID,
+		"Location", &FGameObject::Location,
+		"Velocity", &FGameObject::Velocity,
+		"PrintLocation", &FGameObject::PrintLocation
 	);
 
-	GameObject obj;
-	obj.Location = FVector(0, 0, 0);
-	obj.Velocity = FVector(10, 0, 0);
+	FGameObject* Obj = Owner->GetGameObject();
+	(*Lua)["Obj"] = Obj;
 
-	GameObject obj2;
-	obj2.Location = FVector(0, 0, 0);
-	obj2.Velocity = FVector(9, 9, 9);
+	// Lua->script_file("Data/Scripts/" + ScriptFilePath);
+	Lua->script_file("Data/Scripts/template.lua");
 
-	lua["obj"] = &obj;
+	/*Lua->script(R"(
+	  function Tick(dt)
+	      obj.Location = obj.Location + obj.Velocity * dt
+	  end
+	)");*/
 
-	lua.script_file("Data/Scripts/template.lua");
+	(*Lua)["BeginPlay"]();
+}
 
-	//lua.script(R"(
-	//  function Tick(dt)
-	//      obj.Location = obj.Location + obj.Velocity * dt
-	//  end
-	//)");
-
-	lua["BeginPlay"]();
-
-	// 테스트 루프
-	for (int i = 0; i < 5; ++i) {
-		lua["Tick"](0.1f); // delta time = 0.1
-	}
-
-	lua["OnOverlap"](obj2);
-
-	lua["EndPlay"]();
+void ULuaScriptComponent::OnOverlap(const AActor* Other)
+{
+	(*Lua)["OnOverlap"](Other->GetGameObject());
 }
 
 void ULuaScriptComponent::TickComponent(float DeltaTime)
 {
-
+	(*Lua)["Tick"](DeltaTime);
 }
 
 void ULuaScriptComponent::EndPlay(EEndPlayReason Reason)
 {
+	(*Lua)["EndPlay"]();
 }
