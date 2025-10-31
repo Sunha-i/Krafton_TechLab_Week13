@@ -27,12 +27,14 @@ struct FShape
 class UShapeComponent : public UPrimitiveComponent
 { 
 public:  
+    DECLARE_CLASS(UShapeComponent, UPrimitiveComponent) 
 	UShapeComponent(); 
 
-    virtual void GetShape(FShape& OutShape) const = 0; 
-	virtual void OnRegister(UWorld* InWorld) override;
+	virtual void GetShape(FShape& OutShape) const {};
+    virtual void OnRegister(UWorld* InWorld) override;
+    virtual void OnTransformUpdated() override;
 
-	void UpdateOverlaps(); 
+    void UpdateOverlaps(); 
 
     FAABB GetWorldAABB() const; 
 	virtual const TArray<FOverlapInfo>& GetOverlapInfos() const override { return OverlapInfos; }

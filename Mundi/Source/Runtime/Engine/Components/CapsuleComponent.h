@@ -12,5 +12,5 @@ protected:
 	float CapsuleHalfHeight = WorldAABB.GetHalfExtent().Z;
 	float CapsuleRadius = WorldAABB.GetHalfExtent().X < WorldAABB.GetHalfExtent().Y ? WorldAABB.GetHalfExtent().Y : WorldAABB.GetHalfExtent().X;
 
-	void GetShape(FShape& Out) const override;
+	void GetShape(FShape& Out) const override; 
 };

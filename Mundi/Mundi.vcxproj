@@ -202,7 +202,6 @@
     </FxCompile>
     <ClCompile Include="Source\Editor\Clipboard\ClipboardManager.cpp" />
     <ClCompile Include="Source\Runtime\Core\Math\Vector.cpp" />
-    <ClCompile Include="Source\Runtime\Engine\Collision\CollisionSystem.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Components\AmbientLightComponent.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Components\CapsuleComponent.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Components\DirectionalLightComponent.cpp" />
@@ -466,7 +465,6 @@
     <ClInclude Include="Source\Editor\Clipboard\ClipboardManager.h" />
     <ClInclude Include="Source\Runtime\Core\Misc\PathUtils.h" />
     <ClInclude Include="Source\Runtime\Core\Object\Property.h" />
-    <ClInclude Include="Source\Runtime\Engine\Collision\CollisionSystem.h" />
     <ClInclude Include="Source\Runtime\Engine\Components\CapsuleComponent.h" />
     <ClInclude Include="Source\Runtime\Engine\Components\LuaScriptComponent.h" />
     <ClInclude Include="Source\Runtime\Engine\Components\MovementComponent.h" />

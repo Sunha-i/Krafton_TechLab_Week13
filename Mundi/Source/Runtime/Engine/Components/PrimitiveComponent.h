@@ -18,6 +18,7 @@ class UPrimitiveComponent :public USceneComponent
 {
 public:
     DECLARE_CLASS(UPrimitiveComponent, USceneComponent)
+    GENERATED_REFLECTION_BODY();
 
     UPrimitiveComponent() = default;
     virtual ~UPrimitiveComponent() = default;

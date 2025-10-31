@@ -2,10 +2,14 @@
 #include "ShapeComponent.h"
 #include "OBB.h"
 #include "Collision.h"
+#include "World.h"
+
+IMPLEMENT_CLASS(UShapeComponent)
 
 UShapeComponent::UShapeComponent()
 {
     ShapeColor = FVector4(0.2f, 0.8f, 1.0f, 1.0f);
+    bGenerateOverlapEvents = true;
 }
 
  
@@ -16,6 +20,13 @@ void UShapeComponent::OnRegister(UWorld* InWorld)
     GetWorldAABB();
 
     UpdateOverlaps();
+}
+
+void UShapeComponent::OnTransformUpdated()
+{
+    GetWorldAABB();
+    UpdateOverlaps();
+    Super::OnTransformUpdated();
 }
 
 void UShapeComponent::UpdateOverlaps()
@@ -38,20 +49,28 @@ void UShapeComponent::UpdateOverlaps()
         {
             UShapeComponent* Other = Cast<UShapeComponent>(Comp);
             if (!Other || Other == this) continue;
+            if (Other->GetOwner() == this->GetOwner()) continue;
             if (!Other->bGenerateOverlapEvents) continue;
-
-            // 브로드페이즈: AABB 교차
-            if (!WorldAABB.Intersects(Other->GetWorldAABB())) continue;
-
+ 
             // 내로우페이즈: Collision 모듈
-            if (Collision::CheckOverlap(this, Other)) continue;
+            if (!Collision::CheckOverlap(this, Other)) continue;
 
             Now.Add(Other);
             UE_LOG("Collision!!");
         }
     }
         
-    // Overlap Info 갱신 
+    
+    // Publish current overlaps
+    OverlapInfos.clear();
+    for (UShapeComponent* Other : Now)
+    {
+        FOverlapInfo Info;
+        Info.Other = Other;
+        OverlapInfos.Add(Info);
+    }
+
+// Overlap Info 갱신 
 
 
     // Broad Phase
@@ -82,3 +101,5 @@ FAABB UShapeComponent::GetWorldAABB() const
     }
     return WorldAABB; 
 }
+
+

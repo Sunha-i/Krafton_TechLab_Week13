@@ -286,6 +286,9 @@ void USceneComponent::SetupAttachment(USceneComponent* InParent, EAttachmentRule
     RelativeLocation = RelativeTransform.Translation;
     RelativeRotation = RelativeTransform.Rotation;
     RelativeScale = RelativeTransform.Scale3D;
+
+    // Notify transform update so shapes can refresh overlaps
+    OnTransformUpdated();
 }
 
 void USceneComponent::DetachFromParent(bool bKeepWorld)
@@ -305,6 +308,9 @@ void USceneComponent::DetachFromParent(bool bKeepWorld)
     RelativeLocation = RelativeTransform.Translation;
     RelativeRotation = RelativeTransform.Rotation;
     RelativeScale = RelativeTransform.Scale3D;
+
+    // Notify transform update so shapes can refresh overlaps
+    OnTransformUpdated();
 }
 
 void USceneComponent::DuplicateSubObjects()

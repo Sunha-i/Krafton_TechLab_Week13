@@ -24,6 +24,7 @@
 #include "Frustum.h"
 #include "Level.h"
 #include "LightManager.h"
+#include "ShapeComponent.h"
 
 IMPLEMENT_CLASS(UWorld)
 
@@ -86,7 +87,7 @@ void UWorld::InitializeGizmo()
 
 void UWorld::Tick(float DeltaSeconds)
 {
-	Partition->Update(DeltaSeconds, /*budget*/256);
+    Partition->Update(DeltaSeconds, /*budget*/256);
 
 //순서 바꾸면 안댐
 	if (Level)
@@ -98,11 +99,30 @@ void UWorld::Tick(float DeltaSeconds)
 				Actor->Tick(DeltaSeconds);
 			}
 		}
-	}
-	for (AActor* EditorActor : EditorActors)
-	{
-		if (EditorActor && !bPie) EditorActor->Tick(DeltaSeconds);
-	}
+    }
+    for (AActor* EditorActor : EditorActors)
+    {
+        if (EditorActor && !bPie) EditorActor->Tick(DeltaSeconds);
+    }
+
+    // Update overlaps each tick to ensure symmetry and handle non-moving participants
+    //if (Level)
+    //{
+    //    for (AActor* Actor : Level->GetActors())
+    //    {
+    //        if (!Actor) continue;
+    //        for (USceneComponent* Comp : Actor->GetSceneComponents())
+    //        {
+    //            if (UShapeComponent* Shape = Cast<UShapeComponent>(Comp))
+    //            {
+    //                if (Shape->IsActive())
+    //                {
+    //                    Shape->UpdateOverlaps();
+    //                }
+    //            }
+    //        }
+    //    }
+    //}
 }
 
 UWorld* UWorld::DuplicateWorldForPIE(UWorld* InEditorWorld)
