@@ -108,6 +108,41 @@ void AActor::SetRootComponent(USceneComponent* InRoot)
 	}
 }
 
+UActorComponent* AActor::AddComponentByClass(UClass* ComponentClass)
+{
+	if (!ComponentClass || !ComponentClass->IsChildOf(UActorComponent::StaticClass()))
+	{
+		return nullptr;
+	}
+
+	// 1. 생성
+	UActorComponent* NewComp = Cast<UActorComponent>(ObjectFactory::NewObject(ComponentClass));
+	if (!NewComp)
+	{
+		return nullptr;
+	}
+
+	// 2. 목록에 추가 (기존 함수 재사용)
+	AddOwnedComponent(NewComp);
+
+	// 3. 등록 및 초기화
+	UWorld* World = GetWorld();
+	if (World)
+	{
+		// 3-1. 등록 (OnRegister 호출)
+		NewComp->RegisterComponent(World);
+
+		// 3-2. 월드 pie인 경우, 즉시 초기화/시작
+		if (World->bPie)
+		{
+			NewComp->InitializeComponent();
+			NewComp->BeginPlay();
+		}
+	}
+
+	return NewComp;
+}
+
 void AActor::AddOwnedComponent(UActorComponent* Component)
 {
 	if (!Component)

@@ -61,8 +61,8 @@ public:
     void SetRootComponent(USceneComponent* InRoot);
     USceneComponent* GetRootComponent() const { return RootComponent; }
    
-
     // 소유 컴포넌트(모든 타입)
+    UActorComponent* AddComponentByClass(UClass* ComponentClass);
     void AddOwnedComponent(UActorComponent* Component);
     void RemoveOwnedComponent(UActorComponent* Component);
 

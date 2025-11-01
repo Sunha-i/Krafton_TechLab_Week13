@@ -73,47 +73,32 @@ namespace
 
 	bool TryAttachComponentToActor(AActor& Actor, UClass* ComponentClass, UActorComponent*& SelectedComponent)
 	{
-		if (!ComponentClass || !ComponentClass->IsChildOf(UActorComponent::StaticClass()))
-			return false;
-		USceneComponent* SelectedSceneComponent = Cast<USceneComponent>(SelectedComponent);
+		// AActor의 공식 API를 통해 컴포넌트를 생성, 등록, 초기화합니다.
+		UActorComponent* NewComp = Actor.AddComponentByClass(ComponentClass);
 
-		UObject* RawObject = ObjectFactory::NewObject(ComponentClass);
-		if (!RawObject)
-		{
-			return false;
-		}
-
-		UActorComponent* NewComp = Cast<UActorComponent>(RawObject);
 		if (!NewComp)
 		{
-			ObjectFactory::DeleteObject(RawObject);
 			return false;
 		}
 
-		NewComp->SetOwner(&Actor);
-
-		// 씬 컴포넌트라면 SelectedComponent에 붙임
+		// 씬 컴포넌트인 경우, "선택된" 컴포넌트에 부착합니다. (UI 관련 로직)
 		if (USceneComponent* SceneComp = Cast<USceneComponent>(NewComp))
 		{
+			USceneComponent* SelectedSceneComponent = Cast<USceneComponent>(SelectedComponent);
+
 			if (SelectedSceneComponent)
 			{
 				SceneComp->SetupAttachment(SelectedSceneComponent, EAttachmentRule::KeepRelative);
 			}
-			// SelectedComponent가 없으면 루트에 붙이
 			else if (USceneComponent* Root = Actor.GetRootComponent())
 			{
 				SceneComp->SetupAttachment(Root, EAttachmentRule::KeepRelative);
 			}
-
-			Actor.RegisterComponentTree(SceneComp, GWorld);
-			SelectedComponent = SceneComp;
-			GWorld->GetSelectionManager()->SelectComponent(SelectedComponent);
 		}
 
-		// AddOwnedComponent 경유 (Register/Initialize 포함)
-		Actor.AddOwnedComponent(NewComp);
-		
-		GWorld->GetSelectionManager()->SelectComponent(NewComp);
+		// 새로 생성된 컴포넌트를 선택합니다. (UI 관련 로직)
+		SelectedComponent = NewComp;
+		GWorld->GetSelectionManager()->SelectComponent(SelectedComponent);
 
 		return true;
 	}
