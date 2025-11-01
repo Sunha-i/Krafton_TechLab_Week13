@@ -1,9 +1,6 @@
 function BeginPlay()
     print("[BeginPlay] " .. Obj.UUID)
 	Obj.Velocity.X = 3.0
-    Obj.Scale.X = 10.0
-    Obj.Scale.Y = 10.0
-    Obj.Scale.Z = 10.0
 end
 
 function EndPlay()
