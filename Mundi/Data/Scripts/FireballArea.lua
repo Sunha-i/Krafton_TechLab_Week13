@@ -1,9 +1,17 @@
-function BeginPlay()
-    print("[BeginPlay] " .. Obj.UUID)
-	Obj.Scale.X = 3.00
-    Obj.Scale.Y = 3.00
-    Obj.Scale.Z = 3.00
+-- Fireball이 생성되는 위치를 정해주는 스크립트입니다
+-- 현재는 X,Y의 바운드를 정할 수 있고, Z는 FireballArea Actor에서 가져옵니다.
+local SpawnInterval = 1
+local TimeAcc = 0.0
 
+function BeginPlay()
+    print("[BeginPlay] " .. Obj.UUID) 
+    Obj.Scale.X = 10.0
+    Obj.Scale.Y = 10.0 
+
+    GlobalConfig.SpawnAreaPosX = Obj.Location.X
+    GlobalConfig.SpawnAreaPosY = Obj.Location.Y
+    GlobalConfig.SpawnAreaPosZ = Obj.Location.Z
+    
 end
 
 function EndPlay()
@@ -11,23 +19,36 @@ function EndPlay()
 end
 
 function OnOverlap(OtherActor)
-    --[[Obj:PrintLocation()]]--
+    -- Overlap hook if needed
+end
+
+function RandomInRange(MinRange, MaxRange)
+    return MinRange + (MaxRange - MinRange) * math.random()
 end
 
 function Tick(dt)
-    -- Obj.Location = Obj.Location + Obj.Velocity * dt
-    
-    -- TODO 
-    if(/*fifreballManager에서 fireball 생성 가능한지 체크*/)
-        {
-            --fireballManager의 AddFireball를 통해서 fireball 생성 
-         
-            --z위치는 FireballArea와 동일하게
-            --x위치는 [Location.x - Scale.x, Location.x + Scale.x]랜덤 생성            
-            --y위치는 [Location.y - Scale.y, Location.y + Scale.y]랜덤 생성
+    TimeAcc = TimeAcc + dt
+
+    if not GlobalConfig or not GlobalConfig.SpawnFireballAt then 
+        return
+    end
+
+    while TimeAcc >= SpawnInterval do
+        TimeAcc = TimeAcc - SpawnInterval
+
+        local LocalX, LocalY, LocalZ = Obj.Location.X, Obj.Location.Y, Obj.Location.Z 
+        local ScaleX, ScaleY = Obj.Scale.X, Obj.Scale.Y
+
+        local RangeX = RandomInRange(LocalX - ScaleX * 0.5 , LocalX + ScaleX * 0.5)
+        local RangeY = RandomInRange(LocalY - ScaleY * 0.5, LocalY + ScaleY * 0.5)
         
-        }
-    
-    --[[Obj:PrintLocation()]]--
-    --[[print("[Tick] ")]]--
+        local PosX = RangeX
+        local PosY = RangeY
+        local PosZ = LocalZ
+ 
+        GlobalConfig.SpawnFireballAt(PosX, PosY, PosZ)
+        print("Spawn Fireball !!!!!!!")
+    end 
+
+   --[[print("[Tick] ")]]--
 end
