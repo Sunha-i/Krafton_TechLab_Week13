@@ -1,6 +1,8 @@
-﻿#include "pch.h"
+#include "pch.h"
 #include "LuaManager.h"
 #include "GameObject.h"
+#include "CameraActor.h"
+#include "CameraComponent.h"
 
 FLuaManager::FLuaManager()
 {
@@ -26,6 +28,27 @@ FLuaManager::FLuaManager()
         "PrintLocation", &FGameObject::PrintLocation
     );
     
+    Lua->new_usertype<ACameraActor>("CameraActor",
+        sol::no_constructor,
+        "SetLocation", sol::overload(
+            [](ACameraActor* Camera, FVector Location)
+            {
+                if (!Camera)
+                {
+                    return;
+                }
+                Camera->SetActorLocation(Location);
+            },
+            [](ACameraActor* Camera, float X, float Y, float Z)
+            {
+                if (!Camera)
+                {
+                    return;
+                }
+                Camera->SetActorLocation(FVector(X, Y, Z));
+            }
+        )
+    );
     Lua->new_usertype<UInputManager>("InputManager",
         "IsKeyDown", sol::overload(
             &UInputManager::IsKeyDown,
@@ -97,6 +120,17 @@ FLuaManager::FLuaManager()
             return NewObject;
         }
     ));
+    SharedLib.set_function("GetCamera",
+        []() -> ACameraActor*
+        {
+            if (!GWorld)
+            {
+                return nullptr;
+            }
+            return GWorld->GetCameraActor();
+        }
+    );
+
 
     SharedLib.set_function("Vector", sol::overload(
        []() { return FVector(0.0f, 0.0f, 0.0f); },
