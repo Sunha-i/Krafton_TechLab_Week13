@@ -23,7 +23,8 @@ FLuaManager::FLuaManager()
         "Scale", sol::property(&FGameObject::GetScale, &FGameObject::SetScale),
         "bIsActive", sol::property(&FGameObject::GetIsActive, &FGameObject::SetIsActive),
         "Velocity", &FGameObject::Velocity,
-        "PrintLocation", &FGameObject::PrintLocation
+        "PrintLocation", &FGameObject::PrintLocation,
+        "GetForward", &FGameObject::GetForward
     );
     
     Lua->new_usertype<UInputManager>("InputManager",
@@ -79,7 +80,7 @@ FLuaManager::FLuaManager()
     SharedLib = Lua->create_table();
     
     // GlobalConfig는 전역 table
-    SharedLib["GlobalConfig"] = Lua->create_table();
+    SharedLib["GlobalConfig"] = Lua->create_table(); 
     // SharedLib["GlobalConfig"]["Gravity"] = 9.8;
 
     SharedLib.set_function("SpawnPrefab", sol::overload(
