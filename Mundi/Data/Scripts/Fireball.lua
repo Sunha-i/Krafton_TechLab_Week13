@@ -9,8 +9,7 @@ function EndPlay()
 end
 
 function OnBeginOverlap(OtherActor)
-    --[[Obj:PrintLocation()]]--
-    print("Fireball ")
+    --[[Obj:PrintLocation()]]-- 
 end
 
 function OnEndOverlap(OtherActor)
