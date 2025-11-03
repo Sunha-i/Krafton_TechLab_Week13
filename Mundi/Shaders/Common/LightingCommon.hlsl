@@ -14,10 +14,33 @@
 // USE_BLINN_PHONG 정의됨: Half-vector 기반 Blinn-Phong (더 빠르고 부드러운 하이라이트)
 // USE_BLINN_PHONG 주석 처리: Reflection vector 기반 전통적인 Phong (더 날카로운 하이라이트)
 #define USE_BLINN_PHONG 1
+#define MAX_PCF_SAMPLES 16  // 이 값을 바꾸려면 아래 배열도 크기에 맞게 변경해줘야 함
+
+static const float2 PoissonDisk[MAX_PCF_SAMPLES] =
+{
+    float2(0.540417, 0.640249), float2(0.160918, 0.899496),
+        float2(-0.291771, 0.575997), float2(-0.737101, 0.504261),
+        float2(-0.852436, -0.063901), float2(-0.536979, -0.580749),
+        float2(-0.198121, -0.835976), float2(0.284752, -0.730335),
+        float2(0.697495, -0.537658), float2(0.887834, -0.161042),
+        float2(0.818454, 0.334645), float2(0.383842, 0.279867),
+        float2(-0.103009, 0.134190), float2(-0.485496, 0.106886),
+        float2(-0.354784, -0.320412), float2(0.166412, -0.244837)
+};
 
 //================================================================================================
 // 유틸리티 함수
 //================================================================================================
+
+// Sharpen 값(0.0f~1.0f)을 PCF 샘플 수(1~MaxSamples)로 변환합니다.
+// 1.0f (Sharp) -> 1 샘플
+// 0.0f (Soft)  -> MaxSamples
+int ConvertSharpenToSampleCount(float SharpenValue)
+{
+    float Softness = 1.0f - saturate(SharpenValue);
+    int SampleCount = (int) lerp(1.0f, (float) MAX_PCF_SAMPLES, Softness);
+    return SampleCount;
+}
 
 // 타일 인덱스 계산 (픽셀 위치로부터)
 // SV_POSITION은 픽셀 중심 좌표 (0.5, 0.5 offset)
@@ -350,17 +373,6 @@ float SampleShadowPCF(float PixelDepth, float2 AtlasUV,
     }
     float ShadowFactorSum = 0.0f;
 
-    const float2 PoissonDisk[16] = {
-        float2(0.540417, 0.640249), float2(0.160918, 0.899496),
-        float2(-0.291771, 0.575997), float2(-0.737101, 0.504261),
-        float2(-0.852436, -0.063901), float2(-0.536979, -0.580749),
-        float2(-0.198121, -0.835976), float2(0.284752, -0.730335),
-        float2(0.697495, -0.537658), float2(0.887834, -0.161042),
-        float2(0.818454, 0.334645), float2(0.383842, 0.279867),
-        float2(-0.103009, 0.134190), float2(-0.485496, 0.106886),
-        float2(-0.354784, -0.320412), float2(0.166412, -0.244837)
-    };
-    
     [loop]
     for (int i = 0; i < SampleCount; i++)
     {
@@ -385,18 +397,6 @@ float SampleShadowPCF(float PixelDepth, float3 CubemapDir, uint LightIndex,
     }
     
     float ShadowFactorSum = 0.0f;
-    
-    // Poisson Disk 샘플링 (2D UV 공간)
-    const float2 PoissonDisk[16] = {
-        float2(0.540417, 0.640249), float2(0.160918, 0.899496),
-        float2(-0.291771, 0.575997), float2(-0.737101, 0.504261),
-        float2(-0.852436, -0.063901), float2(-0.536979, -0.580749),
-        float2(-0.198121, -0.835976), float2(0.284752, -0.730335),
-        float2(0.697495, -0.537658), float2(0.887834, -0.161042),
-        float2(0.818454, 0.334645), float2(0.383842, 0.279867),
-        float2(-0.103009, 0.134190), float2(-0.485496, 0.106886),
-        float2(-0.354784, -0.320412), float2(0.166412, -0.244837)
-    };
     
     // 1. 월드 방향 벡터 -> UV 변환
     CubemapUV baseUV = DirectionToCubemapUV(CubemapDir);
@@ -448,7 +448,10 @@ float CalculateSpotLightShadowFactor(
         ShadowMap.GetDimensions(Width, Height);
         float2 AtlasTexelSize = float2(1.0f / Width, 1.0f / Height);
         float2 FilterRadiusUV = 1.5f * AtlasTexelSize;
-        ShadowFactor = SampleShadowPCF(PixelDepth, AtlasUV, ShadowMapData.SampleCount, FilterRadiusUV, ShadowMap, ShadowSampler);
+        
+        int SampleCount = ConvertSharpenToSampleCount(ShadowMapData.ShadowSharpen);
+        
+        ShadowFactor = SampleShadowPCF(PixelDepth, AtlasUV, SampleCount, FilterRadiusUV, ShadowMap, ShadowSampler);
     }
 
     return ShadowFactor;
@@ -532,13 +535,15 @@ float GetCascadedShadowAtt(float3 WorldPos, float3 ViewPos, float3 Normal, float
         float NdotL = saturate(dot(Normal, LightDir));
         float SlopeScaledBias = DirectionalLight.Cascades[CurIdx].ShadowSlopeBias * (1.0f - NdotL);
         float TotalShadowBias = DirectionalLight.Cascades[CurIdx].ShadowBias + SlopeScaledBias;
-
+        
+        int SampleCount = ConvertSharpenToSampleCount(DirectionalLight.Cascades[CurIdx].ShadowSharpen);
+        
         float3 CurUV = mul(float4(WorldPos, 1), DirectionalLight.Cascades[CurIdx].ShadowViewProjMatrix).xyz;
         if (saturate(CurUV.x) == CurUV.x && saturate(CurUV.y) == CurUV.y)
         {
             float2 CurAtlasUV = CurUV.xy * DirectionalLight.Cascades[CurIdx].AtlasScaleOffset.xy + DirectionalLight.Cascades[CurIdx].AtlasScaleOffset.zw;
             // 올바르게 계산된 TotalShadowBias 사용
-            float CurShadowFactor = SampleShadowPCF(CurUV.z - TotalShadowBias, CurAtlasUV, DirectionalLight.Cascades[CurIdx].SampleCount, FilterRadiusUV, ShadowMap, ShadowSampler);
+            float CurShadowFactor = SampleShadowPCF(CurUV.z - TotalShadowBias, CurAtlasUV, SampleCount, FilterRadiusUV, ShadowMap, ShadowSampler);
             return CurShadowFactor;
         }
         return 0;
@@ -572,10 +577,12 @@ float GetCascadedShadowAtt(float3 WorldPos, float3 ViewPos, float3 Normal, float
         float CurSlopeScaledBias = DirectionalLight.Cascades[CurIdx].ShadowSlopeBias * (1.0f - NdotL);
         float CurTotalShadowBias = DirectionalLight.Cascades[CurIdx].ShadowBias + CurSlopeScaledBias;
 
+        int SampleCount = ConvertSharpenToSampleCount(DirectionalLight.Cascades[CurIdx].ShadowSharpen);
+        
         float3 CurUV = mul(float4(WorldPos, 1), DirectionalLight.Cascades[CurIdx].ShadowViewProjMatrix).xyz;
         float2 CurAtlasUV = CurUV.xy * DirectionalLight.Cascades[CurIdx].AtlasScaleOffset.xy + DirectionalLight.Cascades[CurIdx].AtlasScaleOffset.zw;
         // CurTotalShadowBias 사용
-        float CurShadowFactor = SampleShadowPCF(CurUV.z - CurTotalShadowBias, CurAtlasUV, DirectionalLight.Cascades[CurIdx].SampleCount, FilterRadiusUV, ShadowMap, ShadowSampler);
+        float CurShadowFactor = SampleShadowPCF(CurUV.z - CurTotalShadowBias, CurAtlasUV, SampleCount, FilterRadiusUV, ShadowMap, ShadowSampler);
 
         if (bNeedLerp)
         {
@@ -587,8 +594,10 @@ float GetCascadedShadowAtt(float3 WorldPos, float3 ViewPos, float3 Normal, float
             float PrevSlopeScaledBias = DirectionalLight.Cascades[PrevIdx].ShadowSlopeBias * (1.0f - NdotL);
             float PrevTotalShadowBias = DirectionalLight.Cascades[PrevIdx].ShadowBias + PrevSlopeScaledBias;
             
+            int PrevSampleCount = ConvertSharpenToSampleCount(DirectionalLight.Cascades[PrevIdx].ShadowSharpen);
+            
             // PrevTotalShadowBias 사용
-            float PrevShadowFactor = SampleShadowPCF(PrevUV.z - PrevTotalShadowBias, PrevAtlasUV, DirectionalLight.Cascades[PrevIdx].SampleCount, FilterRadiusUV, ShadowMap, ShadowSampler);
+            float PrevShadowFactor = SampleShadowPCF(PrevUV.z - PrevTotalShadowBias, PrevAtlasUV, PrevSampleCount, FilterRadiusUV, ShadowMap, ShadowSampler);
             return LerpValue * CurShadowFactor + (1 - LerpValue) * PrevShadowFactor;
         }
         else
@@ -771,9 +780,10 @@ float3 CalculatePointLight(
     // Shadow 적용 (bCastShadows 플래그 확인) - PCF 샘플링 사용
     if (light.bCastShadows)
     {
-        int sampleCount = 16; // PCF 샘플 카운트
+        int SampleCount = ConvertSharpenToSampleCount(light.ShadowSharpen);
+        
         float shadowFactor = CalculatePointLightShadowFactor(
-            worldPos, normal, light, sampleCount,
+            worldPos, normal, light, SampleCount,
             ShadowMapCube, ShadowSampler);
         diffuse *= shadowFactor;
         specular *= shadowFactor;

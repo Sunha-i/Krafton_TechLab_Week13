@@ -9,7 +9,7 @@ BEGIN_PROPERTIES(ULightComponent)
 	ADD_PROPERTY_RANGE(int, ShadowResolutionScale, "Light", 512, 8192, true, "Shadow Resolution Scale");
 	ADD_PROPERTY_RANGE(float, ShadowBias, "Light", 0.0f, 0.01f, true, "Shadow Bias");
 	ADD_PROPERTY_RANGE(float, ShadowSlopeBias, "Light", 0.0f, 0.01f, true, "Shadow Slope Bias");
-	ADD_PROPERTY_RANGE(float, ShadowSharpen, "Light", 0.0f, 10.0f, true, "Shadow Sharpen");
+	ADD_PROPERTY_RANGE(float, ShadowSharpen, "Light", 0.0f, 1.0f, true, "Shadow Sharpen - 0.0f(Soft) ~ 1.0f(Sharp)");
 END_PROPERTIES()
 
 // Color Temperature to RGB conversion using blackbody radiation approximation

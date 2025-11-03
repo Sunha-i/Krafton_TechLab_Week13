@@ -87,9 +87,7 @@ protected:
 	float PreviousInnerConeAngle = 30.0f;
 	float PreviousOuterConeAngle = 45.0f;
 
-	int32 SampleCount = 4;
 	FMatrix WarpMatrix = FMatrix::Identity();
-
 
 	// Direction Gizmo (shows light direction)
 	class UGizmoArrowComponent* DirectionGizmo = nullptr;

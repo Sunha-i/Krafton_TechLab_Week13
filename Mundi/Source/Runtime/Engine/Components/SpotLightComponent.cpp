@@ -13,7 +13,6 @@ BEGIN_PROPERTIES(USpotLightComponent)
 	MARK_AS_COMPONENT("스포트 라이트", "스포트 라이트 컴포넌트를 추가합니다.")
 	ADD_PROPERTY_RANGE(float, InnerConeAngle, "Light", 0.0f, 90.0f, true, "원뿔 내부 각도입니다. 이 각도 안에서는 빛이 최대 밝기로 표시됩니다.")
 	ADD_PROPERTY_RANGE(float, OuterConeAngle, "Light", 0.0f, 90.0f, true, "원뿔 외부 각도입니다. 이 각도 밖에서는 빛이 보이지 않습니다.")
-	ADD_PROPERTY_RANGE(int, SampleCount, "Light", 0, 16, "PCF 샘플 횟수")
 END_PROPERTIES()
 
 USpotLightComponent::USpotLightComponent()
@@ -71,7 +70,6 @@ void USpotLightComponent::GetShadowRenderRequests(FSceneView* View, TArray<FShad
 	// ShadowRenderRequest.ProjectionMatrix = WarpMatrix;
 	ShadowRenderRequest.SubViewIndex = 0;
 	ShadowRenderRequest.AtlasScaleOffset = 0;
-	ShadowRenderRequest.SampleCount = SampleCount;
 	OutRequests.Add(ShadowRenderRequest);
 }
 
@@ -125,7 +123,6 @@ FSpotLightInfo USpotLightComponent::GetLightInfo() const
 	// Info.ShadowData.ShadowViewProjMatrix = GetViewMatrix() * GetProjectionMatrix() * GetWarpMatrix();
 	Info.ShadowData.ShadowViewProjMatrix = GetViewMatrix() * GetProjectionMatrix();
 	Info.bCastShadows = 0u;		// UpdateLightBuffer 에서 초기화 해줌
-	Info.ShadowData.SampleCount = SampleCount;
 	Info.ShadowData.WorldPosition = GetWorldLocation();
 	return Info;
 }

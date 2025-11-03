@@ -26,11 +26,10 @@ struct FShadowMapData // 112 bytes
     FMatrix ShadowViewProjMatrix; // 64
     FVector4 AtlasScaleOffset; // 16
     FVector WorldPosition; // 12
-    int32 SampleCount; // 4
     float ShadowBias;       // 4
     float ShadowSlopeBias;  // 4
     float ShadowSharpen;    // 4
-    float Padding[1];       // 8
+    float Padding[2];
 };
 
 struct FShadowRenderRequest
@@ -46,7 +45,6 @@ struct FShadowRenderRequest
 
     FVector4 AtlasScaleOffset; // 패킹 알고리즘이 채워줄 UV
     FVector2D AtlasViewportOffset; // 패킹 알고리즘이 채워줄 Viewport
-    int32 SampleCount = 0;
 
     bool operator>(const FShadowRenderRequest& Other) const
     {
