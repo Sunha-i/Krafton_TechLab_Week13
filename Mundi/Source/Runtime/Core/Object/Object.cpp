@@ -279,8 +279,7 @@ void UObject::Serialize(const bool bInIsLoading, JSON& InOutHandle)
 			}
 			default:
 			{
-				UE_LOG("[AutoSerialize] Array property '%s' has unsupported InnerType: %d",
-					   Prop.Name, static_cast<int>(Prop.InnerType));
+				//UE_LOG("[AutoSerialize] Array property '%s' has unsupported InnerType: %d", Prop.Name, static_cast<int>(Prop.InnerType));
 				break;
 			}
 			}

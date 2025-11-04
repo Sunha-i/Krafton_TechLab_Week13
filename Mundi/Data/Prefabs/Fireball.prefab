@@ -8,12 +8,7 @@
       "bRotationInLocalSpace" : true,
       "bTickEnabled" : true
     }, {
-      "ScriptFilePath" : "Data/Scripts/Fireball.lua",
-      "Type" : "ULuaScriptComponent",
-      "bIsActive" : true,
-      "bTickEnabled" : true
-    }, {
-      "Id" : 1531,
+      "Id" : 1160,
       "MaterialSlots" : [{
           "Overrides" : {
             "Scalars" : {
@@ -42,8 +37,13 @@
       "bIsVisible" : true,
       "bTickEnabled" : true
     }, {
-      "Id" : 1534,
-      "ParentId" : 1531,
+      "ScriptFilePath" : "Data/Scripts/Fireball.lua",
+      "Type" : "ULuaScriptComponent",
+      "bIsActive" : true,
+      "bTickEnabled" : true
+    }, {
+      "Id" : 1162,
+      "ParentId" : 1160,
       "RelativeLocation" : [0.000000, 0.000000, 0.000000],
       "RelativeRotationEuler" : [0.000000, 0.000000, 0.000000],
       "RelativeScale" : [1.000000, 1.000000, 1.000000],
@@ -58,8 +58,9 @@
       "bShapeIsVisible" : true,
       "bTickEnabled" : true
     }],
-  "RootComponentId" : 1531,
+  "RootComponentId" : 1160,
   "Tag" : "fireball",
   "Type" : "AStaticMeshActor",
-  "bActorHiddenInGame" : false
+  "bActorHiddenInGame" : false,
+  "bActorIsActive" : true
 }

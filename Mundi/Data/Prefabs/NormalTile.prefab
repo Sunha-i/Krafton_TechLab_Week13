@@ -1,7 +1,7 @@
 {
   "Name" : "AStaticMeshActor_0",
   "OwnedComponents" : [{
-      "Id" : 2895,
+      "Id" : 1831,
       "MaterialSlots" : [{
           "Overrides" : {
             "Scalars" : {
@@ -32,8 +32,8 @@
       "bTickEnabled" : true
     }, {
       "BoxExtent" : [1.000000, 1.000000, 1.000000],
-      "Id" : 2897,
-      "ParentId" : 2895,
+      "Id" : 1833,
+      "ParentId" : 1831,
       "RelativeLocation" : [0.000000, 0.000000, 0.000000],
       "RelativeRotationEuler" : [0.000000, 0.000000, 0.000000],
       "RelativeScale" : [1.000000, 1.000000, 1.000000],
@@ -52,8 +52,9 @@
       "bIsActive" : true,
       "bTickEnabled" : true
     }],
-  "RootComponentId" : 2895,
+  "RootComponentId" : 1831,
   "Tag" : "tile",
   "Type" : "AStaticMeshActor",
-  "bActorHiddenInGame" : false
+  "bActorHiddenInGame" : false,
+  "bActorIsActive" : true
 }

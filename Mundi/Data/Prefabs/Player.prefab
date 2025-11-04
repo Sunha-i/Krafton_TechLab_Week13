@@ -6,7 +6,7 @@
       "bIsActive" : true,
       "bTickEnabled" : true
     }, {
-      "Id" : 2210,
+      "Id" : 1689,
       "MaterialSlots" : [{
           "AssetPath" : "Pantaln",
           "Type" : "UMaterial"
@@ -51,12 +51,12 @@
       "bIsVisible" : true,
       "bTickEnabled" : true
     }, {
-      "Id" : 2211,
+      "Id" : 1690,
       "MaterialSlots" : [{
           "AssetPath" : "GatlingGun_Turret_Mat",
           "Type" : "UMaterial"
         }],
-      "ParentId" : 2210,
+      "ParentId" : 1689,
       "RelativeLocation" : [0.046674, -0.031837, 3.014768],
       "RelativeRotationEuler" : [8.360693, -0.166903, -90.098228],
       "RelativeScale" : [0.500000, 0.700000, 0.500000],
@@ -69,9 +69,9 @@
       "bIsVisible" : true,
       "bTickEnabled" : true
     }, {
-      "BoxExtent" : [1.107727, 3.415435, 1.661383],
-      "Id" : 2212,
-      "ParentId" : 2210,
+      "BoxExtent" : [1.107728, 3.415435, 1.661384],
+      "Id" : 1691,
+      "ParentId" : 1689,
       "RelativeLocation" : [-0.003928, 0.026435, 1.300055],
       "RelativeRotationEuler" : [0.000000, -0.000000, 0.000000],
       "RelativeScale" : [1.000000, 0.538478, 1.000000],
@@ -85,8 +85,9 @@
       "bShapeIsVisible" : true,
       "bTickEnabled" : true
     }],
-  "RootComponentId" : 2210,
+  "RootComponentId" : 1689,
   "Tag" : "player",
   "Type" : "AStaticMeshActor",
-  "bActorHiddenInGame" : false
+  "bActorHiddenInGame" : false,
+  "bActorIsActive" : true
 }

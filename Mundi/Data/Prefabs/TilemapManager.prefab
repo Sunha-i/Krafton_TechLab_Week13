@@ -6,7 +6,7 @@
       "bIsActive" : true,
       "bTickEnabled" : true
     }, {
-      "Id" : 1836,
+      "Id" : 2116,
       "ParentId" : 0,
       "RelativeLocation" : [-8.607930, 11.745107, 5.080332],
       "RelativeRotationEuler" : [0.000000, -0.000000, 0.000000],
@@ -17,8 +17,9 @@
       "bIsVisible" : true,
       "bTickEnabled" : true
     }],
-  "RootComponentId" : 1836,
+  "RootComponentId" : 2116,
   "Tag" : "",
   "Type" : "AEmptyActor",
-  "bActorHiddenInGame" : false
+  "bActorHiddenInGame" : false,
+  "bActorIsActive" : true
 }
