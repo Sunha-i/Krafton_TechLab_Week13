@@ -62,9 +62,31 @@ void APlayerCameraManager::Tick(float DeltaTime)
 	BuildForFrame(DeltaTime);
 }
 
-
 void APlayerCameraManager::BuildForFrame(float DeltaTime)
 {
+	if (PendingViewTarget)
+	{
+		float V = 1.0f - (BlendTimeRemaining / BlendTimeTotal);
+		FVector StartLocation = BlendStartView.ViewLocation;
+		FQuat StartRotation = BlendStartView.ViewRotation;
+
+		FVector TargetLocation = PendingViewTarget->GetWorldLocation();
+		FQuat TargetRotation = PendingViewTarget->GetWorldRotation();
+
+		SceneView.ViewLocation = FVector::Lerp(StartLocation, TargetLocation, V);
+
+		BlendTimeRemaining -= DeltaTime;
+		if (BlendTimeRemaining <= 0)
+		{
+			PendingViewTarget = nullptr;
+		}
+	}
+	else
+	{
+		SceneView.ViewLocation = CurrentViewTarget->GetWorldLocation();
+		SceneView.ViewRotation = CurrentViewTarget->GetWorldRotation();
+	}
+			
 	// 모든 Modifier tick Update
 	for (UCameraModifierBase* M : ActiveModifiers)
 	{
@@ -92,46 +114,23 @@ void APlayerCameraManager::BuildForFrame(float DeltaTime)
 		{ ActiveModifiers.RemoveAtSwap(i); continue; }
 	}
 
-	if (PendingViewTarget)
+	if (CurrentViewTarget && CachedViewport)
 	{
-		float V = 1.0f - (BlendTimeRemaining / BlendTimeTotal);
-		FVector StartLocation = BlendStartView.ViewLocation;
-		FQuat StartRotation = BlendStartView.ViewRotation;
-
-		FVector TargetLocation = PendingViewTarget->GetWorldLocation();
-		FQuat TargetRotation = PendingViewTarget->GetWorldRotation();
-
-		FVector CurLocation = FVector::Lerp(StartLocation, TargetLocation, V);
-
-		BlendTimeRemaining -= DeltaTime;
-		if (BlendTimeRemaining <= 0)
+		FMatrix WorldMatrix = SceneView.ViewRotation.ToMatrix() * FMatrix::MakeTranslation(SceneView.ViewLocation);
+		SceneView.ViewMatrix = (FMatrix::YUpToZUp * WorldMatrix).InverseAffine();
+		
+		float AspectRatio = 1.0f;
+		if (CachedViewport->GetSizeY() > 0)
 		{
-			PendingViewTarget = nullptr;
+			AspectRatio = (float)CachedViewport->GetSizeX() / (float)CachedViewport->GetSizeY();
 		}
-	}
-	else
-	{
-		if (CurrentViewTarget && CachedViewport)
-		{
-			float AspectRatio = 1.0f;
-			if (CachedViewport->GetSizeY() > 0)
-			{
-				AspectRatio = (float)CachedViewport->GetSizeX() / (float)CachedViewport->GetSizeY();
-			}
+		SceneView.ProjectionMatrix = CurrentViewTarget->GetProjectionMatrix(AspectRatio, CachedViewport);
 
-			SceneView.ViewLocation = CurrentViewTarget->GetWorldLocation();
-			SceneView.ViewRotation = CurrentViewTarget->GetWorldRotation();
-			
-			FMatrix WorldMatrix = SceneView.ViewRotation.ToMatrix() * FMatrix::MakeTranslation(SceneView.ViewLocation);
-			SceneView.ViewMatrix = (FMatrix::YUpToZUp * WorldMatrix).InverseAffine();
-			SceneView.ProjectionMatrix = CurrentViewTarget->GetProjectionMatrix(AspectRatio, CachedViewport);
-
-			SceneView.NearClip = CurrentViewTarget->GetNearClip();
-			SceneView.FarClip = CurrentViewTarget->GetFarClip();
-			SceneView.FieldOfView = CurrentViewTarget->GetFOV();
-			SceneView.ZoomFactor = CurrentViewTarget->GetZoomFactor();
-			SceneView.ProjectionMode = CurrentViewTarget->GetProjectionMode();
-		}
+		SceneView.NearClip = CurrentViewTarget->GetNearClip();
+		SceneView.FarClip = CurrentViewTarget->GetFarClip();
+		SceneView.FieldOfView = CurrentViewTarget->GetFOV();
+		SceneView.ZoomFactor = CurrentViewTarget->GetZoomFactor();
+		SceneView.ProjectionMode = CurrentViewTarget->GetProjectionMode();
 	}
 }
 
