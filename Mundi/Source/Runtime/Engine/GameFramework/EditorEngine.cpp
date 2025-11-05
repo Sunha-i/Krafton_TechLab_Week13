@@ -2,6 +2,7 @@
 #include "EditorEngine.h"
 #include "USlateManager.h"
 #include "SelectionManager.h"
+#include "FAudioDevice.h"
 #include <ObjManager.h>
 
 
@@ -183,6 +184,9 @@ bool UEditorEngine::Startup(HINSTANCE hInstance)
     RHIDevice.Initialize(HWnd);
     Renderer = std::make_unique<URenderer>(&RHIDevice);
 
+    // Audio Device 초기화
+    FAudioDevice::Initialize();
+          
     //매니저 초기화
     UI.Initialize(HWnd, RHIDevice.GetDevice(), RHIDevice.GetDeviceContext());
     INPUT.Initialize(HWnd);
@@ -335,6 +339,9 @@ void UEditorEngine::Shutdown()
     // before the global GEngine variable's destructor runs
     FObjManager::Clear();
 
+    // AudioDevice 종료
+    FAudioDevice::Shutdown();
+     
     // IMPORTANT: Explicitly release Renderer before RHIDevice destructor runs
     // Renderer may hold references to D3D resources
     Renderer.reset();
