@@ -76,7 +76,7 @@ float UCamMod_Shake::EvalEnvelope01(float T) const
     return Alpha*Alpha*(3.f - 2.f*Alpha);
 }
 
-void UCamMod_Shake::ApplyToView(float DeltaTime, FSceneView& InOutSceneView)
+void UCamMod_Shake::ApplyToView(float DeltaTime)
 {
     if (!bEnabled || Weight <= 0.f) return;
     
@@ -100,12 +100,12 @@ void UCamMod_Shake::ApplyToView(float DeltaTime, FSceneView& InOutSceneView)
     FVector LocalEulerDegrees = FVector(SineRotation, SineRotation, SineRotation) * (AmplitudeRotationDegrees * EnvelopeAlpha);
 
     // 카메라 로컬 → 월드
-    const FQuat CameraQuaternion = InOutSceneView.ViewRotation;
+    /*const FQuat CameraQuaternion = InOutSceneView.ViewRotation;
     FVector WorldOffset    = CameraQuaternion.RotateVector(LocalLocation);
     FQuat   RotationOffset = FQuat::MakeFromEulerZYX(LocalEulerDegrees);
 
     InOutSceneView.ViewLocation += WorldOffset;
-    InOutSceneView.ViewRotation  = (RotationOffset * InOutSceneView.ViewRotation).GetNormalized();
+    InOutSceneView.ViewRotation  = (RotationOffset * InOutSceneView.ViewRotation).GetNormalized();*/
 }
 
 void UCamMod_Shake::TickLifetime(float DeltaTime)

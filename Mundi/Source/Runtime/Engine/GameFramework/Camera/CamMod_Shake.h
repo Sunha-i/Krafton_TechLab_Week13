@@ -25,7 +25,7 @@ public:
 
     // 엔진 루프
     void Initialize(float InDuration, float InAmpLoc, float InAmpRotDeg, float InFrequency);
-    virtual void ApplyToView(float DeltaTime, FSceneView& InOutView) override;
+    virtual void ApplyToView(float DeltaTime) override;
     virtual void TickLifetime(float DeltaTime) override;
 
     // TODO 

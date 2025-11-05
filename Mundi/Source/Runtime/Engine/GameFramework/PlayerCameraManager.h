@@ -1,9 +1,9 @@
-#pragma once
+﻿#pragma once
 #include "Actor.h"
+#include "SceneView.h"
 
 class UCameraComponent;
 class UCameraModifierBase;
-class FSceneView;
 class FViewport;
 class URenderSettings;
 class UCamMod_Fade;
