@@ -45,6 +45,7 @@
 #include "LightStats.h"
 #include "ShadowStats.h"
 #include "PlatformTime.h"
+#include "PostProcessing/VignettePass.h"
 
 FSceneRenderer::FSceneRenderer(UWorld* InWorld, FSceneView* InView, URenderer* InOwnerRenderer)
 	: World(InWorld)
@@ -982,9 +983,21 @@ void FSceneRenderer::RenderPostProcessingPasses()
 	FadeInOut.bEnabled = true;
 	FadeInOut.Weight = 1.0;
 	FadeInOut.SourceObject = nullptr;
-	FFadeInOutBufferType FadeCB{ FLinearColor(1,0,0,1), /*Opacity*/0.5f, /*Weight*/FadeInOut.Weight, {0,0} };
+	FFadeInOutBufferType FadeCB{ FLinearColor(1,0,0,1), 0.5f, FadeInOut.Weight, {0,0} };
 	FadeInOut.JustForTest = &FadeCB;
-	PostProcessModifiers.Add(FadeInOut);
+	// PostProcessModifiers.Add(FadeInOut);
+
+	FPostProcessModifier Vignette;
+	Vignette.Type = EPostProcessEffectType::Vignette;
+	Vignette.bEnabled = true;
+	Vignette.Weight = 1.0;
+	Vignette.SourceObject = nullptr;
+	FVinetteBufferType VinetteCB{ 0.35f, 0.25f, 1.0f, 2.0f, FadeInOut.Weight, {0,0,0},
+									{(float)View->Viewport->GetSizeX(), (float)View->Viewport->GetSizeY(), (float)View->Viewport->GetStartX(), (float)View->Viewport->GetStartY()},
+									FLinearColor(1.0, 1.0, 1.0, 1.0)};
+
+	Vignette.JustForTest = &VinetteCB;
+	PostProcessModifiers.Add(Vignette);
 	
 	for (auto& Modifier : PostProcessModifiers)
 	{
@@ -995,6 +1008,9 @@ void FSceneRenderer::RenderPostProcessingPasses()
 			break;
 		case EPostProcessEffectType::Fade:
 			FadeInOutPass.Execute(Modifier, View, RHIDevice);
+			break;
+		case EPostProcessEffectType::Vignette:
+			VignettePass.Execute(Modifier, View, RHIDevice);
 			break;
 		}
 	}
