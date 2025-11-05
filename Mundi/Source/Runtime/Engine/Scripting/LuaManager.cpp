@@ -216,10 +216,6 @@ FLuaManager::FLuaManager()
             }
 
             USceneComponent* SceneComponent = Player->GetRootComponent();
-            if (!SceneComponent)
-            {
-                SceneComponent = static_cast<USceneComponent*>(Player->GetComponent(USceneComponent::StaticClass()));
-            }
 
             if (!SceneComponent)
             {
