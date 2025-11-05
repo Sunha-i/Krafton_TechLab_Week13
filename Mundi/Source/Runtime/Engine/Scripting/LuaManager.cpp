@@ -743,7 +743,7 @@ void FLuaManager::ExposeGlobalFunctions()
                 {
                     auto* Comp = static_cast<UAudioComponent*>(Proxy.Instance);
                     Comp->PlaySlot(SlotIndex);
-                    UE_LOG("Sound Slot Index : %d", SlotIndex);
+                    // UE_LOG("Sound Slot Index : %d", SlotIndex);
                 }
             }
         );
