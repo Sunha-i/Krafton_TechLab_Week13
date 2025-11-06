@@ -64,6 +64,7 @@ public:
     // 콘솔 관리
     void ToggleConsole();
     bool IsConsoleVisible() const { return bIsConsoleVisible; }
+    void ForceOpenConsole();
 
 private:
     FRect Rect; // 이전엔 SWindow로부터 상속받던 영역 정보

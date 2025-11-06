@@ -3,6 +3,7 @@
 #include "ObjectFactory.h"
 #include "GlobalConsole.h"
 #include "StatsOverlayD2D.h"
+#include "USlateManager.h"
 #include <windows.h>
 #include <cstdarg>
 #include <cctype>
@@ -237,6 +238,11 @@ void UConsoleWidget::AddLog(const char* fmt, ...)
 	buf[sizeof(buf) - 1] = 0;
 	va_end(args);
 
+	if (strstr(buf, "[error]") != nullptr)
+	{
+		USlateManager::GetInstance().ForceOpenConsole();
+	}
+
 	Items.Add(FString(buf));
 	ScrollToBottom = true;
 }
@@ -246,6 +252,11 @@ void UConsoleWidget::VAddLog(const char* fmt, va_list args)
 	char buf[1024];
 	vsnprintf_s(buf, sizeof(buf), fmt, args);
 	buf[sizeof(buf) - 1] = 0;
+
+	if (strstr(buf, "[error]") != nullptr)
+	{
+		USlateManager::GetInstance().ForceOpenConsole();
+	}
 
 	Items.Add(FString(buf));
 	ScrollToBottom = true;

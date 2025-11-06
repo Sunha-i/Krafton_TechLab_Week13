@@ -486,7 +486,11 @@ void USlateManager::ToggleConsole()
     }
 }
 
-
-
-
-
+void USlateManager::ForceOpenConsole()
+{
+    if (!bIsConsoleVisible)
+    {
+        // 2. 토글 함수를 호출하여 열기 상태(true)로 전환하고 애니메이션 시작
+        ToggleConsole();
+    }
+}
