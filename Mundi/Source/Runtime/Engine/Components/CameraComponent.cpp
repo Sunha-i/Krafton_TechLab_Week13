@@ -53,7 +53,7 @@ void UCameraComponent::OnRegister(UWorld* InWorld)
             CameraGizmo->SetMaterialByName(0, "Shaders/UI/Gizmo.hlsl");
 
             // Set default scale
-            CameraGizmo->SetWorldScale(FVector(2.5f, 2.5f, 2.5f));
+            CameraGizmo->SetWorldScale(FVector(1.5f, 1.5f, 1.5f));
         }
     }
 }
