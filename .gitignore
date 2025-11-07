@@ -448,3 +448,4 @@ GEMINI.md
 # Untracked Data Files
 /Mundi/Data/untracked/**
 /Mundi/DerivedDataCache/**
+!/Mundi/ThirdParty/**
