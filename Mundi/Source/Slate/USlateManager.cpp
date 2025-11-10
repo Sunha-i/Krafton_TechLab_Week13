@@ -187,6 +187,19 @@ void USlateManager::OpenSkeletalMeshViewer()
     SkeletalViewerWindow->Initialize(x, y, w, h, World, Device);
 }
 
+void USlateManager::OpenSkeletalMeshViewerWithFile(const char* FilePath)
+{
+    // 뷰어가 이미 열려있으면 그냥 사용, 아니면 새로 열기
+    if (!SkeletalViewerWindow)
+    {
+        OpenSkeletalMeshViewer();
+    }
+
+    // TODO: 실제로 파일을 로드하는 기능은 SSkeletalMeshViewerWindow에 추가해야 함
+    // 현재는 뷰어만 열림
+    UE_LOG("Opening SkeletalMeshViewer with file: %s", FilePath);
+}
+
 void USlateManager::CloseSkeletalMeshViewer()
 {
     if (!SkeletalViewerWindow) return;
@@ -298,8 +311,7 @@ void USlateManager::Render()
             // Content Browser 내용 렌더링
             if (ContentBrowserWindow)
             {
-                ContentBrowserWindow->RenderPathBar();
-                ContentBrowserWindow->RenderContentGrid();
+                ContentBrowserWindow->RenderContent();
             }
         }
         ImGui::End();

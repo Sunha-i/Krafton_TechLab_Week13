@@ -37,6 +37,10 @@ private:
     void RenderViewportLayoutSwitchButton();
     void LoadToolbarIcons(ID3D11Device* Device);
 
+    // 드래그 앤 드롭 처리
+    void HandleDropTarget();
+    void SpawnActorFromFile(const char* FilePath, const FVector& WorldLocation);
+
 private:
     FViewport* Viewport = nullptr;
     FViewportClient* ViewportClient = nullptr;

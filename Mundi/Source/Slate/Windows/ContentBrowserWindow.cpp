@@ -4,6 +4,7 @@
 #include "ContentBrowserWindow.h"
 #include "ImGui/imgui.h"
 #include "ImGui/imgui_internal.h"
+#include "USlateManager.h"
 #include <algorithm>
 
 IMPLEMENT_CLASS(UContentBrowserWindow)
@@ -15,6 +16,9 @@ UContentBrowserWindow::UContentBrowserWindow()
 	, LastClickedIndex(-1)
 	, ThumbnailSize(80.0f)
 	, ColumnsCount(4)
+	, LeftPanelWidth(250.0f)
+	, SplitterWidth(4.0f)
+	, bIsDraggingSplitter(false)
 	, bShowFolders(true)
 	, bShowFiles(true)
 {
@@ -110,24 +114,7 @@ void UContentBrowserWindow::RefreshCurrentDirectory()
 
 	try
 	{
-		// 먼저 폴더들을 추가
-		if (bShowFolders)
-		{
-			for (const auto& entry : std::filesystem::directory_iterator(CurrentPath))
-			{
-				if (entry.is_directory())
-				{
-					FFileEntry FileEntry;
-					FileEntry.Path = entry.path();
-					FileEntry.FileName = FString(entry.path().filename().string().c_str());
-					FileEntry.bIsDirectory = true;
-					FileEntry.FileSize = 0;
-					DisplayedFiles.push_back(FileEntry);
-				}
-			}
-		}
-
-		// 그 다음 파일들을 추가
+		// 오른쪽 패널에는 파일만 표시 (폴더는 왼쪽 트리에 표시됨)
 		if (bShowFiles)
 		{
 			for (const auto& entry : std::filesystem::directory_iterator(CurrentPath))
@@ -150,6 +137,126 @@ void UContentBrowserWindow::RefreshCurrentDirectory()
 	catch (const std::exception& e)
 	{
 		UE_LOG("ContentBrowserWindow: Error reading directory: %s", e.what());
+	}
+}
+
+void UContentBrowserWindow::RenderContent()
+{
+	ImVec2 contentSize = ImGui::GetContentRegionAvail();
+	ImGuiStyle& style = ImGui::GetStyle();
+
+	// 왼쪽 패널 (폴더 트리)
+	ImGui::BeginChild("LeftPanel", ImVec2(LeftPanelWidth, contentSize.y), true);
+	RenderFolderTree();
+	ImGui::EndChild();
+
+	ImGui::SameLine();
+
+	// 스플리터
+	ImGui::Button("##Splitter", ImVec2(SplitterWidth, contentSize.y));
+	if (ImGui::IsItemActive())
+	{
+		bIsDraggingSplitter = true;
+	}
+	if (bIsDraggingSplitter)
+	{
+		float delta = ImGui::GetIO().MouseDelta.x;
+		LeftPanelWidth += delta;
+		LeftPanelWidth = std::max(150.0f, std::min(LeftPanelWidth, contentSize.x - 300.0f));
+
+		if (!ImGui::IsMouseDown(0))
+		{
+			bIsDraggingSplitter = false;
+		}
+	}
+	if (ImGui::IsItemHovered())
+	{
+		ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
+	}
+
+	ImGui::SameLine();
+
+	// 오른쪽 패널 (파일 그리드)
+	float rightPanelWidth = contentSize.x - LeftPanelWidth - SplitterWidth - style.ItemSpacing.x * 2;
+	ImGui::BeginChild("RightPanel", ImVec2(rightPanelWidth, contentSize.y), true);
+
+	// 경로 바
+	RenderPathBar();
+
+	ImGui::Separator();
+
+	// 파일 그리드
+	RenderContentGrid();
+
+	ImGui::EndChild();
+}
+
+void UContentBrowserWindow::RenderFolderTree()
+{
+	ImGui::Text("Folders");
+	ImGui::Separator();
+
+	// 루트 폴더부터 재귀적으로 렌더링
+	if (std::filesystem::exists(RootPath))
+	{
+		RenderFolderTreeNode(RootPath);
+	}
+}
+
+void UContentBrowserWindow::RenderFolderTreeNode(const std::filesystem::path& FolderPath)
+{
+	try
+	{
+		// 폴더 이름 가져오기
+		FString folderName = FolderPath == RootPath ? "Data" : FString(FolderPath.filename().string().c_str());
+
+		// 하위 폴더 확인
+		bool hasSubFolders = false;
+		for (const auto& entry : std::filesystem::directory_iterator(FolderPath))
+		{
+			if (entry.is_directory())
+			{
+				hasSubFolders = true;
+				break;
+			}
+		}
+
+		// 트리 노드 플래그
+		ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick;
+		if (!hasSubFolders)
+		{
+			flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
+		}
+		if (FolderPath == CurrentPath)
+		{
+			flags |= ImGuiTreeNodeFlags_Selected;
+		}
+
+		// 트리 노드 렌더링
+		bool nodeOpen = ImGui::TreeNodeEx(folderName.c_str(), flags);
+
+		// 클릭 시 해당 폴더로 이동
+		if (ImGui::IsItemClicked())
+		{
+			NavigateToPath(FolderPath);
+		}
+
+		// 하위 폴더 렌더링
+		if (nodeOpen && hasSubFolders)
+		{
+			for (const auto& entry : std::filesystem::directory_iterator(FolderPath))
+			{
+				if (entry.is_directory())
+				{
+					RenderFolderTreeNode(entry.path());
+				}
+			}
+			ImGui::TreePop();
+		}
+	}
+	catch (const std::exception& e)
+	{
+		UE_LOG("Error rendering folder tree node: %s", e.what());
 	}
 }
 
@@ -186,15 +293,14 @@ void UContentBrowserWindow::RenderContentGrid()
 {
 	ImGuiStyle& style = ImGui::GetStyle();
 	float windowWidth = ImGui::GetContentRegionAvail().x;
-	float cellSize = ThumbnailSize + style.ItemSpacing.x;
+	float cellSize = ThumbnailSize + style.ItemSpacing.x * 2;
 
-	// 동적으로 컬럼 수 계산
-	ColumnsCount = std::max(1, (int)(windowWidth / cellSize));
+	// 동적으로 컬럼 수 계산 (최소 2개 이상)
+	ColumnsCount = std::max(2, (int)(windowWidth / cellSize));
 
-	ImGui::BeginChild("ContentArea", ImVec2(0, 0), true, ImGuiWindowFlags_HorizontalScrollbar);
+	ImGui::BeginChild("ContentArea", ImVec2(0, 0), false, ImGuiWindowFlags_HorizontalScrollbar);
 
-	int columnIndex = 0;
-
+	// 그리드 레이아웃으로 아이템 배치
 	for (int i = 0; i < DisplayedFiles.size(); ++i)
 	{
 		FFileEntry& entry = DisplayedFiles[i];
@@ -203,14 +309,11 @@ void UContentBrowserWindow::RenderContentGrid()
 		RenderFileItem(entry, i);
 		ImGui::PopID();
 
-		columnIndex++;
-		if (columnIndex < ColumnsCount)
+		// 같은 줄에 다음 아이템 배치 (마지막 컬럼이 아닌 경우)
+		int columnIndex = (i + 1) % ColumnsCount;
+		if (columnIndex != 0 && i < DisplayedFiles.size() - 1)
 		{
 			ImGui::SameLine();
-		}
-		else
-		{
-			columnIndex = 0;
 		}
 	}
 
@@ -286,21 +389,33 @@ void UContentBrowserWindow::HandleDragSource(FFileEntry& Entry)
 
 void UContentBrowserWindow::HandleDoubleClick(FFileEntry& Entry)
 {
-	if (Entry.bIsDirectory)
+	// 파일인 경우 뷰어 열기
+	UE_LOG("ContentBrowserWindow: Double-clicked file: %s", Entry.FileName.c_str());
+
+	// 확장자에 따라 적절한 뷰어 열기
+	std::string ext = Entry.Extension.c_str();
+	std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+
+	if (ext == ".fbx")
 	{
-		// 폴더인 경우 해당 폴더로 이동
-		NavigateToPath(Entry.Path);
+		// SkeletalMeshViewer 열기
+		std::string pathStr = Entry.Path.string();
+		USlateManager::GetInstance().OpenSkeletalMeshViewerWithFile(pathStr.c_str());
+		UE_LOG("Opening SkeletalMeshViewer for: %s", Entry.FileName.c_str());
+	}
+	else if (ext == ".obj")
+	{
+		// StaticMesh는 현재 전용 뷰어가 없으므로 로그만 출력
+		UE_LOG("StaticMesh file clicked: %s (No dedicated viewer yet)", Entry.FileName.c_str());
+	}
+	else if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".dds" || ext == ".tga")
+	{
+		// 텍스처 뷰어 (향후 구현)
+		UE_LOG("Texture file clicked: %s (Texture viewer not implemented yet)", Entry.FileName.c_str());
 	}
 	else
 	{
-		// 파일인 경우 뷰어 열기 (다음 단계에서 구현 예정)
-		UE_LOG("ContentBrowserWindow: Double-clicked file: %s", Entry.FileName.c_str());
-
-		// TODO: Phase 8에서 구현
-		// if (Entry.Extension == ".fbx")
-		// {
-		//     Open SkeletalMeshViewer
-		// }
+		UE_LOG("Unsupported file type: %s", ext.c_str());
 	}
 }
 

@@ -13,6 +13,11 @@
 #include "CameraActor.h"
 #include "StatsOverlayD2D.h"
 
+#include "StaticMeshActor.h"
+//#include "SkeletalMeshActor.h"
+#include "ResourceManager.h"
+#include <filesystem>
+
 extern float CLIENTWIDTH;
 extern float CLIENTHEIGHT;
 
@@ -127,6 +132,9 @@ void SViewportWindow::OnRender()
 
 	if (Viewport)
 		Viewport->Render();
+
+	// 드래그 앤 드롭 타겟 영역 (뷰포트 전체)
+	HandleDropTarget();
 }
 
 void SViewportWindow::OnUpdate(float DeltaSeconds)
@@ -1935,4 +1943,118 @@ void SViewportWindow::RenderViewportLayoutSwitchButton()
 
 	ImGui::PopStyleColor(3);
 	ImGui::PopStyleVar(1);
+}
+
+void SViewportWindow::HandleDropTarget()
+{
+	// 뷰포트 영역에 Invisible Button을 만들어 드롭 타겟으로 사용
+	ImVec2 ViewportPos(Rect.Left, Rect.Top + 35.0f); // 툴바 높이(35) 제외
+	ImVec2 ViewportSize(Rect.GetWidth(), Rect.GetHeight() - 35.0f);
+
+	ImGui::SetNextWindowPos(ViewportPos);
+	ImGui::SetNextWindowSize(ViewportSize);
+
+	// Invisible overlay window for drop target
+	ImGuiWindowFlags flags = ImGuiWindowFlags_NoDecoration
+		| ImGuiWindowFlags_NoMove
+		| ImGuiWindowFlags_NoSavedSettings
+		| ImGuiWindowFlags_NoBringToFrontOnFocus
+		| ImGuiWindowFlags_NoBackground
+		| ImGuiWindowFlags_NoInputs; // 마우스 입력은 받지 않음 (드롭만 받음)
+
+	char WindowId[64];
+	sprintf_s(WindowId, "ViewportDropTarget_%p", this);
+
+	ImGui::Begin(WindowId, nullptr, flags);
+
+	// 드롭 타겟 처리
+	if (ImGui::BeginDragDropTarget())
+	{
+		if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("ASSET_FILE"))
+		{
+			const char* filePath = (const char*)payload->Data;
+
+			// 마우스 위치를 월드 좌표로 변환
+			ImVec2 mousePos = ImGui::GetMousePos();
+			FVector2D screenPos(mousePos.x - Rect.Left, mousePos.y - (Rect.Top + 35.0f));
+
+			// 간단한 월드 좌표 계산 (카메라 앞 일정 거리에 배치)
+			// TODO: 레이캐스팅으로 정확한 위치 계산
+			FVector worldLocation = FVector(0, 0, 0);
+
+			if (ViewportClient && ViewportClient->GetCamera())
+			{
+				ACameraActor* camera = ViewportClient->GetCamera();
+				FVector cameraPos = camera->GetActorLocation();
+				FVector cameraForward = camera->GetActorForward();
+
+				// 카메라 앞 500 유닛에 배치
+				worldLocation = cameraPos + cameraForward * 500.0f;
+			}
+
+			// 액터 생성
+			SpawnActorFromFile(filePath, worldLocation);
+
+			UE_LOG("Viewport: Dropped asset '%s' at world location (%f, %f, %f)",
+				filePath, worldLocation.X, worldLocation.Y, worldLocation.Z);
+		}
+		ImGui::EndDragDropTarget();
+	}
+
+	ImGui::End();
+}
+
+void SViewportWindow::SpawnActorFromFile(const char* FilePath, const FVector& WorldLocation)
+{
+	if (!ViewportClient || !ViewportClient->GetWorld())
+	{
+		UE_LOG("ERROR: ViewportClient or World is null");
+		return;
+	}
+
+	UWorld* world = ViewportClient->GetWorld();
+	std::filesystem::path path(FilePath);
+	std::string extension = path.extension().string();
+
+	// 소문자로 변환
+	std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
+
+	UE_LOG("Spawning actor from file: %s (extension: %s)", FilePath, extension.c_str());
+
+	//if (extension == ".fbx")
+	//{
+	//	// SkeletalMesh 액터 생성
+	//	ASkeletalMeshActor* actor = world->SpawnActor<ASkeletalMeshActor>(FTransform(WorldLocation));
+	//	if (actor)
+	//	{
+	//		actor->GetSkeletalMeshComponent()->SetSkeletalMesh(FilePath);
+	//		actor->SetActorLabel(path.filename().string().c_str());
+	//		UE_LOG("SkeletalMeshActor spawned successfully at (%f, %f, %f)",
+	//			WorldLocation.X, WorldLocation.Y, WorldLocation.Z);
+	//	}
+	//	else
+	//	{
+	//		UE_LOG("ERROR: Failed to spawn SkeletalMeshActor");
+	//	}
+	//}
+	//else if (extension == ".obj")
+	//{
+	//	// StaticMesh 액터 생성
+	//	AStaticMeshActor* actor = world->SpawnActor<AStaticMeshActor>(FTransform(WorldLocation));
+	//	if (actor)
+	//	{
+	//		actor->GetStaticMeshComponent()->SetStaticMesh(FilePath);
+	//		actor->SetActorLabel(path.filename().string().c_str());
+	//		UE_LOG("StaticMeshActor spawned successfully at (%f, %f, %f)",
+	//			WorldLocation.X, WorldLocation.Y, WorldLocation.Z);
+	//	}
+	//	else
+	//	{
+	//		UE_LOG("ERROR: Failed to spawn StaticMeshActor");
+	//	}
+	//}
+	//else
+	//{
+	//	UE_LOG("WARNING: Unsupported file type: %s", extension.c_str());
+	//}
 }

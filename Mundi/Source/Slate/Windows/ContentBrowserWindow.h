@@ -54,6 +54,12 @@ public:
 	void RefreshCurrentDirectory();
 
 	/**
+	 * @brief 전체 컨텐츠 렌더링 (2패널 레이아웃)
+	 */
+	void RenderContent();
+
+private:
+	/**
 	 * @brief 상단 경로 바 렌더링 (Breadcrumb)
 	 */
 	void RenderPathBar();
@@ -90,9 +96,21 @@ private:
 	FString FormatFileSize(uintmax_t Size) const;
 
 private:
+	/**
+	 * @brief 왼쪽 폴더 트리 렌더링
+	 */
+	void RenderFolderTree();
+
+	/**
+	 * @brief 재귀적으로 폴더 트리 노드 렌더링
+	 */
+	void RenderFolderTreeNode(const std::filesystem::path& FolderPath);
+
+private:
 	std::filesystem::path CurrentPath;        // 현재 탐색 중인 경로
 	std::filesystem::path RootPath;           // 루트 경로 (Data/)
 	TArray<FFileEntry> DisplayedFiles;        // 현재 표시 중인 파일 목록
+	TArray<std::filesystem::path> FolderList; // 왼쪽 패널의 폴더 목록
 
 	FFileEntry* SelectedFile;                 // 선택된 파일
 	int SelectedIndex;                        // 선택된 인덱스
@@ -102,6 +120,11 @@ private:
 
 	float ThumbnailSize;                      // 썸네일 크기
 	int ColumnsCount;                         // 그리드 컬럼 수
+
+	// 레이아웃
+	float LeftPanelWidth;                     // 왼쪽 패널 너비 (픽셀)
+	float SplitterWidth;                      // 스플리터 너비
+	bool bIsDraggingSplitter;                 // 스플리터 드래그 중
 
 	// 필터 옵션
 	bool bShowFolders;                        // 폴더 표시 여부
