@@ -28,6 +28,10 @@ public:
     // Convenience: forward to component
     void SetSkeletalMesh(const FString& PathFileName);
 
+    // Rebuild bone line overlay from the current skeletal mesh bind pose
+    // SelectedBoneIndex: highlight this bone and its parent connection
+    void RebuildBoneLines(int32 SelectedBoneIndex);
+
     // Copy/Serialize
     void DuplicateSubObjects() override;
     void Serialize(const bool bInIsLoading, JSON& InOutHandle) override;

@@ -284,47 +284,14 @@ void SSkeletalMeshViewerWindow::OnRender()
         ActiveState->Viewport->Resize(NewStartX, NewStartY, NewWidth, NewHeight);
 
         // [본 오버레이 재구축]
-        // - 정확한 관절 위치 계산: FBX 로더가 저장한 BindPose 행렬을 사용해 각 본의 원점(0,0,0,1)을 변환합니다.
+        // - 엔진 레벨(액터)에서 본 라인을 재구성하도록 위임합니다.
         if (ActiveState->bShowBones && ActiveState->PreviewActor && ActiveState->CurrentMesh && ActiveState->bBoneLinesDirty)
         {
-            ULineComponent* LineComp = ActiveState->PreviewActor->GetBoneLineComponent();
-            if (LineComp)
+            if (ULineComponent* LineComp = ActiveState->PreviewActor->GetBoneLineComponent())
             {
                 LineComp->SetLineVisible(true);
-                LineComp->ClearLines();
-
-                const FSkeletalMeshData* Data = ActiveState->CurrentMesh->GetSkeletalMeshData();
-                if (Data)
-                {
-                    const auto& Bones = Data->Skeleton.Bones;
-                    const int32 BoneCount = static_cast<int32>(Bones.size());
-                    if (BoneCount > 0)
-                    {
-                        // [1] BindPose 기반 관절 위치 계산 (행벡터 컨벤션: v4 * M)
-                        TArray<FVector> JointPos; JointPos.resize(BoneCount);
-                        const FVector4 Origin(0, 0, 0, 1);
-                        for (int32 i = 0; i < BoneCount; ++i)
-                        {
-                            const FMatrix& Bind = Bones[i].BindPose;
-                            const FVector4 P = Origin * Bind;
-                            JointPos[i] = FVector(P.X, P.Y, P.Z);
-                        }
-
-                        // [2] 부모-자식 뼈 쌍에 대해 선분 추가
-                        for (int32 i = 0; i < BoneCount; ++i)
-                        {
-                            int32 parent = Bones[i].ParentIndex;
-                            if (parent >= 0 && parent < BoneCount)
-                            {
-                                // 선택된 뼈(또는 그 부모)에 연결된 선은 빨간색, 그 외는 녹색으로 표시
-                                FVector4 color = (ActiveState->SelectedBoneIndex == i || ActiveState->SelectedBoneIndex == parent)
-                                    ? FVector4(1,0,0,1) : FVector4(0,1,0,1);
-                                LineComp->AddLine(JointPos[parent], JointPos[i], color);
-                            }
-                        }
-                    }
-                }
             }
+            ActiveState->PreviewActor->RebuildBoneLines(ActiveState->SelectedBoneIndex);
             ActiveState->bBoneLinesDirty = false; // 한 번만 재구성
         }
 
