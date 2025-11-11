@@ -677,9 +677,9 @@ void SViewportWindow::RenderCameraOptionDropdownMenu()
 
 	// 드롭다운 버튼 스타일 적용
 	ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 4.0f);
-	ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.14f, 0.16f, 0.16f, 1.00f));
-	ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.18f, 0.22f, 0.21f, 1.00f));
-	ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.22f, 0.28f, 0.26f, 1.00f));
+	ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.15f, 0.15f, 0.15f, 1.00f));
+	ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.20f, 0.20f, 0.20f, 1.00f));
+	ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.25f, 0.25f, 0.25f, 1.00f));
 
 	// 드롭다운 버튼 생성 (카메라 아이콘 + 현재 모드명 + 화살표)
 	ImVec2 ButtonSize(CameraDropdownWidth, ImGui::GetFrameHeight());
@@ -1012,9 +1012,9 @@ void SViewportWindow::RenderViewModeDropdownMenu()
 
 	// 스타일 적용
 	ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 4.0f);
-	ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.14f, 0.16f, 0.16f, 1.00f));
-	ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.18f, 0.22f, 0.21f, 1.00f));
-	ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.22f, 0.28f, 0.26f, 1.00f));
+	ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.15f, 0.15f, 0.15f, 1.00f));
+	ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.20f, 0.20f, 0.20f, 1.00f));
+	ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.25f, 0.25f, 0.25f, 1.00f));
 
 	// 드롭다운 버튼 생성 (아이콘 + 텍스트)
 	ImVec2 ButtonSize(DropdownWidth, ImGui::GetFrameHeight());
@@ -1307,9 +1307,9 @@ void SViewportWindow::RenderShowFlagDropdownMenu()
 
 	// 스타일 적용
 	ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 4.0f);
-	ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.14f, 0.16f, 0.16f, 1.00f));
-	ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.18f, 0.22f, 0.21f, 1.00f));
-	ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.22f, 0.28f, 0.26f, 1.00f));
+	ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.15f, 0.15f, 0.15f, 1.00f));
+	ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.20f, 0.20f, 0.20f, 1.00f));
+	ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.25f, 0.25f, 0.25f, 1.00f));
 
 	// 드롭다운 버튼 생성 (아이콘 + 텍스트)
 	ImVec2 ButtonSize(DropdownWidth, ImGui::GetFrameHeight());
@@ -1992,9 +1992,9 @@ void SViewportWindow::RenderViewportLayoutSwitchButton()
 
 	// 스타일 적용
 	ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 4.0f);
-	ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.14f, 0.16f, 0.16f, 1.00f));
-	ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.18f, 0.22f, 0.21f, 1.00f));
-	ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.22f, 0.28f, 0.26f, 1.00f));
+	ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.15f, 0.15f, 0.15f, 1.00f));
+	ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.20f, 0.20f, 0.20f, 1.00f));
+	ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.25f, 0.25f, 0.25f, 1.00f));
 
 	// 버튼
 	ImVec2 ButtonSize(ButtonWidth, ImGui::GetFrameHeight());
