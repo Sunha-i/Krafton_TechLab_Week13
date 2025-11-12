@@ -239,6 +239,7 @@ FSkeletalMeshData* UFbxLoader::LoadFbxMeshAsset(const FString& FilePath)
 	FbxAxisSystem UnrealImportAxis(FbxAxisSystem::eZAxis, FbxAxisSystem::eParityEven, FbxAxisSystem::eLeftHanded);
 	FbxAxisSystem SourceSetup = Scene->GetGlobalSettings().GetAxisSystem();
 
+	FbxSystemUnit::m.ConvertScene(Scene);
 	
 	if (SourceSetup != UnrealImportAxis)
 	{
@@ -518,6 +519,8 @@ void UFbxLoader::LoadMesh(FbxMesh* InMesh, FSkeletalMeshData& MeshData, TMap<int
 	// ControlPoint에 대응하는 뼈 인덱스, 가중치를 저장하는 맵
 	// ControlPoint에 대응하는 뼈가 여러개일 수 있으므로 TArray로 저장
 	TMap<int32, TArray<IndexWeight>> ControlPointToBoneWeight;
+	// 메시 로컬 좌표계를 Fbx Scene World 좌표계로 바꿔주는 행렬
+	FbxAMatrix FbxSceneWorld{};
 
 	// Deformer: 매시의 모양을 변형시키는 모든 기능, ex) skin, blendShape(모프 타겟, 두 표정 미리 만들고 블랜딩해서 서서히 변화시킴)
 	// 99.9퍼센트는 스킨이 하나만 있고 완전 복잡한 얼굴 표정을 표현하기 위해서 2개 이상을 쓰기도 하는데 0번만 쓰도록 해도 문제 없음(AAA급 게임에서 2개 이상을 처리함)
@@ -529,11 +532,17 @@ void UFbxLoader::LoadMesh(FbxMesh* InMesh, FSkeletalMeshData& MeshData, TMap<int
 		{
 			FbxCluster* Cluster = ((FbxSkin*)InMesh->GetDeformer(0, FbxDeformer::eSkin))->GetCluster(Index);
 
+			if (Index == 0)
+			{
+				// 클러스터를 담고 있는 Node의(Mesh) Fbx Scene World Transform, 한 번만 구해도 되고 
+				// 정점을 Fbx Scene World 좌표계로 저장하기 위해 사용(아티스트 의도를 그대로 반영 가능, 서브메시를 단일메시로 처리 가능)
+				// 모든 SkeletalMesh는 Scene World 원점을 기준으로 제작되어야함
+				Cluster->GetTransformMatrix(FbxSceneWorld);
+			}
 			int IndexCount = Cluster->GetControlPointIndicesCount();
 			// 클러스터가 영향을 주는 ControlPointIndex를 구함.
 			int* Indices = Cluster->GetControlPointIndices();
 			double* Weights = Cluster->GetControlPointWeights();
-
             // Bind Pose, Inverse Bind Pose 저장.
             // Fbx 스킨 규약:
             //  - TransformLinkMatrix: 본의 글로벌 바인드 행렬
@@ -541,18 +550,14 @@ void UFbxLoader::LoadMesh(FbxMesh* InMesh, FSkeletalMeshData& MeshData, TMap<int
             // 엔진 로컬(메시 기준) 바인드 행렬 = Inv(TransformMatrix) * TransformLinkMatrix
             FbxAMatrix BoneBindGlobal;
             Cluster->GetTransformLinkMatrix(BoneBindGlobal);
-            FbxAMatrix MeshBindGlobal;
-            Cluster->GetTransformMatrix(MeshBindGlobal);
-            FbxAMatrix MeshBindInv = MeshBindGlobal.Inverse();
-            FbxAMatrix BoneBindLocal = MeshBindInv * BoneBindGlobal;
-            FbxAMatrix BoneBindLocalInv = BoneBindLocal.Inverse();
+            FbxAMatrix BoneBindGlobalInv = BoneBindGlobal.Inverse();
             // FbxMatrix는 128바이트, FMatrix는 64바이트라서 memcpy쓰면 안 됨. 원소 단위로 복사합니다.
             for (int Row = 0; Row < 4; Row++)
             {
                 for (int Col = 0; Col < 4; Col++)
                 {
-                    MeshData.Skeleton.Bones[BoneToIndex[Cluster->GetLink()]].BindPose.M[Row][Col] = static_cast<float>(BoneBindLocal[Row][Col]);
-                    MeshData.Skeleton.Bones[BoneToIndex[Cluster->GetLink()]].InverseBindPose.M[Row][Col] = static_cast<float>(BoneBindLocalInv[Row][Col]);
+                    MeshData.Skeleton.Bones[BoneToIndex[Cluster->GetLink()]].BindPose.M[Row][Col] = static_cast<float>(BoneBindGlobal[Row][Col]);
+                    MeshData.Skeleton.Bones[BoneToIndex[Cluster->GetLink()]].InverseBindPose.M[Row][Col] = static_cast<float>(BoneBindGlobalInv[Row][Col]);
                 }
             }
 
@@ -609,7 +614,8 @@ void UFbxLoader::LoadMesh(FbxMesh* InMesh, FSkeletalMeshData& MeshData, TMap<int
 			// 폴리곤 인덱스와 폴리곤 내에서의 vertexIndex로 ControlPointIndex 얻어냄
 			int ControlPointIndex = InMesh->GetPolygonVertex(PolygonIndex, VertexIndex);
 
-			const FbxVector4& Position = ControlPoints[ControlPointIndex];
+			const FbxVector4& Position = FbxSceneWorld.MultT(ControlPoints[ControlPointIndex]);
+			//const FbxVector4& Position = ControlPoints[ControlPointIndex];
 			SkinnedVertex.Position = FVector(Position.mData[0], Position.mData[1], Position.mData[2]);
 
 
