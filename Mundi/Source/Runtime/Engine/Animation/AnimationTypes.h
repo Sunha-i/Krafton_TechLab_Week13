@@ -75,19 +75,19 @@ struct FAnimNotifyEvent
 		: TriggerTime(InTime), NotifyName(InName) {}
 };
 
-// 애니메이션 추출 컨텍스트
+// 애니메이션 추출 컨텍스트 (팀원2가 사용)
 struct FAnimExtractContext
 {
 	float CurrentTime = 0.0f;          // 현재 시간 (초)
 	bool bExtractRootMotion = false;   // 루트 모션 추출 여부
-	bool bLooping = false;             // 루핑 여부
+	bool bLooping = false;              // 루핑 여부
 
 	FAnimExtractContext() = default;
 	FAnimExtractContext(float InTime, bool InLooping)
 		: CurrentTime(InTime), bLooping(InLooping) {}
 };
 
-// 포즈 데이터 컨테이너
+// 포즈 데이터 컨테이너 (팀원2가 블렌딩에 사용)
 struct FPoseContext
 {
 	TArray<FTransform> BoneTransforms;  // 모든 본의 로컬 트랜스폼
@@ -111,5 +111,5 @@ struct FPoseContext
 enum class EAnimationMode : uint8
 {
 	AnimationSingleNode,   // 단일 애니메이션 재생
-	AnimationLuaScript,    // Lua 스크립트 기반 애니메이션
+	AnimationBlueprint,    // 애니메이션 블루프린트 (미래 확장)
 };

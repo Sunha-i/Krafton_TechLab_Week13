@@ -1,9 +1,9 @@
 ﻿#include "pch.h"
 #include "SkeletalMeshComponent.h"
-#include "AnimInstance.h"
-#include "AnimSingleNodeInstance.h"
-#include "AnimSequence.h"
-#include "AnimationTypes.h"
+#include "../Animation/AnimInstance.h"
+#include "../Animation/AnimSingleNodeInstance.h"
+#include "../Animation/AnimSequence.h"
+#include "../Animation/AnimationTypes.h"
 
 USkeletalMeshComponent::USkeletalMeshComponent()
 {
@@ -206,7 +206,7 @@ void USkeletalMeshComponent::StopAnimation()
 {
     if (AnimInstance)
     {
-        UAnimSingleNodeInstance* SingleNode = Cast<UAnimSingleNodeInstance>(AnimInstance);
+        UAnimSingleNodeInstance* SingleNode = dynamic_cast<UAnimSingleNodeInstance*>(AnimInstance);
         if (SingleNode)
         {
             SingleNode->Stop();
@@ -223,7 +223,7 @@ void USkeletalMeshComponent::SetAnimationMode(EAnimationMode InMode)
     // 모드에 맞는 AnimInstance 생성
     if (AnimationMode == EAnimationMode::AnimationSingleNode)
     {
-        if (!AnimInstance || !Cast<UAnimSingleNodeInstance>(AnimInstance))
+        if (!AnimInstance || !dynamic_cast<UAnimSingleNodeInstance*>(AnimInstance))
         {
             // 새 SingleNode 인스턴스 생성
             AnimInstance = NewObject<UAnimSingleNodeInstance>();
@@ -236,7 +236,7 @@ void USkeletalMeshComponent::SetAnimation(UAnimSequence* InAnim)
 {
     AnimationData = InAnim;
 
-    UAnimSingleNodeInstance* SingleNode = Cast<UAnimSingleNodeInstance>(AnimInstance);
+    UAnimSingleNodeInstance* SingleNode = dynamic_cast<UAnimSingleNodeInstance*>(AnimInstance);
     if (SingleNode)
     {
         SingleNode->SetAnimationAsset(InAnim);
@@ -245,7 +245,7 @@ void USkeletalMeshComponent::SetAnimation(UAnimSequence* InAnim)
 
 void USkeletalMeshComponent::Play(bool bLooping)
 {
-    UAnimSingleNodeInstance* SingleNode = Cast<UAnimSingleNodeInstance>(AnimInstance);
+    UAnimSingleNodeInstance* SingleNode = dynamic_cast<UAnimSingleNodeInstance*>(AnimInstance);
     if (SingleNode)
     {
         SingleNode->Play(bLooping);

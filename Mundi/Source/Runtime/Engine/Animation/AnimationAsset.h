@@ -12,12 +12,12 @@ public:
 	UAnimationAsset() = default;
 	virtual ~UAnimationAsset() = default;
 
-	// 애니메이션 길이 반환
+	// 애니메이션 길이 반환 (순수 가상)
 	virtual float GetPlayLength() const { return 0.0f; }
 
 	// 스켈레톤 참조
 	UPROPERTY(EditAnywhere, Category="[애니메이션]", Tooltip="대상 스켈레톤")
-	struct FSkeleton* Skeleton = nullptr;
+	class FSkeleton* Skeleton = nullptr;
 
 	// 메타데이터
 	UPROPERTY(EditAnywhere, Category="[애니메이션]")

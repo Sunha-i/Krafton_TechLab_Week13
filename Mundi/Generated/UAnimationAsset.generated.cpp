@@ -34,7 +34,7 @@ const bool UAnimationAsset::bPropertiesRegistered = []() {
 // ===== Property Reflection =====
 
 BEGIN_PROPERTIES(UAnimationAsset)
-    ADD_PROPERTY(struct FSkeleton*, Skeleton, "[애니메이션]", true, "대상 스켈레톤")
+    ADD_PROPERTY(class FSkeleton*, Skeleton, "[애니메이션]", true, "대상 스켈레톤")
     ADD_PROPERTY_ARRAY(EPropertyType::ObjectPtr, MetaData, "[애니메이션]", true)
 END_PROPERTIES()
 

@@ -1,6 +1,4 @@
 ﻿#include "pch.h"
-#pragma warning(push)
-#pragma warning(disable: 4244) // Disable double to float conversion warning for FBX SDK
 #include "ObjectFactory.h"
 #include "FbxLoader.h"
 #include "fbxsdk/fileio/fbxiosettings.h"
@@ -1181,4 +1179,3 @@ void UFbxLoader::EnsureSingleRootBone(FSkeletalMeshData& MeshData)
 	}
 }
 
-#pragma warning(pop) // Restore warning state

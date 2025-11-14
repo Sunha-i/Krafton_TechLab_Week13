@@ -345,7 +345,7 @@ void UObject::Serialize(const bool bInIsLoading, JSON& InOutHandle)
 					ArrayPtr->Empty();
 					for (size_t i = 0; i < ArrayJson.size(); ++i)
 					{
-						const JSON& Elem = ArrayJson.at(static_cast<unsigned int>(i));
+						const JSON& Elem = ArrayJson.at(i);
 						if (Elem.JSONType() == JSON::Class::String)
 						{
 							FString Path = Elem.ToString();

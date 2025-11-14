@@ -18,14 +18,7 @@
 #include "PlatformProcess.h"
 #include "SkeletalMeshComponent.h"
 #include "USlateManager.h"
-
-// Disable warnings for third-party ImGui curve library
-#pragma warning(push)
-#pragma warning(disable: 5055) // operator '*': deprecated between enumerations and floating-point types
-#pragma warning(disable: 4244) // conversion from 'int' to 'float', possible loss of data
-#pragma warning(disable: 4805) // unsafe mix of type 'int' and type 'bool'
 #include "ImGui/imgui_curve.hpp"
-#pragma warning(pop)
 
 // 정적 멤버 변수 초기화
 TArray<FString> UPropertyRenderer::CachedSkeletalMeshPaths;
