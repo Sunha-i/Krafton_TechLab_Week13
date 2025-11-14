@@ -412,24 +412,24 @@ void UConsoleWidget::ExecCommand(const char* command_line)
 	}
 	else if (Strnicmp(command_line, "SKINNING GPU", 12) == 0)
 	{
-		// 전역 스키닝 모드를 GPU로 설정 (언리얼 엔진 방식)
-		// 모든 월드에 적용하여 PIE 종료 후에도 설정 유지
+		// 현재 활성 World(PIE면 PIE, Editor면 Editor)만 스키닝 모드 변경
+		// Show Flag처럼 PIE 종료 시 Editor 설정으로 되돌아감
 		const TArray<FWorldContext>& WorldContexts = GEngine.GetWorldContexts();
-		int32 WorldsUpdated = 0;
 
-		for (const FWorldContext& Context : WorldContexts)
+		// 가장 마지막 World가 활성 World (PIE가 있으면 PIE, 없으면 Editor)
+		if (!WorldContexts.empty())
 		{
-			UWorld* World = Context.World;
-			if (World)
+			UWorld* ActiveWorld = WorldContexts.back().World;
+			if (ActiveWorld)
 			{
-				World->GetRenderSettings().SetGlobalSkinningMode(ESkinningMode::ForceGPU);
-				WorldsUpdated++;
+				ActiveWorld->GetRenderSettings().SetGlobalSkinningMode(ESkinningMode::ForceGPU);
+				ActiveWorld->GetRenderSettings().EnableShowFlag(EEngineShowFlags::SF_GPUSkinning);
+				AddLog("GPU Skinning enabled (current world only)");
 			}
-		}
-
-		if (WorldsUpdated > 0)
-		{
-			AddLog("Global GPU Skinning mode enabled (applied to %d world(s))", WorldsUpdated);
+			else
+			{
+				AddLog("ERROR: Active World is null");
+			}
 		}
 		else
 		{
@@ -438,24 +438,24 @@ void UConsoleWidget::ExecCommand(const char* command_line)
 	}
 	else if (Strnicmp(command_line, "SKINNING CPU", 12) == 0)
 	{
-		// 전역 스키닝 모드를 CPU로 설정 (언리얼 엔진 방식)
-		// 모든 월드에 적용하여 PIE 종료 후에도 설정 유지
+		// 현재 활성 World(PIE면 PIE, Editor면 Editor)만 스키닝 모드 변경
+		// Show Flag처럼 PIE 종료 시 Editor 설정으로 되돌아감
 		const TArray<FWorldContext>& WorldContexts = GEngine.GetWorldContexts();
-		int32 WorldsUpdated = 0;
 
-		for (const FWorldContext& Context : WorldContexts)
+		// 가장 마지막 World가 활성 World (PIE가 있으면 PIE, 없으면 Editor)
+		if (!WorldContexts.empty())
 		{
-			UWorld* World = Context.World;
-			if (World)
+			UWorld* ActiveWorld = WorldContexts.back().World;
+			if (ActiveWorld)
 			{
-				World->GetRenderSettings().SetGlobalSkinningMode(ESkinningMode::ForceCPU);
-				WorldsUpdated++;
+				ActiveWorld->GetRenderSettings().SetGlobalSkinningMode(ESkinningMode::ForceCPU);
+				ActiveWorld->GetRenderSettings().DisableShowFlag(EEngineShowFlags::SF_GPUSkinning);
+				AddLog("CPU Skinning enabled (current world only)");
 			}
-		}
-
-		if (WorldsUpdated > 0)
-		{
-			AddLog("Global CPU Skinning mode enabled (applied to %d world(s))", WorldsUpdated);
+			else
+			{
+				AddLog("ERROR: Active World is null");
+			}
 		}
 		else
 		{
