@@ -1,14 +1,12 @@
 ﻿#include "pch.h"
 #include "SkeletalMeshActor.h"
 #include "World.h"
-#include "Source/Runtime/Engine/Animation/AnimStateMachine.h"
-#include "Source/Runtime/Engine/Animation/AnimTestUtil.h"
 
 ASkeletalMeshActor::ASkeletalMeshActor()
 {
     ObjectName = "Skeletal Mesh Actor";
 
-    // 애니메이션 뷰어에서 테스트 하는 용도. placeholder임
+    // TODO: 애니메이션 뷰어에서 테스트 하는 용도. placeholder임
     SetTickInEditor(true);
 
     // 스킨드 메시 렌더용 컴포넌트 생성 및 루트로 설정
@@ -22,32 +20,6 @@ ASkeletalMeshActor::~ASkeletalMeshActor() = default;
 void ASkeletalMeshActor::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
-
-    // ------- TEST -------
-    // Update bone line visualization whenever an anim instance is present
-    if (SkeletalMeshComponent && SkeletalMeshComponent->GetAnimInstance())
-    {
-        // Continuously rebuild bone lines to follow animation
-        // Pass current selected bone index to maintain selection highlighting
-        RebuildBoneLines(CachedSelected);
-    }
-
-    // Demo: if state machine instance is present in viewer, auto-toggle Idle/Walk periodically
-    if (SkeletalMeshComponent)
-    {
-        if (auto* SM = Cast<UAnimStateMachineInstance>(SkeletalMeshComponent->GetAnimInstance()))
-        {
-            SMTestAccum += DeltaTime;
-            const float ToggleInterval = 1.5f; // seconds
-            if (SMTestAccum >= ToggleInterval)
-            {
-                SMTestAccum = 0.f;
-                bSMTestFlip = !bSMTestFlip;
-                AnimTestUtil::TriggerTransition(SM, bSMTestFlip ? "Walk" : "Idle", 0.35f);
-            }
-        }
-    }
-    // ---------------------
 }
 
 FAABB ASkeletalMeshActor::GetBounds() const
@@ -161,7 +133,6 @@ void ASkeletalMeshActor::RebuildBoneLines(int32 SelectedBoneIndex)
         CachedSelected = SelectedBoneIndex;
     }
 
-    // ------- TEST -------
     // Update transforms based on whether animation is playing
     const bool bIsAnimationPlaying = SkeletalMeshComponent && SkeletalMeshComponent->IsPlayingAnimation();
 
@@ -170,7 +141,6 @@ void ASkeletalMeshActor::RebuildBoneLines(int32 SelectedBoneIndex)
         // During animation, update all bone transforms (root bone subtree = entire skeleton)
         UpdateBoneSubtreeTransforms(0);
     }
-    // ---------------------
     else if (SelectedBoneIndex >= 0 && SelectedBoneIndex < BoneCount)
     {
         // When editing manually, only update the selected bone subtree
