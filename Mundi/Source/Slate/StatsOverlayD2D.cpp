@@ -37,6 +37,15 @@ void UStatsOverlayD2D::Initialize(ID3D11Device* InDevice, ID3D11DeviceContext* I
 
 void UStatsOverlayD2D::Shutdown()
 {
+	// D2D 리소스 해제
+	SafeRelease(CachedBrush);
+	SafeRelease(TextFormat);
+	SafeRelease(Dwrite);
+	SafeRelease(D2dCtx);
+	SafeRelease(D2dDevice);
+	SafeRelease(D2dFactory);
+	bD2DInitialized = false;
+
 	D3DDevice = nullptr;
 	D3DContext = nullptr;
 	SwapChain = nullptr;
@@ -45,6 +54,84 @@ void UStatsOverlayD2D::Shutdown()
 
 void UStatsOverlayD2D::EnsureInitialized()
 {
+	if (bD2DInitialized || !bInitialized || !D3DDevice)
+		return;
+
+	// D2D Factory 생성 (한 번만)
+	D2D1_FACTORY_OPTIONS Opts{};
+#ifdef _DEBUG
+	Opts.debugLevel = D2D1_DEBUG_LEVEL_INFORMATION;
+#endif
+	if (FAILED(D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, __uuidof(ID2D1Factory1), &Opts, (void**)&D2dFactory)))
+		return;
+
+	// DXGI Device 쿼리
+	IDXGIDevice* DxgiDevice = nullptr;
+	if (FAILED(D3DDevice->QueryInterface(__uuidof(IDXGIDevice), (void**)&DxgiDevice)))
+	{
+		SafeRelease(D2dFactory);
+		return;
+	}
+
+	// D2D Device 생성 (한 번만)
+	if (FAILED(D2dFactory->CreateDevice(DxgiDevice, &D2dDevice)))
+	{
+		SafeRelease(DxgiDevice);
+		SafeRelease(D2dFactory);
+		return;
+	}
+	SafeRelease(DxgiDevice);
+
+	// D2D DeviceContext 생성 (한 번만)
+	if (FAILED(D2dDevice->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE, &D2dCtx)))
+	{
+		SafeRelease(D2dDevice);
+		SafeRelease(D2dFactory);
+		return;
+	}
+
+	// DWrite Factory 생성 (한 번만)
+	if (FAILED(DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), (IUnknown**)&Dwrite)))
+	{
+		SafeRelease(D2dCtx);
+		SafeRelease(D2dDevice);
+		SafeRelease(D2dFactory);
+		return;
+	}
+
+	// TextFormat 생성 (한 번만, 모든 텍스트에 재사용)
+	if (FAILED(Dwrite->CreateTextFormat(
+		L"Segoe UI",
+		nullptr,
+		DWRITE_FONT_WEIGHT_NORMAL,
+		DWRITE_FONT_STYLE_NORMAL,
+		DWRITE_FONT_STRETCH_NORMAL,
+		16.0f,
+		L"en-us",
+		&TextFormat)))
+	{
+		SafeRelease(Dwrite);
+		SafeRelease(D2dCtx);
+		SafeRelease(D2dDevice);
+		SafeRelease(D2dFactory);
+		return;
+	}
+
+	TextFormat->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_LEADING);
+	TextFormat->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_NEAR);
+
+	// Brush 생성 (한 번만, 색상은 SetColor로 변경)
+	if (FAILED(D2dCtx->CreateSolidColorBrush(D2D1::ColorF(1.0f, 1.0f, 1.0f), &CachedBrush)))
+	{
+		SafeRelease(TextFormat);
+		SafeRelease(Dwrite);
+		SafeRelease(D2dCtx);
+		SafeRelease(D2dDevice);
+		SafeRelease(D2dFactory);
+		return;
+	}
+
+	bD2DInitialized = true;
 }
 
 void UStatsOverlayD2D::ReleaseD2DTarget()
@@ -53,49 +140,27 @@ void UStatsOverlayD2D::ReleaseD2DTarget()
 
 static void DrawTextBlock(
 	ID2D1DeviceContext* InD2dCtx,
-	IDWriteFactory* InDwrite,
+	ID2D1SolidColorBrush* InBrush,
+	IDWriteTextFormat* InTextFormat,
 	const wchar_t* InText,
 	const D2D1_RECT_F& InRect,
-	float InFontSize,
 	D2D1::ColorF InBgColor,
 	D2D1::ColorF InTextColor)
 {
-	if (!InD2dCtx || !InDwrite || !InText) return;
+	if (!InD2dCtx || !InBrush || !InTextFormat || !InText) return;
 
-	ID2D1SolidColorBrush* BrushFill = nullptr;
-	InD2dCtx->CreateSolidColorBrush(InBgColor, &BrushFill);
+	// 배경 그리기 (Brush 색상 변경하여 재사용)
+	InBrush->SetColor(InBgColor);
+	InD2dCtx->FillRectangle(InRect, InBrush);
 
-	ID2D1SolidColorBrush* BrushText = nullptr;
-	InD2dCtx->CreateSolidColorBrush(InTextColor, &BrushText);
-
-	InD2dCtx->FillRectangle(InRect, BrushFill);
-
-	IDWriteTextFormat* Format = nullptr;
-	InDwrite->CreateTextFormat(
-		L"Segoe UI",
-		nullptr,
-		DWRITE_FONT_WEIGHT_NORMAL,
-		DWRITE_FONT_STYLE_NORMAL,
-		DWRITE_FONT_STRETCH_NORMAL,
-		InFontSize,
-		L"en-us",
-		&Format);
-
-	if (Format)
-	{
-		Format->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_LEADING);
-		Format->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_NEAR);
-		InD2dCtx->DrawTextW(
-			InText,
-			static_cast<UINT32>(wcslen(InText)),
-			Format,
-			InRect,
-			BrushText);
-		Format->Release();
-	}
-
-	SafeRelease(BrushText);
-	SafeRelease(BrushFill);
+	// 텍스트 그리기 (Brush 색상 변경하여 재사용)
+	InBrush->SetColor(InTextColor);
+	InD2dCtx->DrawTextW(
+		InText,
+		static_cast<UINT32>(wcslen(InText)),
+		InTextFormat,
+		InRect,
+		InBrush);
 }
 
 void UStatsOverlayD2D::Draw()
@@ -103,58 +168,15 @@ void UStatsOverlayD2D::Draw()
 	if (!bInitialized || (!bShowFPS && !bShowMemory && !bShowPicking && !bShowDecal && !bShowTileCulling && !bShowLights && !bShowShadow && !bShowSkinning) || !SwapChain)
 		return;
 
-	ID2D1Factory1* D2dFactory = nullptr;
-	D2D1_FACTORY_OPTIONS Opts{};
-#ifdef _DEBUG
-	Opts.debugLevel = D2D1_DEBUG_LEVEL_INFORMATION;
-#endif
-	if (FAILED(D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, __uuidof(ID2D1Factory1), &Opts, (void**)&D2dFactory)))
+	// D2D 리소스 초기화 (최초 1회만 실행)
+	EnsureInitialized();
+	if (!bD2DInitialized)
 		return;
 
+	// 매 프레임마다 생성/파괴가 필요한 리소스 (스왑체인 백버퍼)
 	IDXGISurface* Surface = nullptr;
 	if (FAILED(SwapChain->GetBuffer(0, __uuidof(IDXGISurface), (void**)&Surface)))
-	{
-		SafeRelease(D2dFactory);
 		return;
-	}
-
-	IDXGIDevice* DxgiDevice = nullptr;
-	if (FAILED(D3DDevice->QueryInterface(__uuidof(IDXGIDevice), (void**)&DxgiDevice)))
-	{
-		SafeRelease(Surface);
-		SafeRelease(D2dFactory);
-		return;
-	}
-
-	ID2D1Device* D2dDevice = nullptr;
-	if (FAILED(D2dFactory->CreateDevice(DxgiDevice, &D2dDevice)))
-	{
-		SafeRelease(DxgiDevice);
-		SafeRelease(Surface);
-		SafeRelease(D2dFactory);
-		return;
-	}
-
-	ID2D1DeviceContext* D2dCtx = nullptr;
-	if (FAILED(D2dDevice->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE, &D2dCtx)))
-	{
-		SafeRelease(D2dDevice);
-		SafeRelease(DxgiDevice);
-		SafeRelease(Surface);
-		SafeRelease(D2dFactory);
-		return;
-	}
-
-	IDWriteFactory* Dwrite = nullptr;
-	if (FAILED(DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), (IUnknown**)&Dwrite)))
-	{
-		SafeRelease(D2dCtx);
-		SafeRelease(D2dDevice);
-		SafeRelease(DxgiDevice);
-		SafeRelease(Surface);
-		SafeRelease(D2dFactory);
-		return;
-	}
 
 	D2D1_BITMAP_PROPERTIES1 BmpProps = {};
 	BmpProps.pixelFormat.format = DXGI_FORMAT_B8G8R8A8_UNORM;
@@ -166,12 +188,7 @@ void UStatsOverlayD2D::Draw()
 	ID2D1Bitmap1* TargetBmp = nullptr;
 	if (FAILED(D2dCtx->CreateBitmapFromDxgiSurface(Surface, &BmpProps, &TargetBmp)))
 	{
-		SafeRelease(Dwrite);
-		SafeRelease(D2dCtx);
-		SafeRelease(D2dDevice);
-		SafeRelease(DxgiDevice);
 		SafeRelease(Surface);
-		SafeRelease(D2dFactory);
 		return;
 	}
 
@@ -196,7 +213,7 @@ void UStatsOverlayD2D::Draw()
 
 		D2D1_RECT_F rc = D2D1::RectF(Margin, NextY, Margin + PanelWidth, NextY + PanelHeight);
 		DrawTextBlock(
-			D2dCtx, Dwrite, Buf, rc, 16.0f,
+			D2dCtx, CachedBrush, TextFormat, Buf, rc,
 			D2D1::ColorF(0, 0, 0, 0.6f),
 			D2D1::ColorF(D2D1::ColorF::Yellow));
 
@@ -217,7 +234,7 @@ void UStatsOverlayD2D::Draw()
 		const float PickPanelHeight = 96.0f;
 		D2D1_RECT_F rc = D2D1::RectF(Margin, NextY, Margin + PanelWidth, NextY + PickPanelHeight);
 		DrawTextBlock(
-			D2dCtx, Dwrite, Buf, rc, 16.0f,
+			D2dCtx, CachedBrush, TextFormat, Buf, rc,
 			D2D1::ColorF(0, 0, 0, 0.6f),
 			D2D1::ColorF(D2D1::ColorF::SkyBlue));
 
@@ -233,7 +250,7 @@ void UStatsOverlayD2D::Draw()
 
 		D2D1_RECT_F Rc = D2D1::RectF(Margin, NextY, Margin + PanelWidth, NextY + PanelHeight);
 		DrawTextBlock(
-			D2dCtx, Dwrite, Buf, Rc, 16.0f,
+			D2dCtx, CachedBrush, TextFormat, Buf, Rc,
 			D2D1::ColorF(0, 0, 0, 0.6f),
 			D2D1::ColorF(D2D1::ColorF::LightGreen));
 
@@ -265,7 +282,7 @@ void UStatsOverlayD2D::Draw()
 
 		// 4. DrawTextBlock 함수를 호출하여 화면에 그립니다. 색상은 구분을 위해 주황색(Orange)으로 설정합니다.
 		DrawTextBlock(
-			D2dCtx, Dwrite, Buf, rc, 16.0f,
+			D2dCtx, CachedBrush, TextFormat, Buf, rc,
 			D2D1::ColorF(0, 0, 0, 0.6f),
 			D2D1::ColorF(D2D1::ColorF::Orange));
 
@@ -298,7 +315,7 @@ void UStatsOverlayD2D::Draw()
 
 		// 4. DrawTextBlock 함수를 호출하여 화면에 그립니다. 색상은 구분을 위해 cyan으로 설정합니다.
 		DrawTextBlock(
-			D2dCtx, Dwrite, Buf, rc, 16.0f,
+			D2dCtx, CachedBrush, TextFormat, Buf, rc,
 			D2D1::ColorF(0, 0, 0, 0.6f),
 			D2D1::ColorF(D2D1::ColorF::Cyan));
 
@@ -325,7 +342,7 @@ void UStatsOverlayD2D::Draw()
 
 		// 4. DrawTextBlock 함수를 호출하여 화면에 그립니다. 색상은 구분을 위해 보라색(Purple)으로 설정합니다.
 		DrawTextBlock(
-			D2dCtx, Dwrite, Buf, rc, 16.0f,
+			D2dCtx, CachedBrush, TextFormat, Buf, rc,
 			D2D1::ColorF(0, 0, 0, 0.6f),
 			D2D1::ColorF(D2D1::ColorF::Violet));
 
@@ -359,7 +376,7 @@ void UStatsOverlayD2D::Draw()
 
 		// 4. DrawTextBlock 함수를 호출하여 화면에 그립니다. 색상은 구분을 위해 한색(Magenta)으로 설정합니다.
 		DrawTextBlock(
-			D2dCtx, Dwrite, Buf, rc, 16.0f,
+			D2dCtx, CachedBrush, TextFormat, Buf, rc,
 			D2D1::ColorF(0, 0, 0, 0.6f),
 			D2D1::ColorF(D2D1::ColorF::DeepPink));
 
@@ -371,7 +388,7 @@ void UStatsOverlayD2D::Draw()
 
 		// 4. DrawTextBlock 함수를 호출하여 화면에 그립니다. 색상은 구분을 위해 한색(Magenta)으로 설정합니다.
 		DrawTextBlock(
-			D2dCtx, Dwrite, FScopeCycleCounter::GetTimeProfile("ShadowMapPass").GetConstWChar_tWithKey("ShadowMapPass"), rc, 16.0f,
+			D2dCtx, CachedBrush, TextFormat, FScopeCycleCounter::GetTimeProfile("ShadowMapPass").GetConstWChar_tWithKey("ShadowMapPass"), rc,
 			D2D1::ColorF(0, 0, 0, 0.6f),
 			D2D1::ColorF(D2D1::ColorF::DeepPink));
 
@@ -419,7 +436,7 @@ void UStatsOverlayD2D::Draw()
 		const float cpuPanelHeight = 250.0f; // 제목 2줄 추가로 높이 증가
 		D2D1_RECT_F cpuRc = D2D1::RectF(Margin, NextY, Margin + SkinningPanelWidth, NextY + cpuPanelHeight);
 		DrawTextBlock(
-			D2dCtx, Dwrite, CPUBuf, cpuRc, 16.0f,
+			D2dCtx, CachedBrush, TextFormat, CPUBuf, cpuRc,
 			D2D1::ColorF(0, 0, 0, 0.6f),
 			D2D1::ColorF(0.4f, 0.7f, 1.0f)); // 파란색
 		NextY += cpuPanelHeight + Space;
@@ -449,7 +466,7 @@ void UStatsOverlayD2D::Draw()
 		const float gpuPanelHeight = 230.0f; // 제목 2줄 추가로 높이 증가
 		D2D1_RECT_F gpuRc = D2D1::RectF(Margin, NextY, Margin + SkinningPanelWidth, NextY + gpuPanelHeight);
 		DrawTextBlock(
-			D2dCtx, Dwrite, GPUBuf, gpuRc, 16.0f,
+			D2dCtx, CachedBrush, TextFormat, GPUBuf, gpuRc,
 			D2D1::ColorF(0, 0, 0, 0.6f),
 			D2D1::ColorF(0.5f, 1.0f, 0.5f)); // 연두색
 		NextY += gpuPanelHeight + Space;
@@ -460,14 +477,9 @@ void UStatsOverlayD2D::Draw()
 
 	FScopeCycleCounter::TimeProfileInit();
 
-
+	// 매 프레임 생성한 리소스만 해제 (캐싱된 D2D 리소스는 유지)
 	SafeRelease(TargetBmp);
-	SafeRelease(Dwrite);
-	SafeRelease(D2dCtx);
-	SafeRelease(D2dDevice);
-	SafeRelease(DxgiDevice);
 	SafeRelease(Surface);
-	SafeRelease(D2dFactory);
 }
 
 void UStatsOverlayD2D::SetShowFPS(bool b)
