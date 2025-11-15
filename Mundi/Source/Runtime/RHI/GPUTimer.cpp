@@ -1,4 +1,4 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "GPUTimer.h"
 
 FGPUTimer::FGPUTimer()
@@ -110,12 +110,9 @@ float FGPUTimer::GetElapsedTimeMS(ID3D11DeviceContext* DeviceContext)
 	UINT64 EndTime = 0;
 	D3D11_QUERY_DATA_TIMESTAMP_DISJOINT DisjointData = {};
 
-	// Disjoint 데이터가 준비될 때까지 대기 (최대 100회 시도)
+	// Disjoint 데이터가 준비될 때까지 대기
 	HRESULT hr = S_FALSE;
-	for (int i = 0; i < 100 && hr != S_OK; ++i)
-	{
-		hr = DeviceContext->GetData(QueryDisjoint[ReadIndex], &DisjointData, sizeof(DisjointData), 0);
-	}
+	hr = DeviceContext->GetData(QueryDisjoint[ReadIndex], &DisjointData, sizeof(DisjointData), D3D11_ASYNC_GETDATA_DONOTFLUSH);
 	if (hr != S_OK)
 	{
 		// 데이터가 아직 준비되지 않음
@@ -129,22 +126,16 @@ float FGPUTimer::GetElapsedTimeMS(ID3D11DeviceContext* DeviceContext)
 		return LastElapsedMS;
 	}
 
-	// 시작/종료 타임스탬프 가져오기 (최대 100회 시도)
+	// 시작/종료 타임스탬프 가져오기
 	hr = S_FALSE;
-	for (int i = 0; i < 100 && hr != S_OK; ++i)
-	{
-		hr = DeviceContext->GetData(QueryBegin[ReadIndex], &BeginTime, sizeof(UINT64), 0);
-	}
+	hr = DeviceContext->GetData(QueryBegin[ReadIndex], &BeginTime, sizeof(UINT64), D3D11_ASYNC_GETDATA_DONOTFLUSH);
 	if (hr != S_OK)
 	{
 		return LastElapsedMS;
 	}
 
 	hr = S_FALSE;
-	for (int i = 0; i < 100 && hr != S_OK; ++i)
-	{
-		hr = DeviceContext->GetData(QueryEnd[ReadIndex], &EndTime, sizeof(UINT64), 0);
-	}
+	hr = DeviceContext->GetData(QueryEnd[ReadIndex], &EndTime, sizeof(UINT64), D3D11_ASYNC_GETDATA_DONOTFLUSH);
 	if (hr != S_OK)
 	{
 		return LastElapsedMS;

@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <d3d11.h>
 #include <stdint.h>
@@ -63,6 +63,7 @@ public:
 
 private:
 	// 링버퍼 크기 (비동기 GPU 타이머 처리를 위한 충분한 레이턴시 제공)
+	// 최소 4개: N-3 프레임 결과를 읽을 때 GPU가 완료할 충분한 시간 확보
 	static constexpr int NUM_QUERIES = 4;
 
 	// GPU 타임스탬프 쿼리 링버퍼 (시작/끝)
