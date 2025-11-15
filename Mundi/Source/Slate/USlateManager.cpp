@@ -215,6 +215,46 @@ void USlateManager::CloseSkeletalMeshViewer()
     SkeletalViewerWindow = nullptr;
 }
 
+void USlateManager::OpenAnimationViewer()
+{
+    if (AnimationViewerWindow)
+        return;
+
+    AnimationViewerWindow = new SAnimationViewerWindow();
+
+    // Open as a detached window at a default size and position
+    const float toolbarHeight = 50.0f;
+    const float availableHeight = Rect.GetHeight() - toolbarHeight;
+    const float w = Rect.GetWidth() * 0.6f;
+    const float h = availableHeight * 0.7f;
+    const float x = Rect.Left + (Rect.GetWidth() - w) * 0.5f;
+    const float y = Rect.Top + toolbarHeight + (availableHeight - h) * 0.5f;
+    AnimationViewerWindow->Initialize(x, y, w, h, World, Device);
+}
+
+void USlateManager::OpenAnimationViewerWithFile(const char* FilePath)
+{
+    // 뷰어가 이미 열려있으면 그냥 사용, 아니면 새로 열기
+    if (!AnimationViewerWindow)
+    {
+        OpenAnimationViewer();
+    }
+
+    // Load the skeletal mesh into the viewer
+    if (AnimationViewerWindow && FilePath && FilePath[0] != '\0')
+    {
+        AnimationViewerWindow->LoadSkeletalMesh(FilePath);
+        UE_LOG("Opening AnimationViewer with file: %s", FilePath);
+    }
+}
+
+void USlateManager::CloseAnimationViewer()
+{
+    if (!AnimationViewerWindow) return;
+    delete AnimationViewerWindow;
+    AnimationViewerWindow = nullptr;
+}
+
 void USlateManager::SwitchLayout(EViewportLayoutMode NewMode)
 {
     if (NewMode == CurrentMode) return;
@@ -478,6 +518,10 @@ void USlateManager::Render()
     {
         SkeletalViewerWindow->OnRender();
     }
+    if (AnimationViewerWindow)
+    {
+        AnimationViewerWindow->OnRender();
+    }
 }
 
 void USlateManager::RenderAfterUI()
@@ -485,6 +529,10 @@ void USlateManager::RenderAfterUI()
     if (SkeletalViewerWindow)
     {
         SkeletalViewerWindow->OnRenderViewport();
+    }
+    if (AnimationViewerWindow)
+    {
+        AnimationViewerWindow->OnRenderViewport();
     }
 }
 
@@ -505,6 +553,10 @@ void USlateManager::Update(float DeltaSeconds)
     if (SkeletalViewerWindow)
     {
         SkeletalViewerWindow->OnUpdate(DeltaSeconds);
+    }
+    if (AnimationViewerWindow)
+    {
+        AnimationViewerWindow->OnUpdate(DeltaSeconds);
     }
 
     // 콘솔 애니메이션 업데이트
@@ -588,6 +640,25 @@ void USlateManager::ProcessInput()
             OnMouseUp(MousePosition, 1);
         }
     }
+    else if (AnimationViewerWindow && AnimationViewerWindow->Rect.Contains(MousePosition))
+    {
+        if (ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+        {
+            OnMouseDown(MousePosition, 0);
+        }
+        if (ImGui::IsMouseClicked(ImGuiMouseButton_Right))
+        {
+            OnMouseDown(MousePosition, 1);
+        }
+        if (ImGui::IsMouseReleased(ImGuiMouseButton_Left))
+        {
+            OnMouseUp(MousePosition, 0);
+        }
+        if (ImGui::IsMouseReleased(ImGuiMouseButton_Right))
+        {
+            OnMouseUp(MousePosition, 1);
+        }
+    }
     else    // Otherwise, process general viewport input
     {
         if (INPUT.IsMouseButtonPressed(LeftButton))
@@ -638,6 +709,10 @@ void USlateManager::ProcessInput()
     {
         CloseSkeletalMeshViewer();
     }
+    if (ImGui::IsKeyPressed(ImGuiKey_Escape) && AnimationViewerWindow)
+    {
+        CloseAnimationViewer();
+    }
 
     // 단축키로 기즈모 모드 변경
     if (World->GetGizmoActor())
@@ -650,6 +725,11 @@ void USlateManager::OnMouseMove(FVector2D MousePos)
     if (SkeletalViewerWindow && SkeletalViewerWindow->IsHover(MousePos))
     {
         SkeletalViewerWindow->OnMouseMove(MousePos);
+        return;
+    }
+    if (AnimationViewerWindow && AnimationViewerWindow->IsHover(MousePos))
+    {
+        AnimationViewerWindow->OnMouseMove(MousePos);
         return;
     }
 
@@ -668,6 +748,11 @@ void USlateManager::OnMouseDown(FVector2D MousePos, uint32 Button)
     if (SkeletalViewerWindow && SkeletalViewerWindow->Rect.Contains(MousePos))
     {
         SkeletalViewerWindow->OnMouseDown(MousePos, Button);
+        return;
+    }
+    if (AnimationViewerWindow && AnimationViewerWindow->Rect.Contains(MousePos))
+    {
+        AnimationViewerWindow->OnMouseDown(MousePos, Button);
         return;
     }
     
@@ -709,6 +794,11 @@ void USlateManager::OnMouseUp(FVector2D MousePos, uint32 Button)
     if (SkeletalViewerWindow && SkeletalViewerWindow->Rect.Contains(MousePos))
     {
         SkeletalViewerWindow->OnMouseUp(MousePos, Button);
+        // do not return; still allow panels to finish mouse up
+    }
+    if (AnimationViewerWindow && AnimationViewerWindow->Rect.Contains(MousePos))
+    {
+        AnimationViewerWindow->OnMouseUp(MousePos, Button);
         // do not return; still allow panels to finish mouse up
     }
 
@@ -777,6 +867,11 @@ void USlateManager::Shutdown()
     {
         delete SkeletalViewerWindow;
         SkeletalViewerWindow = nullptr;
+    }
+    if (AnimationViewerWindow)
+    {
+        delete AnimationViewerWindow;
+        AnimationViewerWindow = nullptr;
     }
 }
 

@@ -1070,6 +1070,27 @@ bool UPropertyRenderer::RenderSkeletalMeshProperty(const FProperty& Prop, void* 
 		}
 	}
 
+	ImGui::SameLine();
+	if (ImGui::Button("Anim Viewer"))
+	{
+		if (!USlateManager::GetInstance().IsAnimationViewerOpen())
+		{
+			// Open viewer with the currently selected skeletal mesh if available
+			if (!CurrentPath.empty())
+			{
+				USlateManager::GetInstance().OpenAnimationViewerWithFile(CurrentPath.c_str());
+			}
+			else
+			{
+				USlateManager::GetInstance().OpenAnimationViewer();
+			}
+		}
+		else
+		{
+			USlateManager::GetInstance().CloseAnimationViewer();
+		}
+	}
+
 	ImGui::SetNextItemWidth(240);
 	if (ImGui::Combo(Prop.Name, &SelectedIdx, &ItemsGetter, (void*)&CachedSkeletalMeshItems, static_cast<int>(CachedSkeletalMeshItems.size())))
 	{

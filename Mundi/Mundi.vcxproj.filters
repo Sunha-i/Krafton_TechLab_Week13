@@ -698,6 +698,15 @@
     <ClCompile Include="Source\Runtime\Renderer\SkeletalViewerViewportClient.cpp">
       <Filter>Source\Runtime\Renderer</Filter>
     </ClCompile>
+    <ClCompile Include="Source\Runtime\Engine\Viewer\AnimationViewerBootstrap.cpp">
+      <Filter>Source\Runtime\Engine\Viewer</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Runtime\Renderer\AnimationViewerViewportClient.cpp">
+      <Filter>Source\Runtime\Renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Slate\Windows\SAnimationViewerWindow.cpp">
+      <Filter>Source\Slate\Windows</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />
@@ -1483,6 +1492,15 @@
     </ClInclude>
     <ClInclude Include="Source\Runtime\Renderer\SkeletalViewerViewportClient.h">
       <Filter>Source\Runtime\Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Runtime\Engine\Viewer\AnimationViewerBootstrap.h">
+      <Filter>Source\Runtime\Engine\Viewer</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Runtime\Renderer\AnimationViewerViewportClient.h">
+      <Filter>Source\Runtime\Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Slate\Windows\SAnimationViewerWindow.h">
+      <Filter>Source\Slate\Windows</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

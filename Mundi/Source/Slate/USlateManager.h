@@ -5,6 +5,7 @@
 #include "Windows/SSplitterH.h"
 #include "Windows/SViewportWindow.h"
 #include "Windows/SSkeletalMeshViewerWindow.h"
+#include "Windows/SAnimationViewerWindow.h"
 
 class SSceneIOWindow; // 새로 추가할 UI
 class SDetailsWindow;
@@ -79,6 +80,12 @@ public:
     void CloseSkeletalMeshViewer();
     bool IsSkeletalMeshViewerOpen() const { return SkeletalViewerWindow != nullptr; }
 
+    // Temp: open/close Animation Viewer (detached window)
+    void OpenAnimationViewer();
+    void OpenAnimationViewerWithFile(const char* FilePath);
+    void CloseAnimationViewer();
+    bool IsAnimationViewerOpen() const { return AnimationViewerWindow != nullptr; }
+
 private:
     FRect Rect; // 이전엔 SWindow로부터 상속받던 영역 정보
 
@@ -130,8 +137,9 @@ private:
     const float ConsoleMinHeight = 150.0f; // 최소 콘솔 높이
     const float ConsoleMaxHeightRatio = 0.8f; // 최대 콘솔 높이 비율
 
-    // Detached skeletal mesh viewer window
+    // Detached viewer window
     SSkeletalMeshViewerWindow* SkeletalViewerWindow = nullptr;
+    SAnimationViewerWindow* AnimationViewerWindow = nullptr;
 
     // Content Browser (Bottom panel overlay with animation)
     UContentBrowserWindow* ContentBrowserWindow = nullptr;
