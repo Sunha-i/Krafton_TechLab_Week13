@@ -20,10 +20,21 @@ struct FPlatformCrashHandler
     static bool GenerateMiniDump();
 
     /**
-     * 의도적으로 크래시를 발생시킵니다. (테스트용)
-     * 콘솔 명령어 "CAUSECRASH"에서 호출됩니다.
+     * 랜덤한 위치에서 크래시를 발생시킵니다.
+     * 실행 중인 UObject를 랜덤하게 삭제하여 나중에 접근 시 크래시가 발생하도록 합니다.
      */
     static void CauseIntentionalCrash();
+
+    /**
+     * 매 프레임마다 랜덤한 UObject를 삭제합니다.
+     * CauseIntentionalCrash가 호출되면 활성화됩니다.
+     */
+    static void TickCrashMode();
+
+    /**
+     * 크래시 모드 활성화 여부
+     */
+    static bool bContinuousCrashMode;
 
 private:
     /**

@@ -467,10 +467,10 @@ void UConsoleWidget::ExecCommand(const char* command_line)
 	}
 	else if (Stricmp(command_line, "CAUSECRASH") == 0)
 	{
-		AddLog("WARNING: Triggering intentional crash!");
-		AddLog("This will create a MiniDump file and terminate the application.");
+		AddLog("WARNING: Triggering random crash by deleting a live UObject!");
+		AddLog("A random object will be deleted, causing a crash at a random CallStack location.");
 
-		// 잠시 후 크래시 발생 (로그가 표시될 시간을 줌)
+		// 랜덤한 UObject를 삭제하여 나중에 랜덤한 위치에서 크래시 발생
 		FPlatformCrashHandler::CauseIntentionalCrash();
 	}
 	else if (Stricmp(command_line, "THROWEXCEPTION") == 0)

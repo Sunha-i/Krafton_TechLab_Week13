@@ -1,10 +1,14 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "PlatformCrashHandler.h"
+#include "ObjectFactory.h"
 #include <dbghelp.h>
 #include <time.h>
 #include <stdio.h>
+#include <random>
 
 #pragma comment(lib, "dbghelp.lib")
+
+bool FPlatformCrashHandler::bContinuousCrashMode = false;
 
 void FPlatformCrashHandler::InitializeCrashHandler()
 {
@@ -37,6 +41,9 @@ bool FPlatformCrashHandler::GenerateMiniDump()
 
 void FPlatformCrashHandler::CauseIntentionalCrash()
 {
+    // TODO - 랜덤 크래시가 아닌 그저 테스트용이라면
+    // 주석처리된 것을 이용하면 됩니다.(발제의 예시 코드)
+    /*
     // RaiseException을 사용하여 의도적인 예외 발생
     // 이렇게 하면 콜스택이 명확하게 보존됩니다
     RaiseException(
@@ -45,10 +52,35 @@ void FPlatformCrashHandler::CauseIntentionalCrash()
         0,                            // 인자 개수
         nullptr                       // 인자 배열
     );
+    */
+    // 연속 크래시 모드 활성화
+    bContinuousCrashMode = true;
+}
 
-    // 또는 널 포인터 역참조 방식:
-    // int* nullPtr = nullptr;
-    // *nullPtr = 42;
+void FPlatformCrashHandler::TickCrashMode()
+{
+    if (!bContinuousCrashMode)
+        return;
+
+    // GUObjectArray에서 랜덤하게 객체를 선택하여 삭제
+    if (GUObjectArray.empty())
+        return;
+
+    // 매 프레임마다 여러 개의 객체를 삭제하여 빠르게 크래시
+    static std::random_device rd;
+    static std::mt19937 gen(rd());
+
+    // 랜덤 객체 삭제
+    std::uniform_int_distribution<size_t> dist(0, GUObjectArray.size() - 1);
+    size_t randomIndex = dist(gen);
+
+    UObject* targetObject = GUObjectArray[randomIndex];
+    if (targetObject)
+    {
+        // 매 프레임마다 랜덤한 UObject 삭제
+        // 금방 크래시가 발생하며, 매번 다른 CallStack이 나옴
+        ObjectFactory::DeleteObject(targetObject);
+    }
 }
 
 LONG WINAPI FPlatformCrashHandler::UnhandledExceptionFilter(EXCEPTION_POINTERS* ExceptionInfo)

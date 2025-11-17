@@ -4,6 +4,7 @@
 #include "SelectionManager.h"
 #include "FAudioDevice.h"
 #include "FbxLoader.h"
+#include "PlatformCrashHandler.h"
 #include <ObjManager.h>
 
 float UEditorEngine::ClientWidth = 1024.0f;
@@ -315,7 +316,8 @@ void UEditorEngine::MainLoop()
 
             bChangedPieToEditor = false;
         }
-
+        // 크래시 모드가 활성화되면 매 프레임마다 랜덤 객체 삭제
+        FPlatformCrashHandler::TickCrashMode();
         Tick(DeltaSeconds);
         Render();
         
