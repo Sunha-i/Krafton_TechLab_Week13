@@ -1,4 +1,4 @@
-// ────────────────────────────────────────────────────────────────────────────
+﻿// ────────────────────────────────────────────────────────────────────────────
 // SpringArmComponent.cpp
 // SpringArmComponent 구현
 // ────────────────────────────────────────────────────────────────────────────
@@ -11,20 +11,20 @@
 // ────────────────────────────────────────────────────────────────────────────
 
 USpringArmComponent::USpringArmComponent()
-	: TargetArmLength(300.0f)
-	, CurrentArmLength(300.0f)
+	: TargetArmLength(3.0f)
+	, CurrentArmLength(3.0f)
 	, SocketOffset(FVector())
 	, TargetOffset(FVector())
 	, bEnableCameraLag(false)
-	, CameraLagSpeed(10.0f)
+	, CameraLagSpeed(1.0f)
 	, CameraLagMaxDistance(0.0f)
 	, PreviousDesiredLocation(FVector())
 	, PreviousActorLocation(FVector())
 	, bEnableCameraRotationLag(false)
-	, CameraRotationLagSpeed(10.0f)
+	, CameraRotationLagSpeed(1.0f)
 	, PreviousDesiredRotation(FQuat::Identity())
 	, bDoCollisionTest(true)
-	, ProbeSize(12.0f)
+	, ProbeSize(1.20f)
 	, SocketLocation(FVector())
 	, SocketRotation(FQuat::Identity())
 {
