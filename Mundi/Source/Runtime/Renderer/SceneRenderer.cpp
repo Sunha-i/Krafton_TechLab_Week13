@@ -909,14 +909,6 @@ void FSceneRenderer::PerformFrustumCulling()
 void FSceneRenderer::RenderOpaquePass(EViewMode InRenderViewMode)
 {
 	// --- 1. 수집 (Collect) ---
-	// Release any GPU skinning bone buffers from previous frame
-	for (const FMeshBatchElement& Batch : MeshBatchElements)
-	{
-		if (Batch.BoneMatricesBuffer)
-		{
-			Batch.BoneMatricesBuffer->Release();
-		}
-	}
 	MeshBatchElements.Empty();
 	for (UMeshComponent* MeshComponent : Proxies.Meshes)
 	{
@@ -1476,6 +1468,15 @@ void FSceneRenderer::DrawMeshBatches(TArray<FMeshBatchElement>& InMeshBatches, b
 
 		// 5. 드로우 콜 실행
 		RHIDevice->GetDeviceContext()->DrawIndexed(Batch.IndexCount, Batch.StartIndex, Batch.BaseVertexIndex);
+	}
+
+	// GPU 스키닝 본 버퍼 해제
+	for (const FMeshBatchElement& Batch : InMeshBatches)
+	{
+		if (Batch.BoneMatricesBuffer)
+		{
+			Batch.BoneMatricesBuffer->Release();
+		}
 	}
 
 	// 루프 종료 후 리스트 비우기 (옵션)

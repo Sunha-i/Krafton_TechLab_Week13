@@ -168,7 +168,35 @@ bool FTextureConverter::ShouldRegenerateDDS(
 		return false; // 원본이 없으면 기존 캐시 사용
 	}
 
-	// 타임스탬프 비교
+	// FBX Import 시마다 재추출되면서 타임스탬프가 갱신되므로, FBX 파일 기준으로 비교해야 함
+	if (SourcePath.find(".fbm") != FString::npos)
+	{
+		// .fbm 폴더 경로 추출
+		// 예: "Data/Model.fbm/texture.png" → "Data/Model.fbm"
+		fs::path FbmFolder = SourceFile.parent_path();
+
+		// FBX 파일명 생성
+		// 예: "Data/Model.fbm" → "Model.fbx"
+		std::string FbxFileName = FbmFolder.stem().string() + ".fbx";
+
+		// FBX 파일 경로 생성
+		// 예: "Data/Model.fbx"
+		fs::path FbxFile = FbmFolder.parent_path() / FbxFileName;
+
+		// FBX 파일이 존재하면 FBX 타임스탬프를 기준으로 비교
+		if (fs::exists(FbxFile))
+		{
+			auto FbxTime = fs::last_write_time(FbxFile);
+			auto DDSTime = fs::last_write_time(DDSFile);
+
+			// FBX 파일이 DDS 캐시보다 최신이면 재생성
+			return FbxTime > DDSTime;
+		}
+
+		// FBX 파일이 없으면 fallback: 원본 텍스처 타임스탬프 비교
+	}
+
+	// 일반 텍스처: 원본 파일 타임스탬프 비교
 	auto SourceTime = fs::last_write_time(SourceFile);
 	auto DDSTime = fs::last_write_time(DDSFile);
 

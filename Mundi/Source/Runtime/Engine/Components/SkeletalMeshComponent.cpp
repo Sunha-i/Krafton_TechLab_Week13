@@ -1,4 +1,4 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "SkeletalMeshComponent.h"
 #include "PlatformTime.h"
 #include "AnimSequence.h"
@@ -111,6 +111,10 @@ void USkeletalMeshComponent::PlayAnimation(UAnimationAsset* Asset, bool bLooping
         if (!Single)
         {
             // Replace with a single-node instance for simple playback
+            // 기존 AnimInstance를 먼저 삭제
+            ObjectFactory::DeleteObject(AnimInstance);
+            AnimInstance = nullptr;
+
             Single = NewObject<UAnimSingleNodeInstance>();
             SetAnimInstance(Single);
         }
