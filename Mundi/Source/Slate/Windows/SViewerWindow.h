@@ -64,7 +64,10 @@ protected:
 	// 윈도우 hover/focus 상태 (매 프레임 업데이트됨)
 	bool bIsWindowHovered = false;
 	bool bIsWindowFocused = false;
-	
+
+	// 우클릭 카메라 조작 상태
+	bool bRightMousePressed = false;
+
 	void OpenNewTab(const char* Name = "Viewer");
 	void CloseTab(int Index);
 	

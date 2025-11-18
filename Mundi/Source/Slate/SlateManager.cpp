@@ -617,29 +617,39 @@ void USlateManager::ProcessInput()
         SWindow* Window = DetachedWindows[i];
         if (Window && Window->Rect.Contains(MousePosition))
         {
-            // 뷰어 윈도우인 경우, 포커스 상태만 체크
-            // 참고: IsWindowHovered는 체크하지 않음. 뷰포트 영역(ImGui::Dummy로 생성)이
-            // hovered 상태로 인식되지 않을 수 있지만, 여전히 입력을 전달해야 하기 때문
-            SViewerWindow* ViewerWindow = dynamic_cast<SViewerWindow*>(Window);
-            if (ViewerWindow)
+            // 영역 안에 마우스가 있으면 해당 윈도우 선택
+            // 포커스 여부와 관계없이 클릭하면 포커스를 가져올 수 있어야 함
+            HoveredDetachedWindow = Window;
+            break;
+        }
+    }
+
+    // 클릭 감지
+    bool bLeftClicked = ImGui::IsMouseClicked(ImGuiMouseButton_Left);
+    bool bRightClicked = ImGui::IsMouseClicked(ImGuiMouseButton_Right);
+
+    // 뷰어 윈도우 클릭 시 최상단으로 가져오기 (언리얼 엔진처럼)
+    if ((bLeftClicked || bRightClicked) && HoveredDetachedWindow)
+    {
+        SViewerWindow* ClickedViewer = dynamic_cast<SViewerWindow*>(HoveredDetachedWindow);
+        if (ClickedViewer)
+        {
+            // 배열에서 해당 윈도우의 위치 찾기
+            int32 WindowIndex = DetachedWindows.Find(HoveredDetachedWindow);
+            if (WindowIndex != -1 && WindowIndex != DetachedWindows.Num() - 1)
             {
-                if (ViewerWindow->IsWindowFocused())
-                {
-                    HoveredDetachedWindow = Window;
-                    break;
-                }
-            }
-            else
-            {
-                // 뷰어가 아닌 윈도우는 영역 포함 여부만 체크
-                HoveredDetachedWindow = Window;
-                break;
+                // 배열에서 제거하고 마지막에 다시 추가 (z-order 최상단)
+                DetachedWindows.RemoveAt(WindowIndex);
+                DetachedWindows.Add(HoveredDetachedWindow);
+
+                // ImGui 포커스 요청
+                ClickedViewer->RequestFocus();
             }
         }
     }
 
     // 호버된 윈도우에 입력 처리
-    if (ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+    if (bLeftClicked)
     {
         if (HoveredDetachedWindow)
         {
@@ -650,7 +660,7 @@ void USlateManager::ProcessInput()
             OnMouseDown(MousePosition, 0);
         }
     }
-    if (ImGui::IsMouseClicked(ImGuiMouseButton_Right))
+    if (bRightClicked)
     {
         if (HoveredDetachedWindow)
         {

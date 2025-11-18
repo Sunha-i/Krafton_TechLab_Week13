@@ -166,6 +166,14 @@ void SViewerWindow::OnMouseDown(FVector2D MousePos, uint32 Button)
                 }
             }
         }
+
+        // 우클릭: 카메라 조작 시작 (커서 숨김 및 잠금)
+        if (Button == 1)
+        {
+            INPUT.SetCursorVisible(false);
+            INPUT.LockCursor();
+            bRightMousePressed = true;
+        }
     }
 }
 
@@ -177,6 +185,14 @@ void SViewerWindow::OnMouseUp(FVector2D MousePos, uint32 Button)
     {
         FVector2D LocalPos = MousePos - FVector2D(CenterRect.Left, CenterRect.Top);
         ActiveState->Viewport->ProcessMouseButtonUp((int32)LocalPos.X, (int32)LocalPos.Y, (int32)Button);
+
+        // 우클릭 해제: 커서 복원 및 잠금 해제
+        if (Button == 1 && bRightMousePressed)
+        {
+            INPUT.SetCursorVisible(true);
+            INPUT.ReleaseCursor();
+            bRightMousePressed = false;
+        }
     }
 }
 
