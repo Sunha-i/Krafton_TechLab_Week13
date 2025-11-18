@@ -84,9 +84,24 @@ protected:
 	void ApplyBoneTransform(ViewerState* State);
 	void ExpandToSelectedBone(ViewerState* State, int32 BoneIndex);
 
+	// 뷰어 툴바 관련 메서드
+	void LoadViewerToolbarIcons(ID3D11Device* Device);
+	void RenderViewerToolbar();
+	void RenderViewerGizmoButtons();
+	void RenderViewerGizmoSpaceButton();
+	class AGizmoActor* GetGizmoActor();
+
 private:
 	bool IsOpen() const { return bIsOpen; }
 	void Close() { bIsOpen = false; }
 
 	// TODO: check functions .. (not used by inherited class)
+
+	// 뷰어 툴바 아이콘 텍스처
+	class UTexture* IconSelect = nullptr;
+	class UTexture* IconMove = nullptr;
+	class UTexture* IconRotate = nullptr;
+	class UTexture* IconScale = nullptr;
+	class UTexture* IconWorldSpace = nullptr;
+	class UTexture* IconLocalSpace = nullptr;
 };

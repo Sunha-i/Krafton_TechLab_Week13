@@ -73,7 +73,7 @@ void SAnimationViewerWindow::OnRender()
         //===============================
         ImVec2 pos = ImGui::GetWindowPos();
         ImVec2 size = ImGui::GetWindowSize();
-        Rect.Left = pos.x; Rect.Top = pos.y; Rect.Right = pos.x + size.x; Rect.Bottom = pos.y + size.y; 
+        Rect.Left = pos.x; Rect.Top = pos.y; Rect.Right = pos.x + size.x; Rect.Bottom = pos.y + size.y;
         Rect.UpdateMinMax();
 
         ImVec2 contentAvail = ImGui::GetContentRegionAvail();
@@ -103,7 +103,8 @@ void SAnimationViewerWindow::OnRender()
 
         // +-+-+ Center panel +-+-+
         // : draw with border to see the viewport area
-        ImGui::BeginChild("CenterPanel", ImVec2(centerWidth, totalHeight), false, ImGuiWindowFlags_NoScrollbar);
+        ImGui::BeginChild("CenterPanel", ImVec2(centerWidth, totalHeight), false,
+            ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoNavInputs | ImGuiWindowFlags_NoNavFocus);
         RenderCenterPanel();
         ImGui::EndChild();
 
@@ -564,12 +565,16 @@ void SAnimationViewerWindow::RenderTabBar()
 
 void SAnimationViewerWindow::RenderCenterPanel()
 {
+    // 툴바 렌더링 (뷰포트 상단)
+    RenderViewerToolbar();
+
+    // 툴바 아래 남은 공간 계산
     float contentHeight = ImGui::GetContentRegionAvail().y;
     float itemSpacingY = ImGui::GetStyle().ItemSpacing.y;
     float viewportHeight = (contentHeight - itemSpacingY) * 0.7f;
     float timelineHeight = (contentHeight - itemSpacingY) * 0.3f;
     float innerWidth = ImGui::GetContentRegionAvail().x;
-    
+
     RenderViewportArea(innerWidth, viewportHeight);
     RenderTimelineArea(innerWidth, timelineHeight);
 }
@@ -600,7 +605,8 @@ void SAnimationViewerWindow::RenderViewportArea(float width, float height)
 
 void SAnimationViewerWindow::RenderTimelineArea(float width, float height)
 {
-    ImGui::BeginChild("TimelineArea", ImVec2(width, height), true);
+    ImGui::BeginChild("TimelineArea", ImVec2(width, height), true,
+        ImGuiWindowFlags_NoNavInputs | ImGuiWindowFlags_NoNavFocus);
 
     RenderTimelineControls();
     ImGui::Separator();

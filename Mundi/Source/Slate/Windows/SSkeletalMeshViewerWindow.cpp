@@ -85,6 +85,7 @@ void SSkeletalMeshViewerWindow::OnRender()
             }
             ImGui::EndTabBar();
         }
+
         ImVec2 pos = ImGui::GetWindowPos();
         ImVec2 size = ImGui::GetWindowSize();
         Rect.Left = pos.x; Rect.Top = pos.y; Rect.Right = pos.x + size.x; Rect.Bottom = pos.y + size.y; Rect.UpdateMinMax();
@@ -110,16 +111,27 @@ void SSkeletalMeshViewerWindow::OnRender()
         ImGui::SameLine(0, 0); // No spacing between panels
 
         // Center panel (viewport area)
+        ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 8.0f);
+        ImGui::BeginChild("CenterPanel", ImVec2(centerWidth, totalHeight), false,
+            ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoNavInputs | ImGuiWindowFlags_NoNavFocus);
+        ImGui::PopStyleVar();
+
+        // 뷰어 툴바 렌더링 (뷰포트 상단)
+        RenderViewerToolbar();
+
+        // 툴바 아래 뷰포트 영역
         ImVec2 viewportPos = ImGui::GetCursorScreenPos();
+        float remainingWidth = ImGui::GetContentRegionAvail().x;
+        float remainingHeight = ImGui::GetContentRegionAvail().y;
 
         // 공간만 차지 (아무것도 렌더링하지 않음)
-        ImGui::Dummy(ImVec2(centerWidth, totalHeight));
+        ImGui::Dummy(ImVec2(remainingWidth, remainingHeight));
 
         // 뷰포트 영역 설정
         CenterRect.Left = viewportPos.x;
         CenterRect.Top = viewportPos.y;
-        CenterRect.Right = viewportPos.x + centerWidth;
-        CenterRect.Bottom = viewportPos.y + totalHeight;
+        CenterRect.Right = viewportPos.x + remainingWidth;
+        CenterRect.Bottom = viewportPos.y + remainingHeight;
         CenterRect.UpdateMinMax();
 
         // ImGui draw list에 뷰포트 렌더링 콜백 등록
@@ -128,6 +140,8 @@ void SSkeletalMeshViewerWindow::OnRender()
 
         // 콜백 후 ImGui 렌더 상태 복원
         drawList->AddCallback(ImDrawCallback_ResetRenderState, nullptr);
+
+        ImGui::EndChild(); // CenterPanel
 
         ImGui::SameLine(0, 0); // No spacing between panels
 

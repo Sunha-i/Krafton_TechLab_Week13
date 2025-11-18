@@ -754,8 +754,19 @@ void USlateManager::ProcessInput()
         }
     }
 
-    // 단축키로 기즈모 모드 변경
-    if (World->GetGizmoActor())
+    // 단축키로 기즈모 모드 변경 (뷰어가 포커스되지 않았을 때만)
+    bool bAnyViewerFocused = false;
+    for (SWindow* Window : DetachedWindows)
+    {
+        SViewerWindow* Viewer = dynamic_cast<SViewerWindow*>(Window);
+        if (Viewer && Viewer->IsWindowFocused())
+        {
+            bAnyViewerFocused = true;
+            break;
+        }
+    }
+
+    if (World->GetGizmoActor() && !bAnyViewerFocused)
         World->GetGizmoActor()->ProcessGizmoModeSwitch();
 
     if (!PendingCloseWindows.IsEmpty())

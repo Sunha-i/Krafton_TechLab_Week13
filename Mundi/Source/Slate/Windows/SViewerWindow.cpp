@@ -9,6 +9,9 @@
 #include "Source/Runtime/Engine/GameFramework/SkeletalMeshActor.h"
 #include "Source/Runtime/Engine/GameFramework/CameraActor.h"
 #include "Source/Runtime/Engine/Viewer/EditorAssetPreviewContext.h"
+#include "Texture.h"
+#include "Gizmo/GizmoActor.h"
+#include "ResourceManager.h"
 
 SViewerWindow::SViewerWindow()
 {
@@ -40,6 +43,9 @@ bool SViewerWindow::Initialize(float StartX, float StartY, float Width, float He
 
     SetRect(StartX, StartY, StartX + Width, StartY + Height);
 
+    // 뷰어 툴바 아이콘 로드
+    LoadViewerToolbarIcons(Device);
+
     // Create first tab/state
     OpenNewTab("Viewer 1");
     if (ActiveState && ActiveState->Viewport)
@@ -60,7 +66,9 @@ void SViewerWindow::OnUpdate(float DeltaSeconds)
     if (ActiveState->World)
     {
         ActiveState->World->Tick(DeltaSeconds);
-        if (ActiveState->World->GetGizmoActor())
+
+        // 뷰어 윈도우가 포커스되었을 때만 키보드 입력으로 기즈모 모드 전환
+        if (ActiveState->World->GetGizmoActor() && bIsWindowFocused)
             ActiveState->World->GetGizmoActor()->ProcessGizmoModeSwitch();
     }
 
@@ -717,4 +725,271 @@ void SViewerWindow::ExpandToSelectedBone(ViewerState* State, int32 BoneIndex)
         State->ExpandedBoneIndices.insert(CurrentIndex);
         CurrentIndex = Skeleton->Bones[CurrentIndex].ParentIndex;
     }
+}
+
+// ========================================
+// 뷰어 툴바 관련 메서드 구현
+// ========================================
+
+void SViewerWindow::LoadViewerToolbarIcons(ID3D11Device* Device)
+{
+    // 기즈모 아이콘 로드
+    IconSelect = NewObject<UTexture>();
+    IconSelect->Load(GDataDir + "/Icon/Viewport_Toolbar_Select.png", Device);
+
+    IconMove = NewObject<UTexture>();
+    IconMove->Load(GDataDir + "/Icon/Viewport_Toolbar_Move.png", Device);
+
+    IconRotate = NewObject<UTexture>();
+    IconRotate->Load(GDataDir + "/Icon/Viewport_Toolbar_Rotate.png", Device);
+
+    IconScale = NewObject<UTexture>();
+    IconScale->Load(GDataDir + "/Icon/Viewport_Toolbar_Scale.png", Device);
+
+    IconWorldSpace = NewObject<UTexture>();
+    IconWorldSpace->Load(GDataDir + "/Icon/Viewport_Toolbar_WorldSpace.png", Device);
+
+    IconLocalSpace = NewObject<UTexture>();
+    IconLocalSpace->Load(GDataDir + "/Icon/Viewport_Toolbar_LocalSpace.png", Device);
+}
+
+AGizmoActor* SViewerWindow::GetGizmoActor()
+{
+    if (ActiveState && ActiveState->World)
+    {
+        return ActiveState->World->GetGizmoActor();
+    }
+    return nullptr;
+}
+
+void SViewerWindow::RenderViewerGizmoButtons()
+{
+    const ImVec2 IconSize(17, 17);
+
+    // GizmoActor에서 직접 현재 모드 가져오기
+    EGizmoMode CurrentGizmoMode = EGizmoMode::Select;
+    AGizmoActor* GizmoActor = GetGizmoActor();
+    if (GizmoActor)
+    {
+        CurrentGizmoMode = GizmoActor->GetMode();
+    }
+
+    // Select 버튼 (Q)
+    bool bIsSelectActive = (CurrentGizmoMode == EGizmoMode::Select);
+    ImVec4 SelectTintColor = bIsSelectActive ? ImVec4(0.3f, 0.6f, 1.0f, 1.0f) : ImVec4(1, 1, 1, 1);
+
+    if (IconSelect && IconSelect->GetShaderResourceView())
+    {
+        if (ImGui::ImageButton("##SelectBtn", (void*)IconSelect->GetShaderResourceView(), IconSize,
+            ImVec2(0, 0), ImVec2(1, 1), ImVec4(0, 0, 0, 0), SelectTintColor))
+        {
+            if (GizmoActor)
+            {
+                GizmoActor->SetMode(EGizmoMode::Select);
+            }
+        }
+    }
+    else
+    {
+        if (ImGui::Button("Select", ImVec2(60, 0)))
+        {
+            if (GizmoActor)
+            {
+                GizmoActor->SetMode(EGizmoMode::Select);
+            }
+        }
+    }
+
+    if (ImGui::IsItemHovered())
+    {
+        ImGui::SetTooltip("오브젝트를 선택합니다. [Q]");
+    }
+    ImGui::SameLine();
+
+    // Move 버튼 (W)
+    bool bIsMoveActive = (CurrentGizmoMode == EGizmoMode::Translate);
+    ImVec4 MoveTintColor = bIsMoveActive ? ImVec4(0.3f, 0.6f, 1.0f, 1.0f) : ImVec4(1, 1, 1, 1);
+
+    if (IconMove && IconMove->GetShaderResourceView())
+    {
+        if (ImGui::ImageButton("##MoveBtn", (void*)IconMove->GetShaderResourceView(), IconSize,
+            ImVec2(0, 0), ImVec2(1, 1), ImVec4(0, 0, 0, 0), MoveTintColor))
+        {
+            if (GizmoActor)
+            {
+                GizmoActor->SetMode(EGizmoMode::Translate);
+            }
+        }
+    }
+    else
+    {
+        if (ImGui::Button("Move", ImVec2(60, 0)))
+        {
+            if (GizmoActor)
+            {
+                GizmoActor->SetMode(EGizmoMode::Translate);
+            }
+        }
+    }
+
+    if (ImGui::IsItemHovered())
+    {
+        ImGui::SetTooltip("오브젝트를 선택하고 이동시킵니다. [W]");
+    }
+    ImGui::SameLine();
+
+    // Rotate 버튼 (E)
+    bool bIsRotateActive = (CurrentGizmoMode == EGizmoMode::Rotate);
+    ImVec4 RotateTintColor = bIsRotateActive ? ImVec4(0.3f, 0.6f, 1.0f, 1.0f) : ImVec4(1, 1, 1, 1);
+
+    if (IconRotate && IconRotate->GetShaderResourceView())
+    {
+        if (ImGui::ImageButton("##RotateBtn", (void*)IconRotate->GetShaderResourceView(), IconSize,
+            ImVec2(0, 0), ImVec2(1, 1), ImVec4(0, 0, 0, 0), RotateTintColor))
+        {
+            if (GizmoActor)
+            {
+                GizmoActor->SetMode(EGizmoMode::Rotate);
+            }
+        }
+    }
+    else
+    {
+        if (ImGui::Button("Rotate", ImVec2(60, 0)))
+        {
+            if (GizmoActor)
+            {
+                GizmoActor->SetMode(EGizmoMode::Rotate);
+            }
+        }
+    }
+
+    if (ImGui::IsItemHovered())
+    {
+        ImGui::SetTooltip("오브젝트를 선택하고 회전시킵니다. [E]");
+    }
+    ImGui::SameLine();
+
+    // Scale 버튼 (R)
+    bool bIsScaleActive = (CurrentGizmoMode == EGizmoMode::Scale);
+    ImVec4 ScaleTintColor = bIsScaleActive ? ImVec4(0.3f, 0.6f, 1.0f, 1.0f) : ImVec4(1, 1, 1, 1);
+
+    if (IconScale && IconScale->GetShaderResourceView())
+    {
+        if (ImGui::ImageButton("##ScaleBtn", (void*)IconScale->GetShaderResourceView(), IconSize,
+            ImVec2(0, 0), ImVec2(1, 1), ImVec4(0, 0, 0, 0), ScaleTintColor))
+        {
+            if (GizmoActor)
+            {
+                GizmoActor->SetMode(EGizmoMode::Scale);
+            }
+        }
+    }
+    else
+    {
+        if (ImGui::Button("Scale", ImVec2(60, 0)))
+        {
+            if (GizmoActor)
+            {
+                GizmoActor->SetMode(EGizmoMode::Scale);
+            }
+        }
+    }
+
+    if (ImGui::IsItemHovered())
+    {
+        ImGui::SetTooltip("오브젝트를 선택하고 스케일을 조절합니다. [R]");
+    }
+
+    ImGui::SameLine();
+}
+
+void SViewerWindow::RenderViewerGizmoSpaceButton()
+{
+    const ImVec2 IconSize(17, 17);
+
+    // GizmoActor에서 직접 현재 스페이스 가져오기
+    EGizmoSpace CurrentGizmoSpace = EGizmoSpace::World;
+    AGizmoActor* GizmoActor = GetGizmoActor();
+    if (GizmoActor)
+    {
+        CurrentGizmoSpace = GizmoActor->GetSpace();
+    }
+
+    // 현재 스페이스에 따라 적절한 아이콘 표시
+    bool bIsWorldSpace = (CurrentGizmoSpace == EGizmoSpace::World);
+    UTexture* CurrentIcon = bIsWorldSpace ? IconWorldSpace : IconLocalSpace;
+    const char* TooltipText = bIsWorldSpace ? "월드 스페이스 좌표 [Tab]" : "로컬 스페이스 좌표 [Tab]";
+
+    // 선택 상태 tint (월드/로컬 모두 동일하게 흰색)
+    ImVec4 TintColor = ImVec4(1, 1, 1, 1);
+
+    if (CurrentIcon && CurrentIcon->GetShaderResourceView())
+    {
+        if (ImGui::ImageButton("##GizmoSpaceBtn", (void*)CurrentIcon->GetShaderResourceView(), IconSize,
+            ImVec2(0, 0), ImVec2(1, 1), ImVec4(0, 0, 0, 0), TintColor))
+        {
+            // 버튼 클릭 시 스페이스 전환
+            if (GizmoActor)
+            {
+                EGizmoSpace NewSpace = bIsWorldSpace ? EGizmoSpace::Local : EGizmoSpace::World;
+                GizmoActor->SetSpace(NewSpace);
+            }
+        }
+    }
+    else
+    {
+        // 아이콘이 없는 경우 텍스트 버튼
+        const char* ButtonText = bIsWorldSpace ? "World" : "Local";
+        if (ImGui::Button(ButtonText, ImVec2(60, 0)))
+        {
+            if (GizmoActor)
+            {
+                EGizmoSpace NewSpace = bIsWorldSpace ? EGizmoSpace::Local : EGizmoSpace::World;
+                GizmoActor->SetSpace(NewSpace);
+            }
+        }
+    }
+
+    if (ImGui::IsItemHovered())
+    {
+        ImGui::SetTooltip("%s", TooltipText);
+    }
+
+    ImGui::SameLine();
+}
+
+void SViewerWindow::RenderViewerToolbar()
+{
+    // 툴바 높이
+    const float ToolbarHeight = 35.0f;
+
+    // 툴바 영역 시작 (탭 키 네비게이션 완전 비활성화)
+    ImGui::BeginChild("ViewerToolbar", ImVec2(0, ToolbarHeight), false,
+        ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoNavInputs | ImGuiWindowFlags_NoNavFocus);
+
+    // 상단 여백 추가 (메인 뷰처럼)
+    ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 5.0f);
+
+    // 기즈모 버튼 스타일 설정 (메인 뷰와 동일)
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(2, 0));      // 간격 좁히기
+    ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 4.0f);            // 모서리 둥글게
+    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));        // 배경 투명
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.2f, 0.2f, 0.2f, 0.5f)); // 호버 배경
+
+    // 기즈모 모드 버튼 (Q/W/E/R)
+    RenderViewerGizmoButtons();
+
+    // 구분선
+    ImGui::TextColored(ImVec4(0.4f, 0.4f, 0.4f, 1.0f), "|");
+    ImGui::SameLine();
+
+    // 월드/로컬 스페이스 토글
+    RenderViewerGizmoSpaceButton();
+
+    // 기즈모 버튼 스타일 복원
+    ImGui::PopStyleColor(2);
+    ImGui::PopStyleVar(2);
+
+    ImGui::EndChild();
 }
