@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "Actor.h"
 #include "LineComponent.h"
 #include "SkeletalMeshComponent.h"
@@ -69,8 +69,8 @@ protected:
     TArray<FBoneDebugLines> BoneLinesCache; // size == BoneCount
     TArray<TArray<int32>> BoneChildren;     // adjacency for subtree updates
 
-    float BoneJointRadius = 0.02f;
-    float BoneBaseRadius = 0.03f;
+    float BoneJointRadius = 0.01f;
+    float BoneBaseRadius = 0.02f;
 
     void BuildBoneLinesCache();
     void UpdateBoneSubtreeTransforms(int32 BoneIndex);

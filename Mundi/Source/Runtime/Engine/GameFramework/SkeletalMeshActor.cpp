@@ -345,6 +345,8 @@ void ASkeletalMeshActor::BuildBoneLinesCache()
 
 void ASkeletalMeshActor::UpdateBoneSelectionHighlight(int32 SelectedBoneIndex)
 {
+    // Todo: 본 계층구조 인덱스로 색상을 나타내주는데, 한 단계씩 밀려있음.
+    // 선택된 애가 parent로 되는듯?
     if (!SkeletalMeshComponent)
     {
         return;
@@ -386,8 +388,16 @@ void ASkeletalMeshActor::UpdateBoneSelectionHighlight(int32 SelectedBoneIndex)
         // Update cone colors
         const int32 parent = Bones[i].ParentIndex;
         FVector4 ConeColor = NormalCone;
-        if (i == SelectedBoneIndex)             ConeColor = SelectedBoneColor;
-        else if (parent == SelectedBoneIndex)   ConeColor = ParentOfSelectedColor;
+        if (i == SelectedBoneIndex)
+        {
+            // 선택된 본으로 들어오는 bone: 주황색
+            ConeColor = ParentOfSelectedColor;
+        }
+        else if (parent == SelectedBoneIndex)
+        {
+            // 선택된 본에서 나가는 bone: 초록색
+            ConeColor = SelectedBoneColor;
+        }
 
         for (ULine* L : BL.ConeEdges)
         {
