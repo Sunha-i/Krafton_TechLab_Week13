@@ -72,6 +72,13 @@ public:
      * @param AdditiveTransforms BoneIndex -> Additive FTransform 맵
      */
     void ApplyAdditiveTransforms(const TMap<int32, FTransform>& AdditiveTransforms);
+
+    /**
+     * @brief CurrentLocalSpacePose를 RefPose로 리셋하고 포즈를 재계산
+     * 애니메이션이 없는 뷰어에서 additive transform 적용 전에 호출
+     */
+    void ResetToRefPose();
+
     TArray<FTransform> RefPose;
 
 protected:

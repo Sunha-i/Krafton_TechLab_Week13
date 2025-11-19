@@ -245,6 +245,36 @@ void SSkeletalMeshViewerWindow::OnRender()
 
 void SSkeletalMeshViewerWindow::PreRenderViewportUpdate()
 {
+    if (!ActiveState || !ActiveState->PreviewActor) return;
+
+    // 기본 포즈 위에 사용자가 조작한 본 트랜스폼 오프셋을 적용
+    // SAnimationViewerWindow는 TickComponent()가 매 프레임 포즈를 리셋하지만,
+    // 여기서는 애니메이션이 없으므로 수동으로 RefPose로 리셋해야 누적을 방지할 수 있음
+    if (USkeletalMeshComponent* MeshComp = ActiveState->PreviewActor->GetSkeletalMeshComponent())
+    {
+        // 누적 방지를 위해 먼저 참조 포즈로 리셋
+        MeshComp->ResetToRefPose();
+
+        if (!ActiveState->BoneAdditiveTransforms.IsEmpty())
+        {
+            MeshComp->ApplyAdditiveTransforms(ActiveState->BoneAdditiveTransforms);
+        }
+    }
+
+    // 본이 선택된 경우, 기즈모 위치를 본의 최종 트랜스폼에 맞춰 업데이트
+    if (ActiveState->SelectedBoneIndex >= 0 && ActiveState->World)
+    {
+        AGizmoActor* Gizmo = ActiveState->World->GetGizmoActor();
+        if (Gizmo && Gizmo->GetbIsDragging())
+        {
+            UpdateBoneTransformFromGizmo(ActiveState);
+        }
+        else
+        {
+            ActiveState->PreviewActor->RepositionAnchorToBone(ActiveState->SelectedBoneIndex);
+        }
+    }
+
     // Reconstruct bone overlay
     if (ActiveState->bShowBones)
     {

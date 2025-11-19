@@ -872,7 +872,7 @@ void SViewerWindow::RenderRightPanel()
     ImGui::PopItemWidth();
 
     if (bLocChanged) {
-        ApplyBoneTransform(ActiveState);
+        ApplyBoneTransform(ActiveState, true, false, false);
         ActiveState->bBoneLinesDirty = true;
     }
 
@@ -898,7 +898,7 @@ void SViewerWindow::RenderRightPanel()
         ActiveState->bBoneRotationEditing = false;
 
     if (bRotChanged) {
-        ApplyBoneTransform(ActiveState);
+        ApplyBoneTransform(ActiveState, false, true, false);
         ActiveState->bBoneLinesDirty = true;
     }
 
@@ -917,7 +917,7 @@ void SViewerWindow::RenderRightPanel()
     ImGui::PopItemWidth();
 
     if (bScaleChanged) {
-        ApplyBoneTransform(ActiveState);
+        ApplyBoneTransform(ActiveState, false, false, true);
         ActiveState->bBoneLinesDirty = true;
     }
 }
@@ -947,17 +947,32 @@ void SViewerWindow::UpdateBoneTransformFromSkeleton(ViewerState* State)
         }
     }
 
-    // Check if there is an additive transform for this bone
-    FTransform FinalLocalTransform = AnimatedLocalTransform;
+    // additive 트랜스폼이 있으면 ApplyAdditiveTransforms와 동일한 방식으로 최종 값 계산
+    // (회전이 위치에 영향을 주지 않도록 각 성분을 개별적으로 계산)
+    FVector FinalLocation = AnimatedLocalTransform.Translation;
+    FQuat FinalRotation = AnimatedLocalTransform.Rotation;
+    FVector FinalScale = AnimatedLocalTransform.Scale3D;
+
     if (FTransform* Additive = State->BoneAdditiveTransforms.Find(State->SelectedBoneIndex))
     {
-        FinalLocalTransform = (*Additive) * AnimatedLocalTransform;
+        // 위치: 단순 덧셈
+        FinalLocation = AnimatedLocalTransform.Translation + Additive->Translation;
+
+        // 회전: 쿼터니언 곱셈
+        FinalRotation = Additive->Rotation * AnimatedLocalTransform.Rotation;
+
+        // 스케일: 성분별 곱셈
+        FinalScale = FVector(
+            AnimatedLocalTransform.Scale3D.X * Additive->Scale3D.X,
+            AnimatedLocalTransform.Scale3D.Y * Additive->Scale3D.Y,
+            AnimatedLocalTransform.Scale3D.Z * Additive->Scale3D.Z
+        );
     }
 
-    // Update the UI edit fields with the final transform
-    State->EditBoneLocation = FinalLocalTransform.Translation;
-    State->EditBoneRotation = FinalLocalTransform.Rotation.ToEulerZYXDeg();
-    State->EditBoneScale = FinalLocalTransform.Scale3D;
+    // UI 편집 필드에 최종 트랜스폼 업데이트
+    State->EditBoneLocation = FinalLocation;
+    State->EditBoneRotation = FinalRotation.ToEulerZYXDeg();
+    State->EditBoneScale = FinalScale;
 }
 
 void SViewerWindow::UpdateBoneTransformFromGizmo(ViewerState* State)
@@ -1001,15 +1016,12 @@ void SViewerWindow::UpdateBoneTransformFromGizmo(ViewerState* State)
     ApplyBoneTransform(State);
 }
 
-void SViewerWindow::ApplyBoneTransform(ViewerState* State)
+void SViewerWindow::ApplyBoneTransform(ViewerState* State, bool bLocationChanged, bool bRotationChanged, bool bScaleChanged)
 {
     if (!State || !State->CurrentMesh || State->SelectedBoneIndex < 0)
         return;
 
-    // This is the desired final local transform from the UI/gizmo
-    FTransform DesiredFinalLocal(State->EditBoneLocation, FQuat::MakeFromEulerZYX(State->EditBoneRotation), State->EditBoneScale);
-
-    // Get the bone's transform from the current animation pose (without any additive offsets)
+    // 현재 애니메이션 포즈에서 본의 트랜스폼을 가져옴 (additive 오프셋 미적용 상태)
     FTransform AnimatedLocalTransform;
     if (State->CurrentAnimation)
     {
@@ -1017,8 +1029,8 @@ void SViewerWindow::ApplyBoneTransform(ViewerState* State)
         State->CurrentAnimation->ExtractBonePose(
             *State->CurrentMesh->GetSkeleton(),
             State->CurrentTime,
-            false, // no looping in this context
-            false, // no interpolation
+            false, // 루핑 없음
+            false, // 보간 없음
             AllBoneTransforms);
 
         if (State->SelectedBoneIndex < AllBoneTransforms.Num())
@@ -1028,7 +1040,7 @@ void SViewerWindow::ApplyBoneTransform(ViewerState* State)
     }
     else
     {
-        // No animation, base pose is the reference pose
+        // 애니메이션이 없으면 기본 포즈는 참조 포즈
         if (State->PreviewActor && State->PreviewActor->GetSkeletalMeshComponent() &&
             State->SelectedBoneIndex < State->PreviewActor->GetSkeletalMeshComponent()->RefPose.Num())
         {
@@ -1036,10 +1048,37 @@ void SViewerWindow::ApplyBoneTransform(ViewerState* State)
         }
     }
 
-    // The new additive transform is the difference
-    FTransform AdditiveTransform = DesiredFinalLocal * AnimatedLocalTransform.Inverse();
+    // 기존 additive 트랜스폼을 가져오거나 기본값 생성
+    FTransform AdditiveTransform(FVector(0, 0, 0), FQuat(0, 0, 0, 1), FVector(1, 1, 1));
+    if (State->BoneAdditiveTransforms.Contains(State->SelectedBoneIndex))
+    {
+        AdditiveTransform = State->BoneAdditiveTransforms[State->SelectedBoneIndex];
+    }
 
-    // Store it
+    // 변경된 성분만 업데이트
+    if (bLocationChanged)
+    {
+        FVector DesiredLocation = State->EditBoneLocation;
+        AdditiveTransform.Translation = DesiredLocation - AnimatedLocalTransform.Translation;
+    }
+
+    if (bRotationChanged)
+    {
+        FQuat DesiredRotation = FQuat::MakeFromEulerZYX(State->EditBoneRotation);
+        AdditiveTransform.Rotation = DesiredRotation * AnimatedLocalTransform.Rotation.Inverse();
+    }
+
+    if (bScaleChanged)
+    {
+        FVector DesiredScale = State->EditBoneScale;
+        FVector BaseScale = AnimatedLocalTransform.Scale3D;
+        AdditiveTransform.Scale3D = FVector(
+            BaseScale.X != 0.f ? DesiredScale.X / BaseScale.X : 1.f,
+            BaseScale.Y != 0.f ? DesiredScale.Y / BaseScale.Y : 1.f,
+            BaseScale.Z != 0.f ? DesiredScale.Z / BaseScale.Z : 1.f
+        );
+    }
+
     State->BoneAdditiveTransforms[State->SelectedBoneIndex] = AdditiveTransform;
 }
 
