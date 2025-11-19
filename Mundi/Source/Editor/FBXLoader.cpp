@@ -15,6 +15,88 @@
 
 IMPLEMENT_CLASS(UFbxLoader)
 
+// 노드가 스켈레톤 속성을 포함하는지 확인
+static bool NodeContainsSkeleton(FbxNode* InNode)
+{
+	if (!InNode)
+	{
+		return false;
+	}
+
+	int InNodeCount = InNode->GetNodeAttributeCount();
+	for (int i = 0; i < InNodeCount; ++i)
+	{
+		if (FbxNodeAttribute* Attribute = InNode->GetNodeAttributeByIndex(i))
+		{
+			if (Attribute->GetAttributeType() == FbxNodeAttribute::eSkeleton)
+			{
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+// 노드의 직계 자식 중에만 스켈레톤 노드가 있는지 확인 (비재귀적)
+static bool NodeContainsSkeletonInImmediateChildren(FbxNode* InNode)
+{
+	if (!InNode)
+	{
+		return false;
+	}
+
+	// 직계 자식만 확인 (재귀 없음)
+	int InNodeCount = InNode->GetChildCount();
+	for (int i = 0; i < InNodeCount; ++i)
+	{
+		FbxNode* ChildNode = InNode->GetChild(i);
+
+		// 자식 자체가 스켈레톤이면 true 반환
+		int ChildAttributeCount = ChildNode->GetNodeAttributeCount();
+		for (int j = 0; j < ChildAttributeCount; ++j)
+		{
+			if (FbxNodeAttribute* Attribute = ChildNode->GetNodeAttributeByIndex(j))
+			{
+				if (Attribute->GetAttributeType() == FbxNodeAttribute::eSkeleton)
+				{
+					return true;
+				}
+			}
+		}
+	}
+
+	return false;
+}
+
+// 직계 자식 중에 스켈레톤이 있는 첫 번째 비스켈레톤 노드를 재귀적으로 찾음
+// Blender의 Armature Object Node나 다른 컨테이너 노드를 찾는 데 사용
+static FbxNode* FindNonSkeletonParentRecursive(FbxNode* Node)
+{
+	if (!Node)
+	{
+		return nullptr;
+	}
+
+	// 이 노드가 스켈레톤이 아니면서 직계 자식 중에 스켈레톤이 있는지 확인
+	if (!NodeContainsSkeleton(Node) && NodeContainsSkeletonInImmediateChildren(Node))
+	{
+		return Node;
+	}
+
+	// 자식 노드들을 재귀적으로 탐색
+	int ChildCount = Node->GetChildCount();
+	for (int i = 0; i < ChildCount; ++i)
+	{
+		FbxNode* FoundNode = FindNonSkeletonParentRecursive(Node->GetChild(i));
+		if (FoundNode)
+		{
+			return FoundNode;
+		}
+	}
+
+	return nullptr;
+}
+
 UFbxLoader::UFbxLoader()
 {
 	// 메모리 관리, FbxManager 소멸시 Fbx 관련 오브젝트 모두 소멸
@@ -106,6 +188,7 @@ UFbxLoader::~UFbxLoader()
 {
 	SdkManager->Destroy();
 }
+
 UFbxLoader& UFbxLoader::GetInstance()
 {
 	static UFbxLoader* FbxLoader = nullptr;
@@ -410,12 +493,6 @@ void UFbxLoader::LoadMeshFromNode(FbxNode* InNode,
 	TMap<FbxNode*, int32>& BoneToIndex, 
 	TMap<FbxSurfaceMaterial*, int32>& MaterialToIndex)
 {
-
-	// 부모노드로부터 상대좌표 리턴
-	/*FbxDouble3 Translation = InNode->LclTranslation.Get();
-	FbxDouble3 Rotation = InNode->LclRotation.Get();
-	FbxDouble3 Scaling  = InNode->LclScaling.Get();*/
-
 	// 최적화, 메시 로드 전에 미리 머티리얼로부터 인덱스를 해시맵을 이용해서 얻고 그걸 TArray에 저장하면 됨. 
 	// 노드의 머티리얼 리스트는 슬롯으로 참조함(내가 정한 MaterialIndex는 슬롯과 다름), 슬롯에 대응하는 머티리얼 인덱스를 캐싱하는 것
 	// 그럼 폴리곤 순회하면서 해싱할 필요가 없음
@@ -432,10 +509,7 @@ void UFbxLoader::LoadMeshFromNode(FbxNode* InNode,
 		if (Attribute->GetAttributeType() == FbxNodeAttribute::eMesh)
 		{
 			FbxMesh* Mesh = (FbxMesh*)Attribute;
-			// 위의 MaterialSlotToIndex는 MaterialToIndex 해싱을 안 하기 위함이고, MaterialGroupIndexList도 머티리얼이 없거나 1개만 쓰는 경우 해싱을 피할 수 있음.
-			// 이를 위한 최적화 코드를 작성함.
 			
-
 			// 0번이 기본 머티리얼이고 1번 이상은 블렌딩 머티리얼이라고 함. 근데 엄청 고급 기능이라서 일반적인 로더는 0번만 쓴다고 함.
 			if (Mesh->GetElementMaterialCount() > 0)
 			{
@@ -1426,6 +1500,33 @@ UAnimSequence* UFbxLoader::LoadFbxAnimation(const FString& FilePath, const struc
 		UnrealImportAxis.DeepConvertScene(Scene);
 	}
 
+	// 5-1. Blender Armature Transform 추출
+	// 첫 번째 비스켈레톤 노드를 찾아서 보정용 트랜스폼 정보들을 추출
+	FbxAMatrix ArmatureTransform;
+	ArmatureTransform.SetIdentity();
+	FbxNode* RootNode = Scene->GetRootNode();
+
+	if (RootNode)
+	{
+		// 루트부터 재귀적으로 탐색
+		FbxNode* NonSkeletonParentNode = FindNonSkeletonParentRecursive(RootNode);
+
+		if (NonSkeletonParentNode)
+		{
+			// 비스켈레톤 부모 노드를 찾아서 트랜스폼 추출
+			ArmatureTransform = NonSkeletonParentNode->EvaluateLocalTransform();
+
+			FbxVector4 ArmatureScale = ArmatureTransform.GetS();
+			FString NodeName = NonSkeletonParentNode->GetName();
+			UE_LOG("UFbxLoader::LoadFbxAnimation: Found Armature '%s' with Scale: (%.2f, %.2f, %.2f)",
+				NodeName.c_str(), ArmatureScale[0], ArmatureScale[1], ArmatureScale[2]);
+		}
+		else
+		{
+			UE_LOG("UFbxLoader::LoadFbxAnimation: No non-skeleton container found, skeleton directly under root (Mixamo-style FBX)");
+		}
+	}
+
 	// 6. AnimStack 가져오기 (이름으로 찾거나 첫 번째 스택 사용)
 	int AnimStackCount = Scene->GetSrcObjectCount<FbxAnimStack>();
 	if (AnimStackCount == 0)
@@ -1537,8 +1638,8 @@ UAnimSequence* UFbxLoader::LoadFbxAnimation(const FString& FilePath, const struc
 	}
 	UE_LOG("UFbxLoader::LoadFbxAnimation: Using animation layer '%s'", AnimLayer->GetName());
 
-	// 11. FBX 씬의 루트 노드 가져오기
-	FbxNode* RootNode = Scene->GetRootNode();
+	// 11. FBX 씬의 루트 노드 재확인
+	RootNode = Scene->GetRootNode();
 	if (!RootNode)
 	{
 		UE_LOG("UFbxLoader::LoadFbxAnimation: No root node found");
@@ -1587,15 +1688,19 @@ UAnimSequence* UFbxLoader::LoadFbxAnimation(const FString& FilePath, const struc
 		}
 
 		FbxNode* BoneNode = BoneNameToNode[Bone.Name];
+		bool bIsRootBone = (Bone.ParentIndex == -1);
 
 		// FTransformAnimCurve 참조 가져오기
 		FTransformAnimCurve& TransformCurve = DataModel->CurveData.BoneTransformCurves[BoneIndex];
 
-		// Evaluation-Based 추출: EvaluateLocalTransform으로 절대 로컬 변환 가져오기
+		// EvaluateLocalTransform으로 절대 로컬 변환 가져오기
 		{
-			// 프레임 간격 계산 (30fps 기준으로 샘플링)
+			// 프레임 간격 계산
 			FbxTime FrameTime;
 			FrameTime.SetSecondDouble(1.0 / static_cast<double>(FrameRate));
+
+			// 부모 노드 가져오기
+			FbxNode* ParentNode = BoneNode->GetParent();
 
 			// 각 프레임에서 Transform을 평가하여 키프레임 생성
 			int32 FrameCount = DataModel->NumberOfFrames;
@@ -1607,6 +1712,13 @@ UAnimSequence* UFbxLoader::LoadFbxAnimation(const FString& FilePath, const struc
 
 				// 노드의 로컬 Transform을 평가 (부모의 영향을 받지 않는 순수 로컬 Transform)
 				FbxAMatrix LocalTransform = BoneNode->EvaluateLocalTransform(CurrentTime);
+
+				// 루트 본에 Armature Transform 적용
+				// Armature가 없으면 항등 행렬이므로 영향 없음
+				if (bIsRootBone)
+				{
+					LocalTransform = ArmatureTransform * LocalTransform;
+				}
 
 				// Translation 추출
 				FbxVector4 FbxTranslation = LocalTransform.GetT();
