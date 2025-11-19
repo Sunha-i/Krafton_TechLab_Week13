@@ -19,5 +19,5 @@ protected:
     virtual void HandleAnimNotify(const FAnimNotifyEvent& NotifyEvent) override;
 
 private:
-    UAudioComponent* AudioComponent;
+    USound* Sound;
 };

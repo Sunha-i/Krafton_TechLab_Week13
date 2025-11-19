@@ -2,6 +2,7 @@
 #include "DancingCharacter.h"
 #include "SkeletalMeshComponent.h"
 #include "AudioComponent.h"
+#include "FAudioDevice.h"
 
 ADancingCharacter::ADancingCharacter()
 {
@@ -10,11 +11,7 @@ ADancingCharacter::ADancingCharacter()
 		MeshComponent->SetSkeletalMesh(GDataDir + "/SillyDancing.fbx");
 	}
 
-	AudioComponent = CreateDefaultSubobject<UAudioComponent>("AudioComponent");
-	if (AudioComponent)
-	{
-		AudioComponent->SetupAttachment(RootComponent);
-	}
+	Sound = UResourceManager::GetInstance().Load<USound>(GDataDir + "/Audio/Die.wav");
 }
 
 ADancingCharacter::~ADancingCharacter()
@@ -43,8 +40,8 @@ void ADancingCharacter::HandleAnimNotify(const FAnimNotifyEvent& NotifyEvent)
 	Super::HandleAnimNotify(NotifyEvent);
 
 	UE_LOG("ADancingCharacter: Notify Triggered!");
-	if (AudioComponent)
+	if (Sound)
 	{
-		AudioComponent->Play();
+		FAudioDevice::PlaySound3D(Sound, GetActorLocation());
 	}
 }

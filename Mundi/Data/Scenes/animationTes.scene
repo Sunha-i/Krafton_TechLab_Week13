@@ -1,6 +1,6 @@
 {
   "Actors" : {
-    "1002" : {
+    "950" : {
       "ObjectName" : "캐릭터_0",
       "OwnedComponents" : [{
           "ObjectName" : "UInputComponent_1",
@@ -11,7 +11,7 @@
         }, {
           "CapsuleHalfHeight" : 0.000000,
           "CapsuleRadius" : 0.000000,
-          "Id" : 1008,
+          "Id" : 956,
           "ObjectName" : "UCapsuleComponent_1",
           "ParentId" : 0,
           "RelativeLocation" : [0.000000, 0.000000, 0.482127],
@@ -27,21 +27,14 @@
           "bShapeIsVisible" : true,
           "bTickEnabled" : true
         }, {
-          "AirControl" : 0.050000,
-          "BrakingDeceleration" : 20.480000,
-          "GravityScale" : 1.000000,
-          "GroundFriction" : 8.000000,
-          "JumpZVelocity" : 4.200000,
-          "MaxAcceleration" : 20.480000,
-          "MaxAirTime" : 5.000000,
-          "MaxWalkSpeed" : 6.000000,
-          "ObjectName" : "UCharacterMovementComponent_1",
-          "Type" : "UCharacterMovementComponent",
+          "ObjectName" : "ULuaScriptComponent_1",
+          "ScriptFilePath" : "Data/Scripts/PlayerController.lua",
+          "Type" : "ULuaScriptComponent",
           "bHiddenInGame" : false,
           "bIsActive" : true,
           "bTickEnabled" : true
         }, {
-          "Id" : 1010,
+          "Id" : 958,
           "MaterialSlots" : [{
               "Type" : "None"
             }, {
@@ -49,7 +42,7 @@
               "Type" : "UMaterial"
             }],
           "ObjectName" : "USkeletalMeshComponent_1",
-          "ParentId" : 1008,
+          "ParentId" : 956,
           "RelativeLocation" : [0.000000, 0.000000, 0.000000],
           "RelativeRotationEuler" : [0.000000, 0.000000, 0.000000],
           "RelativeScale" : [1.000000, 1.000000, 1.000000],
@@ -63,23 +56,30 @@
           "bIsVisible" : true,
           "bTickEnabled" : true
         }, {
-          "ObjectName" : "ULuaScriptComponent_1",
-          "ScriptFilePath" : "Data/Scripts/PlayerController.lua",
-          "Type" : "ULuaScriptComponent",
+          "AirControl" : 0.050000,
+          "BrakingDeceleration" : 20.480000,
+          "GravityScale" : 1.000000,
+          "GroundFriction" : 8.000000,
+          "JumpZVelocity" : 4.200000,
+          "MaxAcceleration" : 20.480000,
+          "MaxAirTime" : 5.000000,
+          "MaxWalkSpeed" : 6.000000,
+          "ObjectName" : "UCharacterMovementComponent_1",
+          "Type" : "UCharacterMovementComponent",
           "bHiddenInGame" : false,
           "bIsActive" : true,
           "bTickEnabled" : true
         }],
-      "RootComponentId" : 1008,
+      "RootComponentId" : 956,
       "Tag" : "",
       "Type" : "ACharacter",
       "bActorHiddenInGame" : false,
       "bActorIsActive" : true
     },
-    "1012" : {
+    "960" : {
       "ObjectName" : "스태틱 메시_0",
       "OwnedComponents" : [{
-          "Id" : 1014,
+          "Id" : 962,
           "MaterialSlots" : [{
               "AssetPath" : "material",
               "Type" : "UMaterial"
@@ -99,13 +99,13 @@
           "bIsVisible" : true,
           "bTickEnabled" : true
         }],
-      "RootComponentId" : 1014,
+      "RootComponentId" : 962,
       "Tag" : "",
       "Type" : "AStaticMeshActor",
       "bActorHiddenInGame" : false,
       "bActorIsActive" : true
     },
-    "1015" : {
+    "963" : {
       "ObjectName" : "ADirectionalLightActor_1",
       "OwnedComponents" : [{
           "CascadedAreaColorDebugValue" : 0.000000,
@@ -113,7 +113,7 @@
           "CascadedCount" : 8,
           "CascadedLinearBlendingValue" : 0.000000,
           "CascadedOverlapValue" : 0.200000,
-          "Id" : 1017,
+          "Id" : 965,
           "Intensity" : 1.000000,
           "LightColor" : [1.000000, 1.000000, 1.000000, 1.000000],
           "ObjectName" : "UDirectionalLightComponent_1",
@@ -134,16 +134,16 @@
           "bIsVisible" : true,
           "bTickEnabled" : true
         }],
-      "RootComponentId" : 1017,
+      "RootComponentId" : 965,
       "Tag" : "",
       "Type" : "ADirectionalLightActor",
       "bActorHiddenInGame" : false,
       "bActorIsActive" : true
     },
-    "1018" : {
+    "966" : {
       "ObjectName" : "AAmbientLightActor_1",
       "OwnedComponents" : [{
-          "Id" : 1020,
+          "Id" : 968,
           "Intensity" : 0.100000,
           "LightColor" : [1.000000, 1.000000, 1.000000, 1.000000],
           "ObjectName" : "UAmbientLightComponent_1",
@@ -163,16 +163,16 @@
           "bIsVisible" : true,
           "bTickEnabled" : true
         }],
-      "RootComponentId" : 1020,
+      "RootComponentId" : 968,
       "Tag" : "",
       "Type" : "AAmbientLightActor",
       "bActorHiddenInGame" : false,
       "bActorIsActive" : true
     },
-    "1021" : {
+    "969" : {
       "ObjectName" : "APlayerCameraManager_1",
       "OwnedComponents" : [{
-          "Id" : 1022,
+          "Id" : 970,
           "ObjectName" : "USceneComponent_1",
           "ParentId" : 0,
           "RelativeLocation" : [0.000000, 0.000000, 0.000000],
@@ -184,13 +184,13 @@
           "bIsVisible" : true,
           "bTickEnabled" : true
         }],
-      "RootComponentId" : 1022,
+      "RootComponentId" : 970,
       "Tag" : "",
       "Type" : "APlayerCameraManager",
       "bActorHiddenInGame" : false,
       "bActorIsActive" : true
     },
-    "1027" : {
+    "971" : {
       "ObjectName" : "댄싱 캐릭터_0",
       "OwnedComponents" : [{
           "ObjectName" : "UInputComponent_3",
@@ -201,7 +201,7 @@
         }, {
           "CapsuleHalfHeight" : 0.000000,
           "CapsuleRadius" : 0.000000,
-          "Id" : 1029,
+          "Id" : 977,
           "ObjectName" : "UCapsuleComponent_3",
           "ParentId" : 0,
           "RelativeLocation" : [0.757262, -0.312319, 0.562678],
@@ -215,23 +215,6 @@
           "bIsVisible" : true,
           "bShapeHiddenInGame" : true,
           "bShapeIsVisible" : true,
-          "bTickEnabled" : true
-        }, {
-          "Id" : 1032,
-          "ObjectName" : "UAudioComponent_2",
-          "ParentId" : 1029,
-          "Pitch" : 1.000000,
-          "RelativeLocation" : [0.000000, 0.000000, -0.152529],
-          "RelativeRotationEuler" : [0.000000, -0.000000, 0.000000],
-          "RelativeScale" : [1.000000, 1.000000, 1.000000],
-          "Sounds" : ["Data/Audio/Die.wav"],
-          "Type" : "UAudioComponent",
-          "Volume" : 1.000000,
-          "bAutoPlay" : true,
-          "bHiddenInGame" : false,
-          "bIsActive" : true,
-          "bIsLooping" : false,
-          "bIsVisible" : true,
           "bTickEnabled" : true
         }, {
           "AirControl" : 0.050000,
@@ -248,7 +231,7 @@
           "bIsActive" : true,
           "bTickEnabled" : true
         }, {
-          "Id" : 1030,
+          "Id" : 980,
           "MaterialSlots" : [{
               "Type" : "None"
             }, {
@@ -256,7 +239,7 @@
               "Type" : "UMaterial"
             }],
           "ObjectName" : "USkeletalMeshComponent_3",
-          "ParentId" : 1029,
+          "ParentId" : 977,
           "RelativeLocation" : [0.000000, 0.000000, 0.000000],
           "RelativeRotationEuler" : [0.000000, 0.000000, 0.000000],
           "RelativeScale" : [1.000000, 1.000000, 1.000000],
@@ -270,14 +253,14 @@
           "bIsVisible" : true,
           "bTickEnabled" : true
         }],
-      "RootComponentId" : 1029,
+      "RootComponentId" : 977,
       "Tag" : "",
       "Type" : "ADancingCharacter",
       "bActorHiddenInGame" : false,
       "bActorIsActive" : true
     }
   },
-  "NextUUID" : 2839,
+  "NextUUID" : 2765,
   "PerspectiveCamera" : {
     "FOV" : [60.000000],
     "FarClip" : [2000.000000],
