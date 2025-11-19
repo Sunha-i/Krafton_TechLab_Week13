@@ -50,57 +50,6 @@ ViewerState* AnimationViewerBootstrap::CreateViewerState(const char* Name, UWorl
             Preview->AddOwnedComponent(AudioComp);
         }
         State->PreviewActor = Preview;
-
-        // -------- TEST --------
-
-        // Load default DancingRacer mesh + its animation for a rich default preview.
-        // If loading fails, fall back to simple playback later when a mesh is assigned.
-        if (Preview && Preview->GetSkeletalMeshComponent())
-        {
-            // If there is already a mesh with skeleton, build sequence to match; otherwise build generic.
-            const USkeletalMesh* Mesh = Preview->GetSkeletalMeshComponent()->GetSkeletalMesh();
-            const FSkeleton* Skel = Mesh ? Mesh->GetSkeleton() : nullptr;
-            // Try to load a default mesh + animation from the Data folder
-            FString DefaultFBXPath = GDataDir + "/DancingRacer.fbx";
-            Preview->SetSkeletalMesh(DefaultFBXPath);
-            Skel = Preview->GetSkeletalMeshComponent()->GetSkeletalMesh() ? Preview->GetSkeletalMeshComponent()->GetSkeletalMesh()->GetSkeleton() : nullptr;
-            if (Skel)
-            {
-                // PreLoad()에서 이미 로드된 애니메이션을 리소스 매니저에서 가져오기
-                // 리소스 키 형식: {파일경로(확장자 제외)}_{AnimStack명}
-                UAnimSequence* TestAnimation = UResourceManager::GetInstance().Get<UAnimSequence>("Data/DancingRacer_mixamo.com");
-                if (TestAnimation)
-                {
-                    State->CurrentAnimation = TestAnimation;
-                    State->TotalTime = TestAnimation->GetSequenceLength();
-                    State->bIsPlaying = true;
-                    State->bIsLooping = true;
-                    State->PlaybackSpeed = 1.0f;
-                    Preview->GetSkeletalMeshComponent()->PlayAnimation(TestAnimation, State->bIsLooping, State->PlaybackSpeed);
-
-                    // Update compatible animation list
-                    State->CurrentMesh = Preview->GetSkeletalMeshComponent()->GetSkeletalMesh();
-                    State->CompatibleAnimations.Empty();
-                    if (const FSkeleton* CurrentSkeleton = State->CurrentMesh->GetSkeleton())
-                    {
-                        const FString& MeshSkeletonName = CurrentSkeleton->Name;
-                        const auto& AllAnimations = UResourceManager::GetInstance().GetAnimations();
-                        for (UAnimSequence* Anim : AllAnimations)
-                        {
-                            if (Anim && Anim->GetSkeletonName() == MeshSkeletonName)
-                            {
-                                State->CompatibleAnimations.Add(Anim);
-                            }
-                        }
-                    }
-                }
-                else
-                {
-                    UE_LOG("SkeletalViewerBootstrap: Failed to load test animation 'Data/DancingRacer_mixamo.com'");
-                }
-            }
-        }
-        // ------ END OF TEST ------
     }
 
     return State;

@@ -452,6 +452,27 @@ void SAnimationViewerWindow::LoadSkeletalMesh(ViewerState* State, const FString&
         State->PreviewActor->SetSkeletalMesh(Path);
         State->CurrentMesh = Mesh;
 
+        // Update compatible animation list
+        State->CompatibleAnimations.Empty();
+        if (const FSkeleton* CurrentSkeleton = State->CurrentMesh->GetSkeleton())
+        {
+            const FString& MeshSkeletonName = CurrentSkeleton->Name;
+            const auto& AllAnimations = UResourceManager::GetInstance().GetAnimations();
+            for (UAnimSequence* Anim : AllAnimations)
+            {
+                if (Anim && Anim->GetSkeletonName() == MeshSkeletonName)
+                {
+                    State->CompatibleAnimations.Add(Anim);
+                }
+            }
+        }
+
+        // Reset current animation state
+        State->CurrentAnimation = nullptr;
+        State->TotalTime = 0.0f;
+        State->CurrentTime = 0.0f;
+        State->bIsPlaying = false;
+
         // Expand all bone nodes by default on mesh load
         State->ExpandedBoneIndices.clear();
         if (const FSkeleton* Skeleton = State->CurrentMesh->GetSkeleton())
