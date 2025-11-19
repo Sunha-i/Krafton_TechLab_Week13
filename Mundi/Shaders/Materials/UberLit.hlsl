@@ -193,6 +193,7 @@ PS_INPUT mainVS(VS_INPUT Input)
     float3 worldNormal = normalize(mul(localNormal, (float3x3) WorldInverseTranspose));
     Out.Normal = worldNormal;
     float3 Tangent = normalize(mul(localTangent, (float3x3) WorldMatrix));
+    Tangent = normalize(Tangent - worldNormal * dot(worldNormal, Tangent));  // 그람-슈미트 재직교화
     float3 BiTangent = normalize(cross(Tangent, worldNormal) * Input.Tangent.w);
     row_major float3x3 TBN;
     TBN._m00_m01_m02 = Tangent;
