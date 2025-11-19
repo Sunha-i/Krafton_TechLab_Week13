@@ -2337,6 +2337,16 @@ void SViewerWindow::RenderAnimationBrowser(
                         ActiveState->TotalTime = Anim->GetSequenceLength();
                         ActiveState->CurrentTime = 0.0f;
                         ActiveState->bIsPlaying = true;
+
+                        if (Anim && Anim->GetDataModel())
+                        {
+                            ActiveState->NotifyTracks = Anim->GetDataModel()->NotifyTracks;
+                        }
+                        else
+                        {
+                            ActiveState->NotifyTracks.clear();
+                        }
+
                         USkeletalMeshComponent* MeshComp = ActiveState->PreviewActor->GetSkeletalMeshComponent();
                         if (MeshComp)
                         {

@@ -1,9 +1,11 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "AnimSingleNodeInstance.h"
 #include "AnimNodeBase.h"
 #include "AnimationRuntime.h"
 #include "SkeletalMeshComponent.h"
 #include "AnimSequenceBase.h"
+#include "AnimSequence.h"
+#include "Source/Runtime/Engine/Viewer/ViewerState.h"
 
 void UAnimSingleNodeInstance::SetAnimationAsset(UAnimationAsset* InAsset, bool bInLooping)
 {
@@ -63,6 +65,20 @@ void UAnimSingleNodeInstance::NativeUpdateAnimation(float DeltaTime)
 
     FAnimationBaseContext Ctx; Ctx.Initialize(Comp, Skeleton, DeltaTime);
     Player.Update(Ctx);
+
+    // Notify Trigger Logic
+    const float CurrentTime = GetPosition();
+    float PrevTime = PreviousPosition;
+
+    if (CurrentTime < PrevTime)
+    {
+        PrevTime = 0.f;
+    }
+    if (bPlaying)
+    {
+        TriggerAnimNotifies(PrevTime, CurrentTime);
+    }
+    PreviousPosition = CurrentTime;
 }
 
 void UAnimSingleNodeInstance::EvaluateAnimation(FPoseContext& Output)
@@ -121,3 +137,23 @@ void UAnimSingleNodeInstance::EvaluateAnimation(FPoseContext& Output)
     }
 }
 
+void UAnimSingleNodeInstance::TriggerAnimNotifies(float PreviousTime, float CurrentTime)
+{
+    UAnimSequence* Seq = Cast<UAnimSequence>(Player.GetSequence());
+    if (!Seq || !Seq->GetDataModel())   return;
+
+    const UAnimDataModel* DataModel = Seq->GetDataModel();
+    USkeletalMeshComponent* OwingComp = GetOwningComponent();
+    if (!OwingComp) return;
+
+    for (const FNotifyTrack& Track : DataModel->NotifyTracks)
+    {
+        for (const FAnimNotifyEvent& Notify : Track.Notifies)
+        {
+            if (Notify.TriggerTime > PreviousTime && Notify.TriggerTime <= CurrentTime)
+            {
+                OwingComp->TriggerAnimNotify(Notify);
+            }
+        }
+    }
+}

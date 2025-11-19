@@ -372,3 +372,12 @@ void USkeletalMeshComponent::ResetToAnimationPose()
     }
     ForceRecomputePose();
 }
+
+void USkeletalMeshComponent::TriggerAnimNotify(const FAnimNotifyEvent& NotifyEvent)
+{
+    AActor* Owner = GetOwner();
+    if (Owner)
+    {
+        Owner->HandleAnimNotify(NotifyEvent);
+    }
+}

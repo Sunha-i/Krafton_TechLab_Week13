@@ -44,6 +44,7 @@ public:
     virtual void Tick(float DeltaSeconds);   // Override 시 Super::Tick() 권장
     virtual void EndPlay();   // Override 시 Super::EndPlay() 권장
     virtual void Destroy();
+    virtual void HandleAnimNotify(const FAnimNotifyEvent& NotifyEvent) {}
 
     void SetTag(const FString& InTag) { Tag = InTag; }
     const FString& GetTag() const { return Tag; }

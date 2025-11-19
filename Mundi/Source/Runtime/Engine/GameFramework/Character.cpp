@@ -1,4 +1,4 @@
-// ────────────────────────────────────────────────────────────────────────────
+﻿// ────────────────────────────────────────────────────────────────────────────
 // Character.cpp
 // Character 클래스 구현
 // ────────────────────────────────────────────────────────────────────────────
@@ -54,6 +54,19 @@ void ACharacter::BeginPlay()
 void ACharacter::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
+}
+
+void ACharacter::HandleAnimNotify(const FAnimNotifyEvent& NotifyEvent)
+{
+	Super::HandleAnimNotify(NotifyEvent);
+
+	UE_LOG("[ACharacter] Received Anim Notify: %s", NotifyEvent.NotifyName.ToString().c_str());
+
+	// Example
+	//if (NotifyEvent.NotifyName == FName("Sorry"))
+	//{
+	//	// 죄송합니다 사운드 재생
+	//}
 }
 
 // ────────────────────────────────────────────────────────────────────────────

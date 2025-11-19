@@ -143,6 +143,7 @@ protected:
 
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaSeconds) override;
+	virtual void HandleAnimNotify(const FAnimNotifyEvent& NotifyEvent) override;
 
 	// ────────────────────────────────────────────────
 	// 입력 바인딩 (오버라이드)

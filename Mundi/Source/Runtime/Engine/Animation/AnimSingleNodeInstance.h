@@ -42,4 +42,8 @@ private:
     bool bTreatAssetAsAdditive = false;
     EAdditiveType AdditiveType = EAdditiveType::LocalSpace;
     float ReferenceTime = 0.f;
+
+    // Notifies
+    float PreviousPosition = 0.f;
+    void TriggerAnimNotifies(float PreviousTime, float CurrentTime);
 };

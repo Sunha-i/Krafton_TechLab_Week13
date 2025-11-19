@@ -8,7 +8,7 @@ struct FAnimNotifyEvent
     float Duration;
     FName NotifyName;
     FString SoundPath;
-    FLinearColor Color = FLinearColor(0.6f, 0.5f, 0.85f, 1.0f);
+    FLinearColor Color = FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
 };
 
 struct FNotifyTrack
@@ -16,6 +16,7 @@ struct FNotifyTrack
     FString Name;
     TArray<FAnimNotifyEvent> Notifies;
 
+    FNotifyTrack() = default;
     FNotifyTrack(const FString& InName) : Name(InName) {}
 };
 

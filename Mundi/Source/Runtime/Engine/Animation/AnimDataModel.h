@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include "Object.h"
 #include "AnimTypes.h"
+#include "Source/Runtime/Engine/Viewer/ViewerState.h"
 #include "UAnimDataModel.generated.h"
 
 /**
@@ -19,6 +20,9 @@ public:
 
 	/** 본별 애니메이션 트랙 배열 */
 	TArray<FBoneAnimationTrack> BoneAnimationTracks;
+
+	/** 노티파이 트랙 데이터 */
+	TArray<FNotifyTrack> NotifyTracks;
 
 	/** 애니메이션 전체 재생 길이 (초 단위) */
 	float SequenceLength = 0.0f;
@@ -93,6 +97,7 @@ public:
 	void Reset()
 	{
 		BoneAnimationTracks.clear();
+		NotifyTracks.clear();
 		CurveData.Reset();
 		SequenceLength = 0.0f;
 		FrameRate = 30.0f;
@@ -125,6 +130,34 @@ public:
 
 		// 커브 데이터 직렬화
 		Ar << Model.CurveData;
+
+		// 노티파이 트랙 직렬화
+		int32 NumNotifyTracks = Model.NotifyTracks.Num();
+		Ar << NumNotifyTracks;
+		if (Ar.IsLoading())
+		{
+			Model.NotifyTracks.SetNum(NumNotifyTracks);
+		}
+		for (int32 i = 0; i < NumNotifyTracks; ++i)
+		{
+			Ar << Model.NotifyTracks[i].Name;
+
+			int32 NumNotifies = Model.NotifyTracks[i].Notifies.Num();
+			Ar << NumNotifies;
+			if (Ar.IsLoading())
+			{
+				Model.NotifyTracks[i].Notifies.SetNum(NumNotifies);
+			}
+			for (int32 j = 0; j < NumNotifies; ++j)
+			{
+				FAnimNotifyEvent& Notify = Model.NotifyTracks[i].Notifies[j];
+				Ar << Notify.TriggerTime;
+				Ar << Notify.Duration;
+				Ar << Notify.NotifyName;
+				Ar << Notify.SoundPath;
+				Ar << Notify.Color;
+			}
+		}
 
 		return Ar;
 	}

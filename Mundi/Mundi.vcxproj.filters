@@ -1,4 +1,4 @@
-<?xml version='1.0' encoding='utf-8'?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="4.0">
   <ItemGroup>
     <FxCompile Include="Shaders\PostProcess\GammaCorrection_PS.hlsl">
@@ -81,9 +81,6 @@
       <Filter>Source\Runtime\Engine\Animation</Filter>
     </ClCompile>
     <ClCompile Include="Source\Runtime\Engine\Animation\AnimStateMachine.cpp">
-      <Filter>Source\Runtime\Engine\Animation</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\Runtime\Engine\Animation\AnimTestUtil.cpp">
       <Filter>Source\Runtime\Engine\Animation</Filter>
     </ClCompile>
     <ClCompile Include="Generated\UAnimInstance.generated.cpp">
@@ -743,9 +740,6 @@
     <ClCompile Include="Generated\USkeletalMeshComponent.generated.cpp">
       <Filter>Generated</Filter>
     </ClCompile>
-    <ClCompile Include="Generated\UTestAutoBindComponent.generated.cpp">
-      <Filter>Generated</Filter>
-    </ClCompile>
     <ClCompile Include="Generated\UTextRenderComponent.generated.cpp">
       <Filter>Generated</Filter>
     </ClCompile>
@@ -803,11 +797,30 @@
     <ClCompile Include="Generated\AGameStateBase.generated.cpp">
       <Filter>Generated</Filter>
     </ClCompile>
-    <ClCompile Include="Generated\APlayerCharacter.generated.cpp">
-      <Filter>Generated</Filter>
-    </ClCompile>
     <ClCompile Include="Generated\UAnimBlendSpaceInstance.generated.cpp">
       <Filter>Generated</Filter>
+    </ClCompile>
+    <ClCompile Include="Generated\ADancingCharacter.generated.cpp">
+      <Filter>Generated</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Runtime\Engine\Animation\AnimBlendMath.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\Animation\AnimBlendSpace2D.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\Animation\AnimBlendSpaceInstance.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\Animation\AnimStateMachineInstance.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\Components\CharacterMovementComponent.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\Components\InputComponent.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\Components\SpringArmComponent.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\GameFramework\Character.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\GameFramework\Controller.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\GameFramework\GameModeBase.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\GameFramework\GameStateBase.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\GameFramework\Pawn.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\GameFramework\PlayerController.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\Viewer\BlendSpaceEditorBootstrap.cpp" />
+    <ClCompile Include="Source\Runtime\Renderer\BlendSpaceEditorViewportClient.cpp" />
+    <ClCompile Include="Source\Slate\Windows\SBlendSpaceEditorWindow.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\GameFramework\DancingCharacter.cpp">
+      <Filter>Source\Runtime\Engine\GameFramework</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -822,9 +835,6 @@
       <Filter>Source\Runtime\Engine\Animation</Filter>
     </ClInclude>
     <ClInclude Include="Source\Runtime\Engine\Animation\AnimSequencePlayer.h">
-      <Filter>Source\Runtime\Engine\Animation</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\Runtime\Engine\Animation\AnimTestUtil.h">
       <Filter>Source\Runtime\Engine\Animation</Filter>
     </ClInclude>
     <ClInclude Include="Source\Runtime\Engine\Animation\AnimationRuntime.h">
@@ -1637,9 +1647,6 @@
     <ClInclude Include="Generated\USkeletalMeshComponent.generated.h">
       <Filter>Generated</Filter>
     </ClInclude>
-    <ClInclude Include="Generated\UTestAutoBindComponent.generated.h">
-      <Filter>Generated</Filter>
-    </ClInclude>
     <ClInclude Include="Generated\UTextRenderComponent.generated.h">
       <Filter>Generated</Filter>
     </ClInclude>
@@ -1703,11 +1710,30 @@
     <ClInclude Include="Generated\AGameStateBase.generated.h">
       <Filter>Generated</Filter>
     </ClInclude>
-    <ClInclude Include="Generated\APlayerCharacter.generated.h">
-      <Filter>Generated</Filter>
-    </ClInclude>
     <ClInclude Include="Generated\UAnimBlendSpaceInstance.generated.h">
       <Filter>Generated</Filter>
+    </ClInclude>
+    <ClInclude Include="Generated\ADancingCharacter.generated.h">
+      <Filter>Generated</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Runtime\Engine\Animation\AnimBlendMath.h" />
+    <ClInclude Include="Source\Runtime\Engine\Animation\AnimBlendSpace2D.h" />
+    <ClInclude Include="Source\Runtime\Engine\Animation\AnimBlendSpaceInstance.h" />
+    <ClInclude Include="Source\Runtime\Engine\Animation\AnimStateMachineInstance.h" />
+    <ClInclude Include="Source\Runtime\Engine\Components\CharacterMovementComponent.h" />
+    <ClInclude Include="Source\Runtime\Engine\Components\InputComponent.h" />
+    <ClInclude Include="Source\Runtime\Engine\Components\SpringArmComponent.h" />
+    <ClInclude Include="Source\Runtime\Engine\GameFramework\Character.h" />
+    <ClInclude Include="Source\Runtime\Engine\GameFramework\Controller.h" />
+    <ClInclude Include="Source\Runtime\Engine\GameFramework\GameModeBase.h" />
+    <ClInclude Include="Source\Runtime\Engine\GameFramework\GameStateBase.h" />
+    <ClInclude Include="Source\Runtime\Engine\GameFramework\Pawn.h" />
+    <ClInclude Include="Source\Runtime\Engine\GameFramework\PlayerController.h" />
+    <ClInclude Include="Source\Runtime\Engine\Viewer\BlendSpaceEditorBootstrap.h" />
+    <ClInclude Include="Source\Runtime\Renderer\BlendSpaceEditorViewportClient.h" />
+    <ClInclude Include="Source\Slate\Windows\SBlendSpaceEditorWindow.h" />
+    <ClInclude Include="Source\Runtime\Engine\GameFramework\DancingCharacter.h">
+      <Filter>Source\Runtime\Engine\GameFramework</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

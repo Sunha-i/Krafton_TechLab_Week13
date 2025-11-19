@@ -88,6 +88,9 @@ public:
     TArray<FTransform> RefPose;
     TArray<FTransform> BaseAnimationPose;
 
+    // Notify
+    void TriggerAnimNotify(const FAnimNotifyEvent& NotifyEvent);
+
 protected:
     /**
      * @brief CurrentLocalSpacePose의 변경사항을 ComponentSpace -> FinalMatrices 계산까지 모두 수행
