@@ -7,6 +7,7 @@ struct FAnimNotifyEvent
     float TriggerTime;
     float Duration;
     FName NotifyName;
+    FString SoundPath;
     FLinearColor Color = FLinearColor(0.6f, 0.5f, 0.85f, 1.0f);
 };
 
@@ -69,6 +70,8 @@ public:
 
     bool bIsScrubbing = false;
 
+    float PreviousTime = 0.0f;  // The animation time from the previous frame to detect notify triggers
+
     TArray<UAnimSequence*> CompatibleAnimations;
     bool bShowOnlyCompatible = false;
     
@@ -79,4 +82,7 @@ public:
     bool bFoldAttributes = false;
 
     FSelectedNotify SelectedNotify;
+
+    // Additive bone transforms applied on top of animation
+    TMap<int32, FTransform> BoneAdditiveTransforms;
 };

@@ -266,6 +266,7 @@ struct FSkeleton
     FString Name; // 스켈레톤 이름
     TArray<FBone> Bones; // 본 배열
     TMap <FString, int32> BoneNameToIndex; // 이름으로 본 검색
+    TArray<FTransform> RefPose;
 
     friend FArchive& operator<<(FArchive& Ar, FSkeleton& Skeleton)
     {

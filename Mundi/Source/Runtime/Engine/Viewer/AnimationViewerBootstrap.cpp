@@ -7,6 +7,7 @@
 #include "Source/Runtime/Engine/GameFramework/SkeletalMeshActor.h"
 #include "Source/Editor/FBXLoader.h"
 #include "Source/Runtime/Engine/Animation/AnimSequence.h"
+#include "Source/Runtime/Engine/Components/AudioComponent.h"
 
 ViewerState* AnimationViewerBootstrap::CreateViewerState(const char* Name, UWorld* InWorld, ID3D11Device* InDevice)
 {
@@ -43,6 +44,11 @@ ViewerState* AnimationViewerBootstrap::CreateViewerState(const char* Name, UWorl
     if (State->World)
     {
         ASkeletalMeshActor* Preview = State->World->SpawnActor<ASkeletalMeshActor>();
+        if (Preview)
+        {
+            UAudioComponent* AudioComp = NewObject<UAudioComponent>();
+            Preview->AddOwnedComponent(AudioComp);
+        }
         State->PreviewActor = Preview;
 
         // -------- TEST --------

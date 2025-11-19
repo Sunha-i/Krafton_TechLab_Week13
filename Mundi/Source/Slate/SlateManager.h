@@ -137,6 +137,7 @@ private:
     // Detached viewer window
     TArray<SWindow*> DetachedWindows;
     TArray<SWindow*> PendingCloseWindows;
+    TArray<SWindow*> PendingOpenWindows;
 
     // 드래그 중인 윈도우 추적 (마우스가 윈도우 밖으로 나가도 입력 전달하기 위해)
     SWindow* DraggingWindow = nullptr;

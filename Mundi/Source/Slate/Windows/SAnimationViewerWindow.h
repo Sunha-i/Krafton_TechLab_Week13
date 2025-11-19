@@ -34,7 +34,6 @@ private:
     void AnimStep(bool bForward);
 
     // High-level layout
-    void RenderTabBar();
     void RenderCenterPanel();
 
     // Center Panel Subsections

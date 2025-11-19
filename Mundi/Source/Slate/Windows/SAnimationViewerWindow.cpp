@@ -6,6 +6,7 @@
 #include "Source/Runtime/Engine/Viewer/EditorAssetPreviewContext.h"
 #include "AnimSingleNodeInstance.h"
 #include "Source/Runtime/Renderer/FViewport.h"
+#include "Source/Runtime/Engine/Components/AudioComponent.h"
 
 SAnimationViewerWindow::SAnimationViewerWindow()
 {
@@ -66,7 +67,10 @@ void SAnimationViewerWindow::OnRender()
         //=====================================================
         // Tab Bar : Render tab bar and switch active state
         //=====================================================
-        RenderTabBar();
+        /*if (!ImGui::BeginTabBar("AnimationViewerTabs",
+            ImGuiTabBarFlags_AutoSelectNewTabs | ImGuiTabBarFlags_Reorderable))
+            return;*/
+        RenderTabsAndToolbar(EViewerType::Animation);
 
         //===============================
         // Update window rect
@@ -263,7 +267,10 @@ void SAnimationViewerWindow::OnUpdate(float DeltaSeconds)
     // Update the UI with the engine's time only when the user is not dragging the slider.
     else
     {
-        ActiveState->CurrentTime = CurrentAnimPosition;
+        if (ActiveState->bIsPlaying)
+        {
+            ActiveState->CurrentTime = CurrentAnimPosition;
+        }
     }
 
     // Update total animation length
@@ -271,10 +278,120 @@ void SAnimationViewerWindow::OnUpdate(float DeltaSeconds)
     {
         ActiveState->TotalTime = ActiveState->CurrentAnimation->GetSequenceLength();
     }
+
+    // Notify Trigger Logic
+    float PreviousTime = ActiveState->PreviousTime;
+    if (ActiveState->CurrentTime < PreviousTime)
+    {
+        // If looped or jumped back: check from the beginning
+        PreviousTime = 0.0f;
+    }
+
+    if (ActiveState->bIsPlaying && ActiveState->TotalTime > 0.0f)
+    {
+        // use track/notify index
+        for (int32 trackIndex = 0; trackIndex < (int32)ActiveState->NotifyTracks.size(); ++trackIndex)
+        {
+            FNotifyTrack& track = ActiveState->NotifyTracks[trackIndex];
+            for (int32 notifyIndex = 0; notifyIndex < (int32)track.Notifies.size(); ++notifyIndex)
+            {
+                FAnimNotifyEvent& notify = track.Notifies[notifyIndex];
+                const float start = notify.TriggerTime;
+                const float end = (notify.Duration > 0.0f)
+                    ? (notify.TriggerTime + notify.Duration)
+                    : notify.TriggerTime;
+
+                const bool justTriggered = (start > PreviousTime && start <= ActiveState->CurrentTime);
+
+                // Check the range so it remains true for the duration
+                const bool inActiveRange = (notify.Duration > 0.0f &&
+                        ActiveState->CurrentTime >= start &&
+                        ActiveState->CurrentTime <= end);
+
+                // 1) Log and play sound at the moment of trigger
+                if (justTriggered)
+                {
+                    UE_LOG("[Notify] Track %d, Notify %d, '%s' START (t=%.3f, dur=%.3f)",
+                        trackIndex,
+                        notifyIndex,
+                        notify.NotifyName.ToString().c_str(),
+                        start,
+                        notify.Duration
+                    );
+
+                    // If a sound is specified, play it once
+                    if (!notify.SoundPath.empty() && ActiveState->PreviewActor)
+                    {
+                        UAudioComponent* AudioComp = (UAudioComponent*)ActiveState->PreviewActor->GetComponent(UAudioComponent::StaticClass());
+                        if (AudioComp)
+                        {
+                            USound* SoundToPlay = UResourceManager::GetInstance().Load<USound>(notify.SoundPath);
+                            if (SoundToPlay)
+                            {
+                                UE_LOG("[Notify] Play sound '%s'", notify.SoundPath.c_str());
+                                AudioComp->SetSound(SoundToPlay);
+                                AudioComp->Play();
+                            }
+                            else
+                            {
+                                UE_LOG("[Notify] Failed to load sound '%s'", notify.SoundPath.c_str());
+                            }
+                        }
+                        else
+                        {
+                            UE_LOG("[Notify] AudioComponent not found on PreviewActor");
+                        }
+                    }
+                }
+
+                // 2) Log every frame during the duration
+                if (inActiveRange)
+                {
+                    UE_LOG("[Notify] Track %d, Notify %d, '%s' ACTIVE (t=%.3f in [%.3f, %.3f])",
+                        trackIndex,
+                        notifyIndex,
+                        notify.NotifyName.ToString().c_str(),
+                        ActiveState->CurrentTime,
+                        start,
+                        end
+                    );
+                }
+
+                // If Duration is 0, it's just a 'momentary event', 
+                // so only the justTriggered log above will be printed
+            }
+        }
+    }
+    ActiveState->PreviousTime = ActiveState->CurrentTime;
 }
 
 void SAnimationViewerWindow::PreRenderViewportUpdate()
 {
+    if (!ActiveState || !ActiveState->PreviewActor) return;
+
+    // Apply any manual bone transform offsets on top of the base animation pose
+    if (USkeletalMeshComponent* MeshComp = ActiveState->PreviewActor->GetSkeletalMeshComponent())
+    {
+        if (!ActiveState->BoneAdditiveTransforms.IsEmpty())
+        {
+            MeshComp->ApplyAdditiveTransforms(ActiveState->BoneAdditiveTransforms);
+        }
+    }
+
+    // If a bone is selected, update the gizmo's position to follow the bone's final transform
+    if (ActiveState->SelectedBoneIndex >= 0 && ActiveState->World)
+    {
+        AGizmoActor* Gizmo = ActiveState->World->GetGizmoActor();
+        if (Gizmo && Gizmo->GetbIsDragging())
+        {
+            UpdateBoneTransformFromGizmo(ActiveState);
+        }
+        else
+        {
+            ActiveState->PreviewActor->RepositionAnchorToBone(ActiveState->SelectedBoneIndex);
+        }
+    }
+
     // Reconstruct bone overlay
     if (ActiveState->bShowBones)
     {
@@ -540,6 +657,34 @@ void SAnimationViewerWindow::RenderNotifyProperties()
 
     // 색상 편집
     ImGui::ColorEdit4("Color", (float*)&notify.Color);
+
+    ImGui::Spacing();
+    ImGui::Text("Sound");
+
+    const TArray<USound*>& AllSounds = UResourceManager::GetInstance().GetAll<USound>();
+    const char* CurrentSoundName = notify.SoundPath.empty() ? "None" : notify.SoundPath.c_str();
+
+    if (ImGui::BeginCombo("##SoundCombo", CurrentSoundName))
+    {
+        if (ImGui::Selectable("None", notify.SoundPath.empty()))
+        {
+            notify.SoundPath.clear();
+        }
+        for (USound* Sound : AllSounds)
+        {
+            if (!Sound) continue;
+            bool IsSelected = (notify.SoundPath == Sound->GetFilePath());
+            if (ImGui::Selectable(Sound->GetFilePath().c_str(), IsSelected))
+            {
+                notify.SoundPath = Sound->GetFilePath();
+            }
+            if (IsSelected)
+            {
+                ImGui::SetItemDefaultFocus();
+            }
+        }
+        ImGui::EndCombo();
+    }
 }
 
 void SAnimationViewerWindow::AnimJumpToStart()
@@ -597,36 +742,6 @@ void SAnimationViewerWindow::AnimStep(bool bForward)
     }
 }
 
-void SAnimationViewerWindow::RenderTabBar()
-{
-    if (!ImGui::BeginTabBar("SkeletalViewerTabs",
-        ImGuiTabBarFlags_AutoSelectNewTabs | ImGuiTabBarFlags_Reorderable))
-        return;
-
-    for (int i = 0; i < Tabs.Num(); ++i)
-    {
-        ViewerState* State = Tabs[i];
-        bool open = true;
-        if (ImGui::BeginTabItem(State->Name.ToString().c_str(), &open))
-        {
-            ActiveTabIndex = i;
-            ActiveState = State;
-            ImGui::EndTabItem();
-        }
-        if (!open)
-        {
-            CloseTab(i);
-            break;
-        }
-    }
-    if (ImGui::TabItemButton("+", ImGuiTabItemFlags_Trailing))
-    {
-        char label[32]; sprintf_s(label, "Viewer %d", Tabs.Num() + 1);
-        OpenNewTab(label);
-    }
-    ImGui::EndTabBar();
-}
-
 void SAnimationViewerWindow::RenderCenterPanel()
 {
     // 툴바 렌더링 (뷰포트 상단)
@@ -681,30 +796,36 @@ void SAnimationViewerWindow::RenderTimelineArea(float width, float height)
     ImGui::EndChild();  // TimelineGridSmall
 }
 
+
 void SAnimationViewerWindow::RenderTimelineControls()
 {
     ImGui::Spacing();
 
-    if (ImGui::Button("|<<")) { AnimJumpToStart(); }
+    // -------------------------------------------------------------------------
+    // Left-Aligned Animation Controls
+    // -------------------------------------------------------------------------
+    if (ImGui::Button("|<<")) AnimJumpToStart();
     ImGui::SameLine();
-    if (ImGui::Button("<")) { AnimStep(false); }
+    if (ImGui::Button("<")) AnimStep(false);
     ImGui::SameLine();
 
     if (ActiveState->bIsPlaying)
     {
-        if (ImGui::Button("Pause")) { ActiveState->bIsPlaying = false; }
+        if (ImGui::Button("Pause")) ActiveState->bIsPlaying = false;
     }
     else
     {
-        if (ImGui::Button("Play")) { ActiveState->bIsPlaying = true; }
+        if (ImGui::Button("Play")) ActiveState->bIsPlaying = true;
     }
 
     ImGui::SameLine();
-    if (ImGui::Button(">")) { AnimStep(true); }
+    if (ImGui::Button(">")) AnimStep(true);
     ImGui::SameLine();
-    if (ImGui::Button(">>|")) { AnimJumpToEnd(); }
+    if (ImGui::Button(">>|")) AnimJumpToEnd();
+
     ImGui::SameLine();
 
+    // Reverse Button with highlight
     bool bHighlighted = ActiveState->bReversePlay;
     if (bHighlighted)
     {
@@ -712,30 +833,174 @@ void SAnimationViewerWindow::RenderTimelineControls()
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.4f, 0.7f, 1.0f, 1.0f));
     }
     if (ImGui::Button("Reverse"))
-    {
         ActiveState->bReversePlay = !ActiveState->bReversePlay;
-    }
-    if (bHighlighted)
-    {
-        ImGui::PopStyleColor(2);
-    }
+    if (bHighlighted) ImGui::PopStyleColor(2);
 
     ImGui::SameLine();
     ImGui::Checkbox("Loop", &ActiveState->bIsLooping);
 
-    ImGui::SameLine();
-    ImGui::Text("Speed:");
-    ImGui::SameLine();
-    ImGui::SetNextItemWidth(70);
-    ImGui::SliderFloat("##AnimSpeed", &ActiveState->PlaybackSpeed, 0.1f, 3.0f, "%.1fx");
+    const float windowRightEdge = ImGui::GetWindowContentRegionMax().x;
+    const float speedButtonWidth = 70.0f;
+    const float rightButtonStartX = windowRightEdge - speedButtonWidth;
 
+    // -------------------------------------------------------------------------
+    // Playback Speed Combo Button (Transparent)
+    // -------------------------------------------------------------------------
     ImGui::SameLine();
-    ImGui::Text("Time:");
-    ImGui::SameLine();
-    ImGui::SetNextItemWidth(100);
-    if (ImGui::SliderFloat("##AnimTime", &ActiveState->CurrentTime, 0.0f, ActiveState->TotalTime, "%.2f"))
+    ImGui::SetCursorPosX(rightButtonStartX);
+
+    char speedLabel[32];
+    float v = ActiveState->PlaybackSpeed;
+
+    // Check second decimal digit
+    int secondDigit = (int)(v * 100) % 10;
+    if (secondDigit == 0)   sprintf_s(speedLabel, " x%.1f v", v);   // x1.5 → x1.5
+    else                    sprintf_s(speedLabel, " x%.2f v", v);   // x1.23 → x1.23
+
+    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1, 1, 1, 0.1f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(1, 1, 1, 0.15f));
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(2, 1));
+    if (ImGui::Button(speedLabel, ImVec2(speedButtonWidth, 0)))
+        ImGui::OpenPopup("PlaybackSpeedPopup");
+    ImGui::PopStyleVar();
+    ImGui::PopStyleColor(3);
+
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Playback Speed Options");
+
+    // -------------------------------------------------------------------------
+    // Playback Speed Popup
+    // -------------------------------------------------------------------------
+    ImGui::SetNextWindowSize(ImVec2(200, 0));
+    if (ImGui::BeginPopup("PlaybackSpeedPopup"))
     {
-        ActiveState->bIsScrubbing = true;
+        // Lighter hover/select background for rows
+        ImGui::PushStyleColor(ImGuiCol_HeaderHovered, ImVec4(0.25f, 0.25f, 0.25f, 0.3f));
+        ImGui::PushStyleColor(ImGuiCol_Header, ImVec4(0.30f, 0.30f, 0.30f, 0.6f));
+
+        ImGui::TextDisabled("PLAYBACK SPEED");
+        ImGui::Separator();
+        ImGui::Dummy(ImVec2(0, 4));
+
+        const float presets[] = { 0.1f, 0.25f, 0.5f, 1.0f, 1.5f, 2.0f, 5.0f, 10.0f };
+        float currentSpeed = ActiveState->PlaybackSpeed;
+        bool bCustomIsSelected = true;
+
+        for (float s : presets)
+        {
+            if (fabs(currentSpeed - s) < 0.001f)
+            {
+                bCustomIsSelected = false;
+                break;
+            }
+        }
+
+        ImDrawList* dl = ImGui::GetWindowDrawList();
+        const float radioRadius = 4.0f;
+
+        // ---------------------------------------------------------------------
+        // Preset Rows
+        // ---------------------------------------------------------------------
+        for (int i = 0; i < IM_ARRAYSIZE(presets); i++)
+        {
+            float s = presets[i];
+            bool isSelected = (fabs(currentSpeed - s) < 0.001f);
+
+            ImGui::PushID(i);
+
+            // Selectable row (label suppressed)
+            if (ImGui::Selectable("     ", isSelected, ImGuiSelectableFlags_DontClosePopups))
+            {
+                ActiveState->PlaybackSpeed = s;
+
+                float mouseX = ImGui::GetMousePos().x;
+                float itemMinX = ImGui::GetItemRectMin().x;
+
+                if (mouseX > itemMinX + 30.0f)
+                    ImGui::CloseCurrentPopup();
+            }
+
+            // Row rect
+            ImVec2 rMin = ImGui::GetItemRectMin();
+            ImVec2 rMax = ImGui::GetItemRectMax();
+            float centerY = (rMin.y + rMax.y) * 0.5f;
+
+            // Radio indicator
+            ImVec2 c(rMin.x + 12.0f, centerY);
+            if (isSelected)
+                dl->AddCircleFilled(c, radioRadius, ImGui::GetColorU32(ImGuiCol_Text));
+            else
+                dl->AddCircle(c, radioRadius, ImGui::GetColorU32(ImGuiCol_TextDisabled));
+
+            // Label text
+            char txt[32];
+            sprintf_s(txt, "x%.1f", s);
+
+            ImVec2 tSize = ImGui::CalcTextSize(txt);
+            float tX = rMin.x + 24.0f;
+            float tY = centerY - tSize.y * 0.5f - 2.0f;
+
+            dl->AddText(ImVec2(tX, tY), ImGui::GetColorU32(ImGuiCol_Text), txt);
+
+            ImGui::PopID();
+        }
+
+        ImGui::Separator();
+        ImGui::Dummy(ImVec2(0, 4));
+
+        // ---------------------------------------------------------------------
+        // Custom Speed Row
+        // ---------------------------------------------------------------------
+        {
+            ImGui::PushID("CustomSpeed");
+
+            if (ImGui::Selectable("     ", bCustomIsSelected, ImGuiSelectableFlags_DontClosePopups))
+            {
+                float mouseX = ImGui::GetMousePos().x;
+                float itemMinX = ImGui::GetItemRectMin().x;
+
+                if (mouseX > itemMinX + 30.0f)
+                    ImGui::CloseCurrentPopup();
+            }
+
+            ImVec2 rMin = ImGui::GetItemRectMin();
+            ImVec2 rMax = ImGui::GetItemRectMax();
+            float centerY = (rMin.y + rMax.y) * 0.5f;
+
+            // Radio
+            ImVec2 c(rMin.x + 12.0f, centerY);
+            if (bCustomIsSelected)
+                dl->AddCircleFilled(c, radioRadius, ImGui::GetColorU32(ImGuiCol_Text));
+            else
+                dl->AddCircle(c, radioRadius, ImGui::GetColorU32(ImGuiCol_TextDisabled));
+
+            // Text
+            const char* txt = "Custom";
+            ImVec2 tSize = ImGui::CalcTextSize(txt);
+            float tX = rMin.x + 24.0f;
+            float tY = centerY - tSize.y * 0.5f - 1.0f;
+            dl->AddText(ImVec2(tX, tY), ImGui::GetColorU32(ImGuiCol_Text), txt);
+
+            // Slider
+            ImGui::Dummy(ImVec2(0, 4));
+            ImGui::Indent(25.0f);
+
+            ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(4, 1));
+            ImGui::SetNextItemWidth(-1);
+
+            float tempSpeed = ActiveState->PlaybackSpeed;
+            if (ImGui::SliderFloat("##CustomSlider", &tempSpeed, 0.1f, 5.0f, "%.2f"))
+                ActiveState->PlaybackSpeed = tempSpeed;
+
+            ImGui::PopStyleVar();
+            ImGui::Unindent(25.0f);
+
+            ImGui::PopID();
+        }
+
+        ImGui::PopStyleColor(2);
+        ImGui::EndPopup();
     }
 }
 
@@ -1080,28 +1345,31 @@ void SAnimationViewerWindow::RenderTimelineGridBody(float RowHeight, const TArra
         );
 
         // If right-clicked anywhere in the row → Add Notify popup
-        if (ImGui::BeginPopupContextItem(("RowPopup_" + std::to_string(row)).c_str()))
+        if (NotifyIndex != -1)
         {
-            if (ImGui::MenuItem("Add Notify"))
+            if (ImGui::BeginPopupContextItem(("RowPopup_" + std::to_string(row)).c_str()))
             {
-                float mouseX = ImGui::GetMousePos().x - gridOrigin.x;
-                float newTime = (mouseX / gridAvail.x) * ActiveState->TotalTime;
-                newTime = std::clamp(newTime, 0.0f, ActiveState->TotalTime);
+                if (ImGui::MenuItem("Add Notify"))
+                {
+                    float mouseX = ImGui::GetMousePos().x - gridOrigin.x;
+                    float newTime = (mouseX / gridAvail.x) * ActiveState->TotalTime;
+                    newTime = std::clamp(newTime, 0.0f, ActiveState->TotalTime);
 
-                FAnimNotifyEvent newNotify;
-                newNotify.TriggerTime = newTime;
-                newNotify.Duration = 0.0f;
+                    FAnimNotifyEvent newNotify;
+                    newNotify.TriggerTime = newTime;
+                    newNotify.Duration = 0.0f;
 
-                int notifyCount = 0;
-                for (const auto& track : ActiveState->NotifyTracks)
-                    notifyCount += track.Notifies.size();
+                    int notifyCount = 0;
+                    for (const auto& track : ActiveState->NotifyTracks)
+                        notifyCount += track.Notifies.size();
 
-                newNotify.NotifyName = FName("NewNotify_" + std::to_string(notifyCount + 1));
+                    newNotify.NotifyName = FName("NewNotify_" + std::to_string(notifyCount + 1));
 
-                ActiveState->NotifyTracks[NotifyIndex].Notifies.Add(newNotify);
+                    ActiveState->NotifyTracks[NotifyIndex].Notifies.Add(newNotify);
+                }
+
+                ImGui::EndPopup();
             }
-
-            ImGui::EndPopup();
         }
     }
 

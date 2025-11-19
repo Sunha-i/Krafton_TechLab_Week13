@@ -60,31 +60,10 @@ void SSkeletalMeshViewerWindow::OnRender()
         bIsWindowFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
 
         // Render tab bar and switch active state
-        if (ImGui::BeginTabBar("SkeletalViewerTabs", ImGuiTabBarFlags_AutoSelectNewTabs | ImGuiTabBarFlags_Reorderable))
-        {
-            for (int i = 0; i < Tabs.Num(); ++i)
-            {
-                ViewerState* State = Tabs[i];
-                bool open = true;
-                if (ImGui::BeginTabItem(State->Name.ToString().c_str(), &open))
-                {
-                    ActiveTabIndex = i;
-                    ActiveState = State;
-                    ImGui::EndTabItem();
-                }
-                if (!open)
-                {
-                    CloseTab(i);
-                    break;
-                }
-            }
-            if (ImGui::TabItemButton("+", ImGuiTabItemFlags_Trailing))
-            {
-                char label[32]; sprintf_s(label, "Viewer %d", Tabs.Num() + 1);
-                OpenNewTab(label);
-            }
-            ImGui::EndTabBar();
-        }
+        /*if (!ImGui::BeginTabBar("SkeletalViewerTabs", 
+            ImGuiTabBarFlags_AutoSelectNewTabs | ImGuiTabBarFlags_Reorderable))
+            return;*/
+        RenderTabsAndToolbar(EViewerType::Skeletal);
 
         ImVec2 pos = ImGui::GetWindowPos();
         ImVec2 size = ImGui::GetWindowSize();

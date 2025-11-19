@@ -179,58 +179,72 @@ void USlateManager::Initialize(ID3D11Device* InDevice, UWorld* InWorld, const FR
 
 void USlateManager::OpenAssetViewer(UEditorAssetPreviewContext* Context)
 {
-    if (!Context)    return;
+    if (!Context) return;
 
-    // Check if a viewer for this Context is already open
-    for (SWindow* Window : DetachedWindows)
+    SViewerWindow* TargetWindow = nullptr;
+    const EViewerType ViewerType = Context->ViewerType;
+
+    // 1. Find an existing window of the correct type by iterating through all detached windows.
+    // We also check pending open windows to handle rapid clicks.
+    TArray<SWindow*> AllWindows = DetachedWindows;
+    AllWindows.Append(PendingOpenWindows);
+
+    for (SWindow* Window : AllWindows)
     {
-        if (SViewerWindow* ExistingViewer = static_cast<SViewerWindow*>(Window))
+        if (ViewerType == EViewerType::Skeletal && dynamic_cast<SSkeletalMeshViewerWindow*>(Window))
         {
-            // Check if the viewer's Context is valid and if both the type and asset path match
-            UEditorAssetPreviewContext* ExistingContext = ExistingViewer->GetContext();
-            if (ExistingContext &&
-                ExistingContext->ViewerType == Context->ViewerType &&
-                ExistingContext->AssetPath == Context->AssetPath)
-            {
-                // If the window already exists, focus it instead of creating a new one
-                ExistingViewer->RequestFocus();
-                UE_LOG("Focusing existing asset viewer for: %s", Context->AssetPath.c_str());
-                return;
-            }
+            TargetWindow = static_cast<SViewerWindow*>(Window);
+            break;
+        }
+        if (ViewerType == EViewerType::Animation && dynamic_cast<SAnimationViewerWindow*>(Window))
+        {
+            TargetWindow = static_cast<SViewerWindow*>(Window);
+            break;
         }
     }
 
-    // If no window is open, create a new one
-    SViewerWindow* NewViewer = nullptr;
-    switch (Context->ViewerType)
+    // 2. If a window of the target type already exists, tell it to open or focus a tab.
+    if (TargetWindow)
     {
-    case EViewerType::Skeletal:
-        NewViewer = new SSkeletalMeshViewerWindow();
-        break;
-    case EViewerType::Animation:
-        NewViewer = new SAnimationViewerWindow();
-        break;
-    case EViewerType::BlendSpace:
-        NewViewer = new SBlendSpaceEditorWindow();
-        break;
-    default:
-        UE_LOG("ERROR: Unsupported asset type for viewer.");
-        return;
+        TargetWindow->OpenOrFocusTab(Context);
+        TargetWindow->RequestFocus();
+        UE_LOG("Found existing viewer window. Opening/focusing tab for: %s", Context->AssetPath.c_str());
     }
-
-    if (NewViewer)
+    // 3. If no such window exists, create a new one.
+    else
     {
-        // Open as a detached window at a default size and position
-        const float toolbarHeight = 50.0f;
-        const float availableHeight = Rect.GetHeight() - toolbarHeight;
-        const float w = Rect.GetWidth() * 0.8f;
-        const float h = availableHeight * 0.9f;
-        const float x = Rect.Left + (Rect.GetWidth() - w) * 0.5f;
-        const float y = Rect.Top + toolbarHeight + (availableHeight - h) * 0.5f;
+        SViewerWindow* NewViewer = nullptr;
+        switch (ViewerType)
+        {
+        case EViewerType::Skeletal:
+            NewViewer = new SSkeletalMeshViewerWindow();
+            break;
+        case EViewerType::Animation:
+            NewViewer = new SAnimationViewerWindow();
+            break;
+        case EViewerType::BlendSpace:
+            NewViewer = new SBlendSpaceEditorWindow();
+            break;
+        default:
+            UE_LOG("ERROR: Unsupported asset type for viewer.");
+            return;
+        }
 
-        NewViewer->Initialize(x, y, w, h, World, Device, Context);
-        DetachedWindows.Add(NewViewer);
-        UE_LOG("Opened a new asset viewer for asset: %s", Context->AssetPath.c_str());
+        if (NewViewer)
+        {
+            // Open as a detached window at a default size and position
+            const float toolbarHeight = 50.0f;
+            const float availableHeight = Rect.GetHeight() - toolbarHeight;
+            const float w = Rect.GetWidth() * 0.8f;
+            const float h = availableHeight * 0.9f;
+            const float x = Rect.Left + (Rect.GetWidth() - w) * 0.5f;
+            const float y = Rect.Top + toolbarHeight + (availableHeight - h) * 0.5f;
+
+            // Initialize creates the first tab with the given context
+            NewViewer->Initialize(x, y, w, h, World, Device, Context);
+            PendingOpenWindows.Add(NewViewer);
+            UE_LOG("No existing viewer found. Opened a new asset viewer for asset: %s", Context->AssetPath.c_str());
+        }
     }
 }
 
@@ -801,6 +815,15 @@ void USlateManager::ProcessInput()
             CloseDetachedWindow(Window);
         }
         PendingCloseWindows.Empty();
+    }
+
+    if (!PendingOpenWindows.IsEmpty())
+    {
+        for (SWindow* Window : PendingOpenWindows)
+        {
+            DetachedWindows.Add(Window);
+        }
+        PendingOpenWindows.Empty();
     }
 }
 

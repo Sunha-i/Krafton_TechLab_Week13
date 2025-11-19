@@ -1323,6 +1323,11 @@ struct FTransform
 			Scale3D == Other.Scale3D;
 	}
 	bool operator!=(const FTransform& Other) const { return !(*this == Other); }
+
+	FTransform operator*(const FTransform& Other) const
+	{
+		return GetWorldTransform(Other);
+	}
 };
 
 // ─────────────────────────────

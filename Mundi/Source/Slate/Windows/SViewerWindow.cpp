@@ -22,6 +22,19 @@ SViewerWindow::~SViewerWindow()
 {
 }
 
+static inline FString GetBaseFilenameFromPath(const FString& InPath)
+{
+    const size_t lastSlash = InPath.find_last_of("/\\");
+    FString filename = (lastSlash == FString::npos) ? InPath : InPath.substr(lastSlash + 1);
+
+    const size_t lastDot = filename.find_last_of('.');
+    if (lastDot != FString::npos)
+    {
+        filename = filename.substr(0, lastDot);
+    }
+    return filename;
+}
+
 bool SViewerWindow::Initialize(float StartX, float StartY, float Width, float Height, UWorld* InWorld, ID3D11Device* InDevice, UEditorAssetPreviewContext* InContext)
 {
     World = InWorld;
@@ -48,7 +61,13 @@ bool SViewerWindow::Initialize(float StartX, float StartY, float Width, float He
     LoadViewerToolbarIcons(Device);
 
     // Create first tab/state
-    OpenNewTab("Viewer 1");
+    FString InitialTabName = "Viewer 1";    // Default name
+    if (Context && !Context->AssetPath.empty())
+    {
+        InitialTabName = GetBaseFilenameFromPath(Context->AssetPath);
+    }
+    OpenNewTab(InitialTabName.c_str());
+
     if (ActiveState && ActiveState->Viewport)
     {
         ActiveState->Viewport->Resize((uint32)StartX, (uint32)StartY, (uint32)Width, (uint32)Height);
@@ -230,6 +249,42 @@ void SViewerWindow::OnMouseUp(FVector2D MousePos, uint32 Button)
     }
 }
 
+
+
+void SViewerWindow::OpenOrFocusTab(UEditorAssetPreviewContext* Context)
+{
+    if (!Context || Context->AssetPath.empty())
+    {
+        char label[32];
+        sprintf_s(label, "Viewer %d", Tabs.Num() + 1);
+        OpenNewTab(label);
+        return;
+    }
+
+    for (int i = 0; i < Tabs.Num(); ++i)
+    {
+        ViewerState* State = Tabs[i];
+        if (State && State->LoadedMeshPath == Context->AssetPath)
+        {
+            ActiveTabIndex = i;
+            ActiveState = Tabs[i];
+            UE_LOG("SViewerWindow: Found existing tab for %s. Switching to it.", Context->AssetPath.c_str());
+            return;
+        }
+    }
+
+    UE_LOG("SViewerWindow: No existing tab for %s. Creating a new one.", Context->AssetPath.c_str());
+    FString AssetName = GetBaseFilenameFromPath(Context->AssetPath);
+    ViewerState* NewState = CreateViewerState(AssetName.c_str(), Context);
+
+    if (NewState)
+    {
+        Tabs.Add(NewState);
+        ActiveTabIndex = Tabs.Num() - 1;
+        ActiveState = NewState;
+    }
+}
+
 void SViewerWindow::OnRenderViewport()
 {
     if (ActiveState && ActiveState->Viewport && CenterRect.GetWidth() > 0 && CenterRect.GetHeight() > 0)
@@ -259,6 +314,106 @@ void SViewerWindow::OnRenderViewport()
         // Viewport rendering (before ImGui)
         ActiveState->Viewport->Render();
     }
+}
+
+void SViewerWindow::RenderTabBar()
+{
+    for (int i = 0; i < Tabs.Num(); ++i)
+    {
+        ViewerState* State = Tabs[i];
+        bool open = true;
+        if (ImGui::BeginTabItem(State->Name.ToString().c_str(), &open))
+        {
+            ActiveTabIndex = i;
+            ActiveState = State;
+            ImGui::EndTabItem();
+        }
+        if (!open)
+        {
+            CloseTab(i);
+            break;
+        }
+    }
+    if (ImGui::TabItemButton("+", ImGuiTabItemFlags_Trailing))
+    {
+        char label[32]; sprintf_s(label, "Viewer %d", Tabs.Num() + 1);
+        OpenNewTab(label);
+    }
+    ImGui::EndTabBar();
+}
+
+void SViewerWindow::RenderTabsAndToolbar(EViewerType CurrentViewerType)
+{
+    if (!ImGui::BeginTabBar("ViewerTabs", 
+        ImGuiTabBarFlags_AutoSelectNewTabs | ImGuiTabBarFlags_Reorderable))
+        return;
+
+    for (int i = 0; i < Tabs.Num(); ++i)
+    {
+        ViewerState* State = Tabs[i];
+        bool open = true;
+        if (ImGui::BeginTabItem(State->Name.ToString().c_str(), &open))
+        {
+            ActiveTabIndex = i;
+            ActiveState = State;
+            ImGui::EndTabItem();
+        }
+        if (!open)
+        {
+            CloseTab(i);
+            ImGui::EndTabBar();
+            return;
+        }
+    }
+    if (ImGui::TabItemButton("+", ImGuiTabItemFlags_Trailing))
+    {
+        char label[32]; sprintf_s(label, "Viewer %d", Tabs.Num() + 1);
+        OpenNewTab(label);
+    }
+
+    const float SkelButtonWidth = 120.0f;
+    const float AnimButtonWidth = 135.0f;
+    const float spacing = ImGui::GetStyle().ItemSpacing.x;
+    const float totalButtonsWidth = (SkelButtonWidth + AnimButtonWidth) + spacing;
+
+    ImGui::SameLine();
+    float availableWidth = ImGui::GetContentRegionAvail().x;
+    ImGui::SetCursorPosX(ImGui::GetCursorPosX() + availableWidth - totalButtonsWidth);
+
+    // Skeletal Viewer Button
+    bool bSkeletalDisabled = (CurrentViewerType == EViewerType::Skeletal);
+    if (bSkeletalDisabled)  ImGui::BeginDisabled();
+
+    if (ImGui::Button("Skeletal Viewer", ImVec2(SkelButtonWidth, 0)))
+    {
+        if (ActiveState && ActiveState->CurrentMesh)
+        {
+            UEditorAssetPreviewContext* Context = NewObject<UEditorAssetPreviewContext>();
+            Context->ViewerType = EViewerType::Skeletal;
+            Context->AssetPath = ActiveState->LoadedMeshPath;
+            USlateManager::GetInstance().OpenAssetViewer(Context);
+        }
+    }
+    if (bSkeletalDisabled)  ImGui::EndDisabled();
+    ImGui::SameLine();
+
+    // Animation Viewer Button
+    bool bAnimDisabled = (CurrentViewerType == EViewerType::Animation);
+    if (bAnimDisabled)  ImGui::BeginDisabled();
+
+    if (ImGui::Button("Animation Viewer", ImVec2(AnimButtonWidth, 0)))
+    {
+        if (ActiveState && ActiveState->CurrentMesh)
+        {
+            UEditorAssetPreviewContext* Context = NewObject<UEditorAssetPreviewContext>();
+            Context->ViewerType = EViewerType::Animation;
+            Context->AssetPath = ActiveState->LoadedMeshPath;
+            USlateManager::GetInstance().OpenAssetViewer(Context);
+        }
+    }
+    if (bAnimDisabled)  ImGui::EndDisabled();
+
+    ImGui::EndTabBar();
 }
 
 void SViewerWindow::OpenNewTab(const char* Name)
@@ -600,117 +755,88 @@ void SViewerWindow::RenderRightPanel()
     ImGui::Spacing();
 
     // === 선택된 본의 트랜스폼 편집 UI ===
-    if (ActiveState->SelectedBoneIndex >= 0 && ActiveState->CurrentMesh)
+    if (ActiveState->SelectedBoneIndex < 0 || !ActiveState->CurrentMesh)
     {
-        const FSkeleton* Skeleton = ActiveState->CurrentMesh->GetSkeleton();
-        if (Skeleton && ActiveState->SelectedBoneIndex < Skeleton->Bones.size())
-        {
-            const FBone& SelectedBone = Skeleton->Bones[ActiveState->SelectedBoneIndex];
-
-            // Selected bone header with icon-like prefix
-            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.90f, 0.40f, 1.0f));
-            ImGui::Text("> Selected Bone");
-            ImGui::PopStyleColor();
-
-            ImGui::Spacing();
-            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.90f, 0.95f, 1.00f, 1.0f));
-            ImGui::TextWrapped("%s", SelectedBone.Name.c_str());
-            ImGui::PopStyleColor();
-
-            ImGui::Spacing();
-            ImGui::PushStyleColor(ImGuiCol_Separator, ImVec4(0.45f, 0.55f, 0.70f, 0.8f));
-            ImGui::Separator();
-            ImGui::PopStyleColor();
-
-            // 본의 현재 트랜스폼 가져오기 (편집 중이 아닐 때만)
-            if (!ActiveState->bBoneRotationEditing)
-            {
-                UpdateBoneTransformFromSkeleton(ActiveState);
-            }
-
-            ImGui::Spacing();
-
-            // Location 편집
-            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.5f, 0.5f, 1.0f));
-            ImGui::Text("Location");
-            ImGui::PopStyleColor();
-
-            ImGui::PushItemWidth(-1);
-            ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.28f, 0.20f, 0.20f, 0.6f));
-            bool bLocationChanged = false;
-            bLocationChanged |= ImGui::DragFloat("##BoneLocX", &ActiveState->EditBoneLocation.X, 0.1f, 0.0f, 0.0f, "X: %.3f");
-            bLocationChanged |= ImGui::DragFloat("##BoneLocY", &ActiveState->EditBoneLocation.Y, 0.1f, 0.0f, 0.0f, "Y: %.3f");
-            bLocationChanged |= ImGui::DragFloat("##BoneLocZ", &ActiveState->EditBoneLocation.Z, 0.1f, 0.0f, 0.0f, "Z: %.3f");
-            ImGui::PopStyleColor();
-            ImGui::PopItemWidth();
-
-            if (bLocationChanged)
-            {
-                ApplyBoneTransform(ActiveState);
-                ActiveState->bBoneLinesDirty = true;
-            }
-
-            ImGui::Spacing();
-
-            // Rotation 편집
-            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5f, 1.0f, 0.5f, 1.0f));
-            ImGui::Text("Rotation");
-            ImGui::PopStyleColor();
-
-            ImGui::PushItemWidth(-1);
-            ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.20f, 0.28f, 0.20f, 0.6f));
-            bool bRotationChanged = false;
-
-            if (ImGui::IsAnyItemActive())
-            {
-                ActiveState->bBoneRotationEditing = true;
-            }
-
-            bRotationChanged |= ImGui::DragFloat("##BoneRotX", &ActiveState->EditBoneRotation.X, 0.5f, -180.0f, 180.0f, "X: %.2f°");
-            bRotationChanged |= ImGui::DragFloat("##BoneRotY", &ActiveState->EditBoneRotation.Y, 0.5f, -180.0f, 180.0f, "Y: %.2f°");
-            bRotationChanged |= ImGui::DragFloat("##BoneRotZ", &ActiveState->EditBoneRotation.Z, 0.5f, -180.0f, 180.0f, "Z: %.2f°");
-            ImGui::PopStyleColor();
-            ImGui::PopItemWidth();
-
-            if (!ImGui::IsAnyItemActive())
-            {
-                ActiveState->bBoneRotationEditing = false;
-            }
-
-            if (bRotationChanged)
-            {
-                ApplyBoneTransform(ActiveState);
-                ActiveState->bBoneLinesDirty = true;
-            }
-
-            ImGui::Spacing();
-
-            // Scale 편집
-            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5f, 0.5f, 1.0f, 1.0f));
-            ImGui::Text("Scale");
-            ImGui::PopStyleColor();
-
-            ImGui::PushItemWidth(-1);
-            ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.20f, 0.20f, 0.28f, 0.6f));
-            bool bScaleChanged = false;
-            bScaleChanged |= ImGui::DragFloat("##BoneScaleX", &ActiveState->EditBoneScale.X, 0.01f, 0.001f, 100.0f, "X: %.3f");
-            bScaleChanged |= ImGui::DragFloat("##BoneScaleY", &ActiveState->EditBoneScale.Y, 0.01f, 0.001f, 100.0f, "Y: %.3f");
-            bScaleChanged |= ImGui::DragFloat("##BoneScaleZ", &ActiveState->EditBoneScale.Z, 0.01f, 0.001f, 100.0f, "Z: %.3f");
-            ImGui::PopStyleColor();
-            ImGui::PopItemWidth();
-
-            if (bScaleChanged)
-            {
-                ApplyBoneTransform(ActiveState);
-                ActiveState->bBoneLinesDirty = true;
-            }
-        }
+        ImGui::TextWrapped("Select a bone from the hierarchy to edit.");
+        return;
     }
-    else
-    {
-        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.6f, 0.6f, 0.6f, 1.0f));
-        ImGui::TextWrapped("Select a bone from the hierarchy to edit its transform properties.");
-        ImGui::PopStyleColor();
+
+    const FSkeleton* Skeleton = ActiveState->CurrentMesh->GetSkeleton();
+    if (!Skeleton || ActiveState->SelectedBoneIndex >= Skeleton->Bones.size())
+        return;
+
+    const FBone& SelectedBone = Skeleton->Bones[ActiveState->SelectedBoneIndex];
+
+    // Bone Name
+    ImGui::Text("Selected Bone");
+    ImGui::Separator();
+    ImGui::TextWrapped("%s", SelectedBone.Name.c_str());
+    ImGui::Dummy(ImVec2(0, 4));
+
+    // Current Transform
+    if (!ActiveState->bBoneRotationEditing)
+        UpdateBoneTransformFromSkeleton(ActiveState);
+
+    // ------------------------------------------
+    // LOCATION
+    // ------------------------------------------
+    ImGui::Text("Location");
+    bool bLocChanged = false;
+
+    ImGui::PushItemWidth(-1);
+    bLocChanged |= ImGui::DragFloat("X##loc", &ActiveState->EditBoneLocation.X, 0.1f);
+    bLocChanged |= ImGui::DragFloat("Y##loc", &ActiveState->EditBoneLocation.Y, 0.1f);
+    bLocChanged |= ImGui::DragFloat("Z##loc", &ActiveState->EditBoneLocation.Z, 0.1f);
+    ImGui::PopItemWidth();
+
+    if (bLocChanged) {
+        ApplyBoneTransform(ActiveState);
+        ActiveState->bBoneLinesDirty = true;
+    }
+
+    ImGui::Dummy(ImVec2(0, 8));
+
+    // ------------------------------------------
+    // ROTATION
+    // ------------------------------------------
+    ImGui::Text("Rotation");
+
+    bool bRotChanged = false;
+
+    if (ImGui::IsAnyItemActive())
+        ActiveState->bBoneRotationEditing = true;
+
+    ImGui::PushItemWidth(-1);
+    bRotChanged |= ImGui::DragFloat("X##rot", &ActiveState->EditBoneRotation.X, 0.5f, -180.0f, 180.0f);
+    bRotChanged |= ImGui::DragFloat("Y##rot", &ActiveState->EditBoneRotation.Y, 0.5f, -180.0f, 180.0f);
+    bRotChanged |= ImGui::DragFloat("Z##rot", &ActiveState->EditBoneRotation.Z, 0.5f, -180.0f, 180.0f);
+    ImGui::PopItemWidth();
+
+    if (!ImGui::IsAnyItemActive())
+        ActiveState->bBoneRotationEditing = false;
+
+    if (bRotChanged) {
+        ApplyBoneTransform(ActiveState);
+        ActiveState->bBoneLinesDirty = true;
+    }
+
+    ImGui::Dummy(ImVec2(0, 8));
+
+    // ------------------------------------------
+    // SCALE
+    // ------------------------------------------
+    ImGui::Text("Scale");
+
+    bool bScaleChanged = false;
+    ImGui::PushItemWidth(-1);
+    bScaleChanged |= ImGui::DragFloat("X##scale", &ActiveState->EditBoneScale.X, 0.01f, 0.001f, 100.f);
+    bScaleChanged |= ImGui::DragFloat("Y##scale", &ActiveState->EditBoneScale.Y, 0.01f, 0.001f, 100.f);
+    bScaleChanged |= ImGui::DragFloat("Z##scale", &ActiveState->EditBoneScale.Z, 0.01f, 0.001f, 100.f);
+    ImGui::PopItemWidth();
+
+    if (bScaleChanged) {
+        ApplyBoneTransform(ActiveState);
+        ActiveState->bBoneLinesDirty = true;
     }
 }
 
@@ -719,11 +845,78 @@ void SViewerWindow::UpdateBoneTransformFromSkeleton(ViewerState* State)
     if (!State || !State->CurrentMesh || State->SelectedBoneIndex < 0)
         return;
 
-    // 본의 로컬 트랜스폼에서 값 추출
-    const FTransform& BoneTransform = State->PreviewActor->GetSkeletalMeshComponent()->GetBoneLocalTransform(State->SelectedBoneIndex);
-    State->EditBoneLocation = BoneTransform.Translation;
-    State->EditBoneRotation = BoneTransform.Rotation.ToEulerZYXDeg();
-    State->EditBoneScale = BoneTransform.Scale3D;
+    // Get the animated local transform
+    FTransform AnimatedLocalTransform;
+    if (State->CurrentAnimation)
+    {
+        TArray<FTransform> AllBoneTransforms;
+        State->CurrentAnimation->ExtractBonePose(*State->CurrentMesh->GetSkeleton(), State->CurrentTime, false, false, AllBoneTransforms);
+        if (State->SelectedBoneIndex < AllBoneTransforms.Num())
+        {
+            AnimatedLocalTransform = AllBoneTransforms[State->SelectedBoneIndex];
+        }
+    }
+    else
+    {
+        if (State->PreviewActor && State->PreviewActor->GetSkeletalMeshComponent() &&
+            State->SelectedBoneIndex < State->PreviewActor->GetSkeletalMeshComponent()->RefPose.Num())
+        {
+            AnimatedLocalTransform = State->PreviewActor->GetSkeletalMeshComponent()->RefPose[State->SelectedBoneIndex];
+        }
+    }
+
+    // Check if there is an additive transform for this bone
+    FTransform FinalLocalTransform = AnimatedLocalTransform;
+    if (FTransform* Additive = State->BoneAdditiveTransforms.Find(State->SelectedBoneIndex))
+    {
+        FinalLocalTransform = (*Additive) * AnimatedLocalTransform;
+    }
+
+    // Update the UI edit fields with the final transform
+    State->EditBoneLocation = FinalLocalTransform.Translation;
+    State->EditBoneRotation = FinalLocalTransform.Rotation.ToEulerZYXDeg();
+    State->EditBoneScale = FinalLocalTransform.Scale3D;
+}
+
+void SViewerWindow::UpdateBoneTransformFromGizmo(ViewerState* State)
+{
+    if (!State || State->SelectedBoneIndex < 0 || !State->PreviewActor || !State->CurrentMesh)
+        return;
+
+    USkeletalMeshComponent* MeshComp = State->PreviewActor->GetSkeletalMeshComponent();
+    USceneComponent* Anchor = State->PreviewActor->GetBoneGizmoAnchor();
+    const FSkeleton* Skeleton = State->CurrentMesh->GetSkeleton();
+
+    if (!MeshComp || !Anchor || !Skeleton)
+        return;
+
+    // Get the world transform of the anchor manipulated by the gizmo
+    const FTransform& AnchorWorldTransform = Anchor->GetWorldTransform();
+
+    // Convert this world transform into the bone's local space (relative to the parent bone)
+    const int32 ParentIndex = Skeleton->Bones[State->SelectedBoneIndex].ParentIndex;
+    FTransform ParentWorldTransform;
+    if (ParentIndex != -1)
+    {
+        // Get the parent bone's final world transform
+        ParentWorldTransform = MeshComp->GetBoneWorldTransform(ParentIndex);
+    }
+    else
+    {
+        // For the root bone, the parent is the skeletal mesh component itself
+        ParentWorldTransform = MeshComp->GetWorldTransform();
+    }
+
+    // Calculate the desired local transform relative to the parent's world transform
+    FTransform DesiredLocalTransform = ParentWorldTransform.GetRelativeTransform(AnchorWorldTransform);
+
+    // Update the state's editable bone transform parameters using the calculated local transform
+    State->EditBoneLocation = DesiredLocalTransform.Translation;
+    State->EditBoneRotation = DesiredLocalTransform.Rotation.ToEulerZYXDeg();
+    State->EditBoneScale = DesiredLocalTransform.Scale3D;
+
+    // Apply the updated local bone transform to the additive transform map
+    ApplyBoneTransform(State);
 }
 
 void SViewerWindow::ApplyBoneTransform(ViewerState* State)
@@ -731,8 +924,41 @@ void SViewerWindow::ApplyBoneTransform(ViewerState* State)
     if (!State || !State->CurrentMesh || State->SelectedBoneIndex < 0)
         return;
 
-    FTransform NewTransform(State->EditBoneLocation, FQuat::MakeFromEulerZYX(State->EditBoneRotation), State->EditBoneScale);
-    State->PreviewActor->GetSkeletalMeshComponent()->SetBoneLocalTransform(State->SelectedBoneIndex, NewTransform);
+    // This is the desired final local transform from the UI/gizmo
+    FTransform DesiredFinalLocal(State->EditBoneLocation, FQuat::MakeFromEulerZYX(State->EditBoneRotation), State->EditBoneScale);
+
+    // Get the bone's transform from the current animation pose (without any additive offsets)
+    FTransform AnimatedLocalTransform;
+    if (State->CurrentAnimation)
+    {
+        TArray<FTransform> AllBoneTransforms;
+        State->CurrentAnimation->ExtractBonePose(
+            *State->CurrentMesh->GetSkeleton(),
+            State->CurrentTime,
+            false, // no looping in this context
+            false, // no interpolation
+            AllBoneTransforms);
+
+        if (State->SelectedBoneIndex < AllBoneTransforms.Num())
+        {
+            AnimatedLocalTransform = AllBoneTransforms[State->SelectedBoneIndex];
+        }
+    }
+    else
+    {
+        // No animation, base pose is the reference pose
+        if (State->PreviewActor && State->PreviewActor->GetSkeletalMeshComponent() &&
+            State->SelectedBoneIndex < State->PreviewActor->GetSkeletalMeshComponent()->RefPose.Num())
+        {
+            AnimatedLocalTransform = State->PreviewActor->GetSkeletalMeshComponent()->RefPose[State->SelectedBoneIndex];
+        }
+    }
+
+    // The new additive transform is the difference
+    FTransform AdditiveTransform = DesiredFinalLocal * AnimatedLocalTransform.Inverse();
+
+    // Store it
+    State->BoneAdditiveTransforms[State->SelectedBoneIndex] = AdditiveTransform;
 }
 
 void SViewerWindow::ExpandToSelectedBone(ViewerState* State, int32 BoneIndex)
@@ -1040,14 +1266,22 @@ void SViewerWindow::RenderViewerGizmoSpaceButton()
 void SViewerWindow::RenderViewerToolbar()
 {
     // 툴바 높이
-    const float ToolbarHeight = 35.0f;
+    const float ToolbarHeight = 32.0f;
 
     // 툴바 영역 시작 (탭 키 네비게이션 완전 비활성화)
+    ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.05f, 0.05f, 0.05f, 1.0f));
     ImGui::BeginChild("ViewerToolbar", ImVec2(0, ToolbarHeight), false,
         ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoNavInputs | ImGuiWindowFlags_NoNavFocus);
 
-    // 상단 여백 추가 (메인 뷰처럼)
-    ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 5.0f);
+    // 세로 중앙 정렬
+    float BtnHeight = ImGui::GetFrameHeight();
+    float CenterY = (ToolbarHeight - BtnHeight) * 0.5f + 1.0f;
+    ImGui::SetCursorPosY(CenterY);
+
+    // 왼쪽 패딩
+    const float SidePadding = 8.0f;
+    ImGui::Dummy(ImVec2(SidePadding, 0));
+    ImGui::SameLine();
 
     // 기즈모 버튼 스타일 설정 (메인 뷰와 동일)
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(2, 0));      // 간격 좁히기
@@ -1114,13 +1348,11 @@ void SViewerWindow::RenderViewerToolbar()
     char cameraText[64];
     sprintf_s(cameraText, "%s %s", "원근", "∨");
     ImVec2 cameraTextSize = ImGui::CalcTextSize(cameraText);
-    const float CameraButtonWidth = 17.0f + 4.0f + cameraTextSize.x + 16.0f;
+    const float CameraButtonWidth = 8.0f + 4.0f + cameraTextSize.x + 16.0f;
 
     // 오른쪽부터 역순으로 위치 계산
     // ViewMode는 오른쪽 끝
-    float ViewModeX = CursorStartX + AvailableWidth - ViewModeButtonWidth;
-
-    // Camera는 ViewMode 왼쪽
+    float ViewModeX = CursorStartX + AvailableWidth - ViewModeButtonWidth - SidePadding;
     float CameraX = ViewModeX - ButtonSpacing - CameraButtonWidth;
 
     // 버튼들을 순서대로 그리기
@@ -1131,6 +1363,7 @@ void SViewerWindow::RenderViewerToolbar()
     RenderViewModeDropdownMenu();
 
     ImGui::EndChild();
+    ImGui::PopStyleColor(); // ChildBg
 }
 
 void SViewerWindow::RenderCameraOptionDropdownMenu()
@@ -1140,7 +1373,7 @@ void SViewerWindow::RenderCameraOptionDropdownMenu()
     ImVec2 cursorPos = ImGui::GetCursorPos();
     ImGui::SetCursorPosY(cursorPos.y - 0.7f);
 
-    const ImVec2 IconSize(17, 17);
+    const ImVec2 IconSize(16, 16);
 
     // 현재 뷰포트 타입 가져오기
     EViewportType ViewportType = ActiveState->Client->GetViewportType();
@@ -1196,7 +1429,12 @@ void SViewerWindow::RenderCameraOptionDropdownMenu()
     sprintf_s(ButtonID, "##ViewerCameraBtn_%p", this);
 
     // 버튼 클릭 영역
-    if (ImGui::Button(ButtonID, ButtonSize))
+    ImDrawList* dl = ImGui::GetWindowDrawList();
+    dl->AddRectFilled(ButtonCursorPos,
+        ImVec2(ButtonCursorPos.x + ButtonSize.x, ButtonCursorPos.y + ButtonSize.y),
+        IM_COL32(135, 135, 135, 255), 4.0f);
+    ImGui::SetCursorPos(ButtonCursorPos);
+    if (ImGui::InvisibleButton(ButtonID, ButtonSize))
     {
         char PopupID[64];
         sprintf_s(PopupID, "ViewerCameraPopup_%p", this);
@@ -1250,8 +1488,9 @@ void SViewerWindow::RenderCameraOptionDropdownMenu()
         ImGui::SameLine(0, 4);
     }
 
+    ImGui::SetWindowFontScale(0.96f);
     ImGui::Text("%s", ButtonText);
-
+    ImGui::SetWindowFontScale(1.0f);
     ImGui::PopStyleColor(3);
     ImGui::PopStyleVar(1);
 
@@ -1472,7 +1711,7 @@ void SViewerWindow::RenderViewModeDropdownMenu()
     ImVec2 cursorPos = ImGui::GetCursorPos();
     ImGui::SetCursorPosY(cursorPos.y - 1.0f);
 
-    const ImVec2 IconSize(17, 17);
+    const ImVec2 IconSize(15, 15);
 
     // 현재 뷰모드 이름 및 아이콘 가져오기
     EViewMode CurrentViewMode = ActiveState->Client->GetViewMode();
@@ -1529,7 +1768,12 @@ void SViewerWindow::RenderViewModeDropdownMenu()
     sprintf_s(ButtonID, "##ViewerViewModeBtn_%p", this);
 
     // 버튼 클릭 영역
-    if (ImGui::Button(ButtonID, ButtonSize))
+    ImDrawList* dl = ImGui::GetWindowDrawList();
+    dl->AddRectFilled(ButtonCursorPos, 
+        ImVec2(ButtonCursorPos.x + ButtonSize.x, ButtonCursorPos.y + ButtonSize.y), 
+        IM_COL32(135, 135, 135, 255), 4.0f);
+    ImGui::SetCursorPos(ButtonCursorPos);
+    if (ImGui::InvisibleButton(ButtonID, ButtonSize))
     {
         char PopupID[64];
         sprintf_s(PopupID, "ViewerViewModePopup_%p", this);
@@ -1553,9 +1797,9 @@ void SViewerWindow::RenderViewModeDropdownMenu()
         ImGui::Image((void*)CurrentViewModeIcon->GetShaderResourceView(), IconSize);
         ImGui::SameLine(0, 4);
     }
-
+    ImGui::SetWindowFontScale(0.96f);
     ImGui::Text("%s", ButtonText);
-
+    ImGui::SetWindowFontScale(1.0f);
     ImGui::PopStyleColor(3);
     ImGui::PopStyleVar(1);
 

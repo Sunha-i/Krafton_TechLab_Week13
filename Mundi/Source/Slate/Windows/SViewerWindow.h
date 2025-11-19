@@ -18,6 +18,7 @@ public:
 	virtual void OnMouseDown(FVector2D MousePos, uint32 Button) override;
 	virtual void OnMouseUp(FVector2D MousePos, uint32 Button) override;
 
+	void OpenOrFocusTab(UEditorAssetPreviewContext* Context);
 	void RequestFocus() { bRequestFocus = true; }
 	void OnRenderViewport();
 	virtual void PreRenderViewportUpdate() {}
@@ -70,6 +71,8 @@ protected:
 	bool bLeftMousePressed = false;   // 좌클릭 드래그 (기즈모 조작)
 	bool bRightMousePressed = false;  // 우클릭 드래그 (카메라 조작)
 
+	void RenderTabBar();
+	void RenderTabsAndToolbar(EViewerType CurrentViewerType);
 	void OpenNewTab(const char* Name = "Viewer");
 	void CloseTab(int Index);
 	
@@ -82,6 +85,7 @@ protected:
 	virtual void RenderBottomPanel() {};
 
 	void UpdateBoneTransformFromSkeleton(ViewerState* State);
+	void UpdateBoneTransformFromGizmo(ViewerState* State);
 	void ApplyBoneTransform(ViewerState* State);
 	void ExpandToSelectedBone(ViewerState* State, int32 BoneIndex);
 

@@ -68,7 +68,7 @@ void USkeletalMeshComponent::SetSkeletalMesh(const FString& PathFileName)
             // 계산된 로컬 행렬을 로컬 트랜스폼으로 변환
             CurrentLocalSpacePose[i] = FTransform(LocalBindMatrix); 
         }
-        
+        RefPose = CurrentLocalSpacePose;
         ForceRecomputePose();
 
         // Rebind anim instance to new skeleton
@@ -311,4 +311,21 @@ void USkeletalMeshComponent::UpdateFinalSkinningMatrices()
     // 본 행렬 계산 시간을 부모 USkinnedMeshComponent로 전달
     // 부모에서 실제 스키닝 모드(CPU/GPU)에 따라 통계에 추가됨
     UpdateSkinningMatrices(TempFinalSkinningMatrices, BoneMatrixCalcTimeMS);
+}
+
+void USkeletalMeshComponent::ApplyAdditiveTransforms(const TMap<int32, FTransform>& AdditiveTransforms)
+{
+    if (AdditiveTransforms.IsEmpty()) return;
+
+    // CurrentLocalSpacePose should already contain the base animation pose from TickComponent
+    for (auto const& [BoneIndex, AdditiveTransform] : AdditiveTransforms)
+    {
+        if (BoneIndex >= 0 && BoneIndex < CurrentLocalSpacePose.Num())
+        {
+            CurrentLocalSpacePose[BoneIndex] = AdditiveTransform * CurrentLocalSpacePose[BoneIndex];
+        }
+    }
+
+    // Recompute the final pose once after all additives are applied
+    ForceRecomputePose();
 }
