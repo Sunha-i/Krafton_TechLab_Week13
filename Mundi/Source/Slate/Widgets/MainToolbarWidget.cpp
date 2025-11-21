@@ -129,10 +129,11 @@ void UMainToolbarWidget::RenderToolbar()
             const float LogoHeight = ToolbarHeight * 0.9f;  // 툴바 높이의 70%
             const float LogoWidth = LogoHeight * 3.42f;     // 820:240 비율
             const float RightPadding = 16.0f;
+            const float VerticalOffset = 2.0f;
 
             ImVec2 logoPos;
             logoPos.x = ImGui::GetWindowWidth() - LogoWidth - RightPadding;
-            logoPos.y = (ToolbarHeight - LogoHeight) / 2.0f;
+            logoPos.y = (ToolbarHeight - LogoHeight) / 2.0f + VerticalOffset;
 
             ImGui::SetCursorPos(logoPos);
             ImGui::Image((void*)LogoTexture->GetShaderResourceView(), ImVec2(LogoWidth, LogoHeight));

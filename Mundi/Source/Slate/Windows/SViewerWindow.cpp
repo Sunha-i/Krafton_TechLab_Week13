@@ -46,17 +46,7 @@ bool SViewerWindow::Initialize(float StartX, float StartY, float Width, float He
 
     // Create window title
     FString BaseTitle = GetWindowTitle();
-    if (Context && !Context->AssetPath.empty())
-    {
-        // ex) "Data/Mesh/MyAsset.fbx" -> "MyAsset.fbx"
-        std::filesystem::path fsPath(UTF8ToWide(Context->AssetPath));
-        FString AssetName = WideToUTF8(fsPath.filename().wstring());
-        WindowTitle = BaseTitle + " - " + AssetName;
-    }
-    else
-    {
-        WindowTitle = BaseTitle;
-    }
+    WindowTitle = BaseTitle;
 
     SetRect(StartX, StartY, StartX + Width, StartY + Height);
 
@@ -341,7 +331,24 @@ void SViewerWindow::RenderTabBar()
     }
     if (ImGui::TabItemButton("+", ImGuiTabItemFlags_Trailing))
     {
-        char label[32]; sprintf_s(label, "Viewer %d", Tabs.Num() + 1);
+        int maxViewerNum = 0;
+        for (int i = 0; i < Tabs.Num(); ++i)
+        {
+            const FString& tabName = Tabs[i]->Name.ToString();
+            const char* prefix = "Viewer ";
+            if (strncmp(tabName.c_str(), prefix, strlen(prefix)) == 0)
+            {
+                const char* numberPart = tabName.c_str() + strlen(prefix);
+                int num = atoi(numberPart);
+                if (num > maxViewerNum)
+                {
+                    maxViewerNum = num;
+                }
+            }
+        }
+
+        char label[32];
+        sprintf_s(label, "Viewer %d", maxViewerNum + 1);
         OpenNewTab(label);
     }
     ImGui::EndTabBar();
@@ -376,7 +383,24 @@ void SViewerWindow::RenderTabsAndToolbar(EViewerType CurrentViewerType)
 
     if (ImGui::TabItemButton("+", ImGuiTabItemFlags_Trailing))
     {
-        char label[32]; sprintf_s(label, "Viewer %d", Tabs.Num() + 1);
+        int maxViewerNum = 0;
+        for (int i = 0; i < Tabs.Num(); ++i)
+        {
+            const FString& tabName = Tabs[i]->Name.ToString();
+            const char* prefix = "Viewer ";
+            if (strncmp(tabName.c_str(), prefix, strlen(prefix)) == 0)
+            {
+                const char* numberPart = tabName.c_str() + strlen(prefix);
+                int num = atoi(numberPart);
+                if (num > maxViewerNum)
+                {
+                    maxViewerNum = num;
+                }
+            }
+        }
+
+        char label[32];
+        sprintf_s(label, "Viewer %d", maxViewerNum + 1);
         OpenNewTab(label);
     }
 

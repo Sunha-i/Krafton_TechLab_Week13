@@ -49,7 +49,14 @@ void SSkeletalMeshViewerWindow::OnRender()
     // Generate a unique window title to pass to ImGui
     // Format: "Skeletal Mesh Viewer - MyAsset.fbx###0x12345678"
     char UniqueTitle[256];
-    sprintf_s(UniqueTitle, sizeof(UniqueTitle), "%s###%p", WindowTitle.c_str(), this);
+    FString Title = GetWindowTitle();
+    if (Tabs.Num() == 1 && ActiveState && !ActiveState->LoadedMeshPath.empty())
+    {
+        std::filesystem::path fsPath(UTF8ToWide(ActiveState->LoadedMeshPath));
+        FString AssetName = WideToUTF8(fsPath.filename().wstring());
+        Title += " - " + AssetName;
+    }
+    sprintf_s(UniqueTitle, sizeof(UniqueTitle), "%s###%p", Title.c_str(), this);
 
     bool bViewerVisible = false;
     if (ImGui::Begin(UniqueTitle, &bIsOpen, flags))

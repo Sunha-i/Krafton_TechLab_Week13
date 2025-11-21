@@ -54,7 +54,13 @@ void SBlendSpaceEditorWindow::OnRender()
     }
 
     char UniqueTitle[256];
-    const FString Title = GetWindowTitle();
+    FString Title = GetWindowTitle();
+    if (Tabs.Num() == 1 && ActiveState && !ActiveState->LoadedMeshPath.empty())
+    {
+        std::filesystem::path fsPath(UTF8ToWide(ActiveState->LoadedMeshPath));
+        FString AssetName = WideToUTF8(fsPath.filename().wstring());
+        Title += " - " + AssetName;
+    }
     sprintf_s(UniqueTitle, sizeof(UniqueTitle), "%s###%p", Title.c_str(), this);
 
     bool bVisible = false;
