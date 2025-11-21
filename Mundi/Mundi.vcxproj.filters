@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version='1.0' encoding='utf-8'?>
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="4.0">
   <ItemGroup>
     <FxCompile Include="Shaders\PostProcess\GammaCorrection_PS.hlsl">
@@ -852,6 +852,18 @@
       <Filter>Generated</Filter>
     </ClCompile>
     <ClCompile Include="Generated\ADancingCharacter.generated.cpp">
+      <Filter>Generated</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Runtime\Engine\Scripting\LuaMapProxy.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\Scripting\LuaStructProxy.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\Scripting\LuaArrayProxy.cpp" />
+    <ClCompile Include="Generated\UPropertyTestComponent.generated.cpp">
+      <Filter>Generated</Filter>
+    </ClCompile>
+    <ClCompile Include="Generated\EnumRegistry.generated.cpp">
+      <Filter>Generated</Filter>
+    </ClCompile>
+    <ClCompile Include="Generated\FTestStruct.generated.cpp">
       <Filter>Generated</Filter>
     </ClCompile>
   </ItemGroup>
@@ -1797,6 +1809,19 @@
       <Filter>Generated</Filter>
     </ClInclude>
     <ClInclude Include="Generated\ADancingCharacter.generated.h">
+      <Filter>Generated</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Runtime\Engine\Scripting\LuaMapProxy.h" />
+    <ClInclude Include="Source\Runtime\Engine\Scripting\LuaObjectProxyHelpers.h" />
+    <ClInclude Include="Source\Runtime\Engine\Scripting\LuaStructProxy.h" />
+    <ClInclude Include="Source\Runtime\Engine\Scripting\LuaArrayProxy.h" />
+    <ClInclude Include="Generated\UPropertyTestComponent.generated.h">
+      <Filter>Generated</Filter>
+    </ClInclude>
+    <ClInclude Include="Generated\EnumRegistry.generated.h">
+      <Filter>Generated</Filter>
+    </ClInclude>
+    <ClInclude Include="Generated\FTestStruct.generated.h">
       <Filter>Generated</Filter>
     </ClInclude>
   </ItemGroup>

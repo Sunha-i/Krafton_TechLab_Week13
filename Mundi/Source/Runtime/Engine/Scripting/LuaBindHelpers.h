@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include "LuaManager.h"
 #include "LuaComponentProxy.h"
+#include "LuaStructProxy.h"
 
 // 클래스별 바인더 등록 매크로(컴포넌트 cpp에서 사용)
 #define LUA_BIND_BEGIN(ClassType) \
@@ -22,7 +23,7 @@ static void AddMethod(sol::table& T, const char* Name, void(C::*Method)(P...))
 {
     T.set_function(Name, [Method](LuaComponentProxy& Proxy, P... Args)
     {
-        if (!Proxy.Instance || Proxy.Class != C::StaticClass()) return;
+        if (!Proxy.Instance || !Proxy.Class->IsChildOf(C::StaticClass())) return;
         (static_cast<C*>(Proxy.Instance)->*Method)(std::forward<P>(Args)...);
     });
 }
@@ -38,7 +39,7 @@ static void AddMethodR(sol::table& T, const char* Name, R(C::*Method)(P...))
         using PointeeType = std::remove_pointer_t<R>;
         T.set_function(Name, [Method](sol::this_state s, LuaComponentProxy& Proxy, P... Args) -> sol::object
         {
-            if (!Proxy.Instance || Proxy.Class != C::StaticClass())
+            if (!Proxy.Instance || !Proxy.Class->IsChildOf(C::StaticClass()))
             {
                 sol::state_view L(s);
                 return sol::make_object(L, sol::nil);
@@ -59,7 +60,7 @@ static void AddMethodR(sol::table& T, const char* Name, R(C::*Method)(P...))
         // Non-pointer return types - use original implementation
         T.set_function(Name, [Method](LuaComponentProxy& Proxy, P... Args) -> R
         {
-            if (!Proxy.Instance || Proxy.Class != C::StaticClass())
+            if (!Proxy.Instance || !Proxy.Class->IsChildOf(C::StaticClass()))
             {
                 if constexpr (!std::is_void_v<R>) return R{};
             }
@@ -79,7 +80,7 @@ static void AddMethodR(sol::table& T, const char* Name, R(C::*Method)(P...) cons
         using PointeeType = std::remove_pointer_t<R>;
         T.set_function(Name, [Method](sol::this_state s, LuaComponentProxy& Proxy, P... Args) -> sol::object
         {
-            if (!Proxy.Instance || Proxy.Class != C::StaticClass())
+            if (!Proxy.Instance || !Proxy.Class->IsChildOf(C::StaticClass()))
             {
                 sol::state_view L(s);
                 return sol::make_object(L, sol::nil);
@@ -100,7 +101,7 @@ static void AddMethodR(sol::table& T, const char* Name, R(C::*Method)(P...) cons
         // Non-pointer return types - use original implementation
         T.set_function(Name, [Method](LuaComponentProxy& Proxy, P... Args) -> R
         {
-            if (!Proxy.Instance || Proxy.Class != C::StaticClass())
+            if (!Proxy.Instance || !Proxy.Class->IsChildOf(C::StaticClass()))
             {
                 if constexpr (!std::is_void_v<R>) return R{};
             }
@@ -131,7 +132,7 @@ static void AddProperty(sol::table& T, const char* Name, PropType C::*MemberPtr)
     // Getter
     PropDesc["get"] = [MemberPtr](LuaComponentProxy& Proxy) -> PropType
     {
-        if (!Proxy.Instance || Proxy.Class != C::StaticClass())
+        if (!Proxy.Instance || !Proxy.Class->IsChildOf(C::StaticClass()))
             return PropType{};
         return static_cast<C*>(Proxy.Instance)->*MemberPtr;
     };
@@ -139,7 +140,7 @@ static void AddProperty(sol::table& T, const char* Name, PropType C::*MemberPtr)
     // Setter
     PropDesc["set"] = [MemberPtr](LuaComponentProxy& Proxy, PropType Value)
     {
-        if (!Proxy.Instance || Proxy.Class != C::StaticClass())
+        if (!Proxy.Instance || !Proxy.Class->IsChildOf(C::StaticClass()))
             return;
         static_cast<C*>(Proxy.Instance)->*MemberPtr = Value;
     };
@@ -160,7 +161,7 @@ static void AddReadOnlyProperty(sol::table& T, const char* Name, PropType C::*Me
     // Getter만 제공
     PropDesc["get"] = [MemberPtr](LuaComponentProxy& Proxy) -> PropType
     {
-        if (!Proxy.Instance || Proxy.Class != C::StaticClass())
+        if (!Proxy.Instance || !Proxy.Class->IsChildOf(C::StaticClass()))
             return PropType{};
         return static_cast<C*>(Proxy.Instance)->*MemberPtr;
     };
@@ -181,7 +182,7 @@ static void AddPropertyPtr(sol::table& T, const char* Name, PtrType* C::*MemberP
     // Getter - 포인터를 그대로 반환
     PropDesc["get"] = [MemberPtr](LuaComponentProxy& Proxy) -> PtrType*
     {
-        if (!Proxy.Instance || Proxy.Class != C::StaticClass())
+        if (!Proxy.Instance || !Proxy.Class->IsChildOf(C::StaticClass()))
             return nullptr;
         return static_cast<C*>(Proxy.Instance)->*MemberPtr;
     };
@@ -189,7 +190,7 @@ static void AddPropertyPtr(sol::table& T, const char* Name, PtrType* C::*MemberP
     // Setter
     PropDesc["set"] = [MemberPtr](LuaComponentProxy& Proxy, PtrType* Value)
     {
-        if (!Proxy.Instance || Proxy.Class != C::StaticClass())
+        if (!Proxy.Instance || !Proxy.Class->IsChildOf(C::StaticClass()))
             return;
         static_cast<C*>(Proxy.Instance)->*MemberPtr = Value;
     };
@@ -210,7 +211,7 @@ static void AddPropertyArrayPtr(sol::table& T, const char* Name, TArray<ElemType
     // Getter - TArray를 sol::table로 변환
     PropDesc["get"] = [MemberPtr](sol::this_state s, LuaComponentProxy& Proxy) -> sol::object
     {
-        if (!Proxy.Instance || Proxy.Class != C::StaticClass())
+        if (!Proxy.Instance || !Proxy.Class->IsChildOf(C::StaticClass()))
             return sol::nil;
 
         sol::state_view L(s);
@@ -227,7 +228,7 @@ static void AddPropertyArrayPtr(sol::table& T, const char* Name, TArray<ElemType
     // Setter - sol::table을 TArray로 변환
     PropDesc["set"] = [MemberPtr](LuaComponentProxy& Proxy, sol::table LuaArray)
     {
-        if (!Proxy.Instance || Proxy.Class != C::StaticClass())
+        if (!Proxy.Instance || !Proxy.Class->IsChildOf(C::StaticClass()))
             return;
 
         TArray<ElemType*>& Arr = static_cast<C*>(Proxy.Instance)->*MemberPtr;
@@ -240,6 +241,155 @@ static void AddPropertyArrayPtr(sol::table& T, const char* Name, TArray<ElemType
             {
                 Arr.Add(Pair.second.as<ElemType*>());
             }
+        }
+    };
+
+    T[Name] = PropDesc;
+}
+
+// 배열 프로퍼티 바인딩 (TArray<T> - primitive types)
+template<typename C, typename ElemType>
+static void AddPropertyArray(sol::table& T, const char* Name, TArray<ElemType> C::*MemberPtr)
+{
+    sol::state_view L = T.lua_state();
+    sol::table PropDesc = L.create_table();
+
+    PropDesc["is_property"] = true;
+    PropDesc["read_only"] = false;
+
+    // Getter - TArray를 sol::table로 변환
+    PropDesc["get"] = [MemberPtr](sol::this_state s, LuaComponentProxy& Proxy) -> sol::object
+    {
+        if (!Proxy.Instance || !Proxy.Class->IsChildOf(C::StaticClass()))
+            return sol::nil;
+
+        sol::state_view L(s);
+        TArray<ElemType>& Arr = static_cast<C*>(Proxy.Instance)->*MemberPtr;
+
+        sol::table Result = L.create_table();
+        for (int32 i = 0; i < Arr.Num(); ++i)
+        {
+            Result[i + 1] = Arr[i]; // Lua는 1-based 인덱스
+        }
+        return Result;
+    };
+
+    // Setter - sol::table을 TArray로 변환
+    PropDesc["set"] = [MemberPtr](LuaComponentProxy& Proxy, sol::table LuaArray)
+    {
+        if (!Proxy.Instance || !Proxy.Class->IsChildOf(C::StaticClass()))
+            return;
+
+        TArray<ElemType>& Arr = static_cast<C*>(Proxy.Instance)->*MemberPtr;
+        Arr.Empty();
+
+        // Lua 테이블을 순회하며 배열 채우기
+        for (auto& Pair : LuaArray)
+        {
+            if (Pair.second.is<ElemType>())
+            {
+                Arr.Add(Pair.second.as<ElemType>());
+            }
+        }
+    };
+
+    T[Name] = PropDesc;
+}
+
+// Map 프로퍼티 바인딩 (TMap<K, V>)
+template<typename C, typename KeyType, typename ValueType>
+static void AddPropertyMap(sol::table& T, const char* Name, TMap<KeyType, ValueType> C::*MemberPtr)
+{
+    sol::state_view L = T.lua_state();
+    sol::table PropDesc = L.create_table();
+
+    PropDesc["is_property"] = true;
+    PropDesc["read_only"] = false;
+
+    // Getter - TMap을 sol::table로 변환
+    PropDesc["get"] = [MemberPtr](sol::this_state s, LuaComponentProxy& Proxy) -> sol::object
+    {
+        if (!Proxy.Instance || !Proxy.Class->IsChildOf(C::StaticClass()))
+            return sol::nil;
+
+        sol::state_view L(s);
+        TMap<KeyType, ValueType>& Map = static_cast<C*>(Proxy.Instance)->*MemberPtr;
+
+        sol::table Result = L.create_table();
+        for (auto& [key, value] : Map)
+        {
+            Result[key] = value;
+        }
+        return Result;
+    };
+
+    // Setter - sol::table을 TMap으로 변환
+    PropDesc["set"] = [MemberPtr](LuaComponentProxy& Proxy, sol::table LuaTable)
+    {
+        if (!Proxy.Instance || !Proxy.Class->IsChildOf(C::StaticClass()))
+            return;
+
+        TMap<KeyType, ValueType>& Map = static_cast<C*>(Proxy.Instance)->*MemberPtr;
+        Map.clear();
+
+        // Lua 테이블을 순회하며 맵 채우기
+        for (auto& Pair : LuaTable)
+        {
+            if (Pair.first.is<KeyType>() && Pair.second.is<ValueType>())
+            {
+                Map[Pair.first.as<KeyType>()] = Pair.second.as<ValueType>();
+            }
+        }
+    };
+
+    T[Name] = PropDesc;
+}
+
+// Struct 프로퍼티 바인딩 (LuaStructProxy 사용)
+template<typename C, typename StructType>
+static void AddPropertyStruct(sol::table& T, const char* Name, StructType C::*MemberPtr, const char* StructTypeName)
+{
+    sol::state_view L = T.lua_state();
+    sol::table PropDesc = L.create_table();
+
+    PropDesc["is_property"] = true;
+    PropDesc["read_only"] = false;
+
+    // Getter - LuaStructProxy 반환
+    PropDesc["get"] = [MemberPtr, StructTypeName](sol::this_state s, LuaComponentProxy& Proxy) -> sol::object
+    {
+        if (!Proxy.Instance || !Proxy.Class->IsChildOf(C::StaticClass()))
+            return sol::nil;
+
+        sol::state_view L(s);
+        UStruct* StructMeta = UStruct::FindStruct(StructTypeName);
+        if (!StructMeta)
+        {
+            UE_LOG("[Lua][error] Unknown struct type: %s", StructTypeName);
+            return sol::nil;
+        }
+
+        StructType* StructInstance = &(static_cast<C*>(Proxy.Instance)->*MemberPtr);
+        return sol::make_object(L, LuaStructProxy(StructInstance, StructMeta));
+    };
+
+    // Setter - LuaStructProxy나 테이블에서 복사
+    PropDesc["set"] = [MemberPtr, StructTypeName](LuaComponentProxy& Proxy, sol::object Value)
+    {
+        if (!Proxy.Instance || !Proxy.Class->IsChildOf(C::StaticClass()))
+            return;
+
+        if (Value.is<LuaStructProxy>())
+        {
+            // LuaStructProxy에서 직접 복사
+            LuaStructProxy& SrcProxy = Value.as<LuaStructProxy&>();
+            StructType* Dst = &(static_cast<C*>(Proxy.Instance)->*MemberPtr);
+            memcpy(Dst, SrcProxy.Instance, sizeof(StructType));
+        }
+        else if (Value.is<StructType>())
+        {
+            // 직접 값 할당
+            static_cast<C*>(Proxy.Instance)->*MemberPtr = Value.as<StructType>();
         }
     };
 

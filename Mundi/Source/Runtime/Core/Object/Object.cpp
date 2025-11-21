@@ -378,7 +378,341 @@ void UObject::Serialize(const bool bInIsLoading, JSON& InOutHandle)
 			}
 			break;
 		}
-		// ObjectPtr, Struct 등은 필요시 추가
+		case EPropertyType::Map:
+		{
+			// Map 직렬화는 KeyType과 InnerType에 따라 처리
+			if (Prop.KeyType == EPropertyType::Unknown || Prop.InnerType == EPropertyType::Unknown)
+			{
+				UE_LOG("[AutoSerialize] Map property '%s' has Unknown KeyType or InnerType, skipping.", Prop.Name);
+				break;
+			}
+
+			JSON MapJson;
+			if (bInIsLoading)
+			{
+				// JSON에서 Object 읽기
+				if (!InOutHandle.hasKey(Prop.Name) || InOutHandle[Prop.Name].JSONType() != JSON::Class::Object)
+				{
+					break;
+				}
+				MapJson = InOutHandle[Prop.Name];
+			}
+			else
+			{
+				MapJson = JSON::Make(JSON::Class::Object);
+			}
+
+			// FString 키 Map 처리 (가장 일반적인 경우)
+			if (Prop.KeyType == EPropertyType::FString)
+			{
+				switch (Prop.InnerType)
+				{
+				case EPropertyType::Int32:
+				{
+					TMap<FString, int32>* MapPtr = Prop.GetValuePtr<TMap<FString, int32>>(this);
+					if (bInIsLoading)
+					{
+						MapPtr->clear();
+						for (auto& [key, value] : MapJson.ObjectRange())
+						{
+							if (value.JSONType() == JSON::Class::Integral)
+								(*MapPtr)[key] = static_cast<int32>(value.ToInt());
+						}
+					}
+					else
+					{
+						for (auto& [key, value] : *MapPtr)
+							MapJson[key] = value;
+					}
+					break;
+				}
+				case EPropertyType::Float:
+				{
+					TMap<FString, float>* MapPtr = Prop.GetValuePtr<TMap<FString, float>>(this);
+					if (bInIsLoading)
+					{
+						MapPtr->clear();
+						for (auto& [key, value] : MapJson.ObjectRange())
+						{
+							if (value.JSONType() == JSON::Class::Floating)
+								(*MapPtr)[key] = static_cast<float>(value.ToFloat());
+							else if (value.JSONType() == JSON::Class::Integral)
+								(*MapPtr)[key] = static_cast<float>(value.ToInt());
+						}
+					}
+					else
+					{
+						for (auto& [key, value] : *MapPtr)
+							MapJson[key] = value;
+					}
+					break;
+				}
+				case EPropertyType::FString:
+				{
+					TMap<FString, FString>* MapPtr = Prop.GetValuePtr<TMap<FString, FString>>(this);
+					if (bInIsLoading)
+					{
+						MapPtr->clear();
+						for (auto& [key, value] : MapJson.ObjectRange())
+						{
+							if (value.JSONType() == JSON::Class::String)
+								(*MapPtr)[key] = value.ToString();
+						}
+					}
+					else
+					{
+						for (auto& [key, value] : *MapPtr)
+							MapJson[key] = value.c_str();
+					}
+					break;
+				}
+				case EPropertyType::Bool:
+				{
+					TMap<FString, bool>* MapPtr = Prop.GetValuePtr<TMap<FString, bool>>(this);
+					if (bInIsLoading)
+					{
+						MapPtr->clear();
+						for (auto& [key, value] : MapJson.ObjectRange())
+						{
+							if (value.JSONType() == JSON::Class::Boolean)
+								(*MapPtr)[key] = value.ToBool();
+						}
+					}
+					else
+					{
+						for (auto& [key, value] : *MapPtr)
+							MapJson[key] = value;
+					}
+					break;
+				}
+				default:
+					UE_LOG("[AutoSerialize] Map property '%s' has unsupported InnerType: %d", Prop.Name, static_cast<int>(Prop.InnerType));
+					break;
+				}
+			}
+			// int32 키 Map 처리
+			else if (Prop.KeyType == EPropertyType::Int32)
+			{
+				switch (Prop.InnerType)
+				{
+				case EPropertyType::FString:
+				{
+					TMap<int32, FString>* MapPtr = Prop.GetValuePtr<TMap<int32, FString>>(this);
+					if (bInIsLoading)
+					{
+						MapPtr->clear();
+						for (auto& [key, value] : MapJson.ObjectRange())
+						{
+							if (value.JSONType() == JSON::Class::String)
+								(*MapPtr)[std::stoi(key)] = value.ToString();
+						}
+					}
+					else
+					{
+						for (auto& [key, value] : *MapPtr)
+							MapJson[std::to_string(key)] = value.c_str();
+					}
+					break;
+				}
+				default:
+					break;
+				}
+			}
+
+			// 저장 시 JSON에 Map 쓰기
+			if (!bInIsLoading)
+			{
+				InOutHandle[Prop.Name] = MapJson;
+			}
+			break;
+		}
+		case EPropertyType::Enum:
+		{
+			// Enum은 int32로 직렬화
+			int32* Value = Prop.GetValuePtr<int32>(this);
+			if (bInIsLoading)
+			{
+				int32 ReadValue;
+				if (FJsonSerializer::ReadInt32(InOutHandle, Prop.Name, ReadValue))
+				{
+					*Value = ReadValue;
+				}
+			}
+			else
+			{
+				InOutHandle[Prop.Name] = *Value;
+			}
+			break;
+		}
+		case EPropertyType::Struct:
+		{
+			// Struct 직렬화 - TypeName으로 UStruct 찾아서 프로퍼티 순회
+			UStruct* StructType = UStruct::FindStruct(Prop.TypeName);
+			if (!StructType)
+			{
+				UE_LOG("[AutoSerialize] Struct property '%s' has unknown type: %s", Prop.Name, Prop.TypeName);
+				break;
+			}
+
+			void* StructInstance = (char*)this + Prop.Offset;
+			JSON StructJson;
+
+			if (bInIsLoading)
+			{
+				if (!InOutHandle.hasKey(Prop.Name) || InOutHandle[Prop.Name].JSONType() != JSON::Class::Object)
+				{
+					break;
+				}
+				StructJson = InOutHandle[Prop.Name];
+			}
+			else
+			{
+				StructJson = JSON::Make(JSON::Class::Object);
+			}
+
+			// Struct의 모든 프로퍼티 순회
+			for (const FProperty& StructProp : StructType->GetAllProperties())
+			{
+				switch (StructProp.Type)
+				{
+				case EPropertyType::Bool:
+				{
+					bool* Val = StructProp.GetValuePtr<bool>(StructInstance);
+					if (bInIsLoading)
+					{
+						bool ReadVal;
+						if (FJsonSerializer::ReadBool(StructJson, StructProp.Name, ReadVal))
+							*Val = ReadVal;
+					}
+					else
+					{
+						StructJson[StructProp.Name] = *Val;
+					}
+					break;
+				}
+				case EPropertyType::Int32:
+				{
+					int32* Val = StructProp.GetValuePtr<int32>(StructInstance);
+					if (bInIsLoading)
+					{
+						int32 ReadVal;
+						if (FJsonSerializer::ReadInt32(StructJson, StructProp.Name, ReadVal))
+							*Val = ReadVal;
+					}
+					else
+					{
+						StructJson[StructProp.Name] = *Val;
+					}
+					break;
+				}
+				case EPropertyType::Float:
+				{
+					float* Val = StructProp.GetValuePtr<float>(StructInstance);
+					if (bInIsLoading)
+					{
+						float ReadVal;
+						if (FJsonSerializer::ReadFloat(StructJson, StructProp.Name, ReadVal))
+							*Val = ReadVal;
+					}
+					else
+					{
+						StructJson[StructProp.Name] = *Val;
+					}
+					break;
+				}
+				case EPropertyType::FString:
+				{
+					FString* Val = StructProp.GetValuePtr<FString>(StructInstance);
+					if (bInIsLoading)
+					{
+						FString ReadVal;
+						if (FJsonSerializer::ReadString(StructJson, StructProp.Name, ReadVal))
+							*Val = ReadVal;
+					}
+					else
+					{
+						StructJson[StructProp.Name] = Val->c_str();
+					}
+					break;
+				}
+				case EPropertyType::FVector:
+				{
+					FVector* Val = StructProp.GetValuePtr<FVector>(StructInstance);
+					if (bInIsLoading)
+					{
+						FVector ReadVal;
+						if (FJsonSerializer::ReadVector(StructJson, StructProp.Name, ReadVal))
+							*Val = ReadVal;
+					}
+					else
+					{
+						StructJson[StructProp.Name] = FJsonSerializer::VectorToJson(*Val);
+					}
+					break;
+				}
+				case EPropertyType::FLinearColor:
+				{
+					FLinearColor* Val = StructProp.GetValuePtr<FLinearColor>(StructInstance);
+					if (bInIsLoading)
+					{
+						FVector4 ReadVal;
+						if (FJsonSerializer::ReadVector4(StructJson, StructProp.Name, ReadVal))
+							*Val = FLinearColor(ReadVal);
+					}
+					else
+					{
+						StructJson[StructProp.Name] = FJsonSerializer::Vector4ToJson(Val->ToFVector4());
+					}
+					break;
+				}
+				default:
+					break;
+				}
+			}
+
+			// 저장 시 JSON에 Struct 쓰기
+			if (!bInIsLoading)
+			{
+				InOutHandle[Prop.Name] = StructJson;
+			}
+			break;
+		}
+		case EPropertyType::Sound:
+		{
+			USound** Value = Prop.GetValuePtr<USound*>(this);
+			if (bInIsLoading)
+			{
+				FString SoundPath;
+				FJsonSerializer::ReadString(InOutHandle, Prop.Name, SoundPath);
+				if (!SoundPath.empty())
+				{
+					*Value = UResourceManager::GetInstance().Load<USound>(SoundPath);
+				}
+				else
+				{
+					*Value = nullptr;
+				}
+			}
+			else
+			{
+				if (*Value)
+				{
+					InOutHandle[Prop.Name] = (*Value)->GetFilePath().c_str();
+				}
+				else
+				{
+					InOutHandle[Prop.Name] = "";
+				}
+			}
+			break;
+		}
+		case EPropertyType::ObjectPtr:
+		{
+			// 일반 UObject* 포인터는 현재 지원하지 않음 (참조 기반이라 복잡)
+			// 필요시 UUID 기반 참조 시스템 추가
+			break;
+		}
+		// 나머지 타입들은 필요시 추가
 		}
 	}
 }

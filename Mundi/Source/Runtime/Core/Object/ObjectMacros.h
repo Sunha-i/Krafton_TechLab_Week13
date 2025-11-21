@@ -3,11 +3,14 @@
 #include "Color.h"
 #include "StaticMesh.h"
 #include "Texture.h"
+#include "TSubclassOf.h"
 #include <type_traits>
 
 // ===== 타입 자동 감지 템플릿 =====
 
 // 기본 타입 감지 템플릿
+// 참고: UStaticMesh, UTexture 등 리소스 타입은 명시적 매크로(ADD_PROPERTY_STATICMESH, ADD_PROPERTY_TEXTURE)를 사용하므로
+// 여기서는 포인터로 처리하고 순환 의존성을 방지합니다.
 template<typename T>
 struct TPropertyTypeTraits
 {
@@ -15,10 +18,16 @@ struct TPropertyTypeTraits
 	{
 		if constexpr (std::is_same_v<T, bool>)
 			return EPropertyType::Bool;
-		else if constexpr (std::is_same_v<T, int32> || std::is_same_v<T, int>)
-			return EPropertyType::Int32;
+		else if constexpr (std::is_same_v<T, int32> || std::is_same_v<T, int> ||
+		                   std::is_same_v<T, uint32> || std::is_same_v<T, unsigned int>)
+			return EPropertyType::Int32;  // Lua number는 부호 구분 없음, int32로 통합
+		else if constexpr (std::is_same_v<T, int64> || std::is_same_v<T, long long> ||
+		                   std::is_same_v<T, uint64> || std::is_same_v<T, unsigned long long>)
+			return EPropertyType::Int32;  // Lua number로 변환 (정밀도 손실 가능)
 		else if constexpr (std::is_same_v<T, float>)
 			return EPropertyType::Float;
+		else if constexpr (std::is_same_v<T, double>)
+			return EPropertyType::Float;  // Lua number는 기본적으로 double
 		else if constexpr (std::is_same_v<T, FVector>)
 			return EPropertyType::FVector;
 		else if constexpr (std::is_same_v<T, FLinearColor>)
@@ -27,16 +36,24 @@ struct TPropertyTypeTraits
 			return EPropertyType::FString;
 		else if constexpr (std::is_same_v<T, FName>)
 			return EPropertyType::FName;
+		else if constexpr (std::is_same_v<T, UClass*>)
+			return EPropertyType::UClass;  // UClass* 타입 (클래스 선택 UI)
 		else if constexpr (std::is_pointer_v<T>)
-			return EPropertyType::ObjectPtr;  // UObject* 및 파생 타입
-		else if constexpr (std::is_same_v<T, UTexture>)
-			return EPropertyType::Texture;
-		else if constexpr (std::is_same_v<T, UStaticMesh>)
-			return EPropertyType::StaticMesh;
-		//else if constexpr (std::is_same_v<T, USound>)
-		//	return EPropertyType::Sound;
+			return EPropertyType::ObjectPtr;  // UObject* 및 파생 타입 (UStaticMesh*, UTexture* 포함)
+		else if constexpr (std::is_enum_v<T>)
+			return EPropertyType::Enum;  // enum class 타입
 		else
 			return EPropertyType::Struct;
+	}
+};
+
+// TSubclassOf<T> 특수화
+template<typename T>
+struct TPropertyTypeTraits<TSubclassOf<T>>
+{
+	static constexpr EPropertyType GetType()
+	{
+		return EPropertyType::UClass;  // TSubclassOf도 UClass로 처리
 	}
 };
 
@@ -62,6 +79,21 @@ struct TPropertyTypeTraits
 // 사용법: UCLASS(DisplayName="방향성 라이트", Description="태양광과 같은 평행광 액터")
 #ifndef UCLASS
 #define UCLASS(...)
+#endif
+
+// 구조체 메타데이터 마커
+// 사용법: USTRUCT(DisplayName="트랜스폼", Description="위치, 회전, 크기 정보")
+// 참고: USTRUCT도 UCLASS와 동일하게 GENERATED_REFLECTION_BODY() 매크로를 사용합니다.
+//       코드 생성기가 .generated.h 파일에서 적절한 코드를 생성합니다.
+#ifndef USTRUCT
+#define USTRUCT(...)
+#endif
+
+// Enum 메타데이터 마커
+// 사용법: UENUM()
+//         enum class EAnimationMode : uint8 { ... };
+#ifndef UENUM
+#define UENUM(...)
 #endif
 
 // ===== 리플렉션 매크로 (수동 등록 방식) =====
@@ -101,11 +133,47 @@ struct TPropertyTypeTraits
 //     ADD_PROPERTY_RANGE(float, Intensity, "Light", 0.0f, 100.0f, true)
 // END_PROPERTIES()
 
-// StaticRegisterProperties 함수 시작
+// StaticRegisterProperties 함수 시작 (UCLASS용)
 #define BEGIN_PROPERTIES(ClassName) \
 	void ClassName::StaticRegisterProperties() \
 	{ \
 		UClass* Class = StaticClass(); \
+		using ThisClass_t = ClassName; \
+		const EOwnerKind CurrentOwnerKind = EOwnerKind::Class; \
+
+// StaticRegisterProperties 함수 시작 (USTRUCT용)
+// 사용법:
+// BEGIN_STRUCT_PROPERTIES(FTransform)
+//     ADD_PROPERTY(FVector, Location, "Transform", true, "위치")
+//     ADD_PROPERTY(FVector, Rotation, "Transform", true, "회전")
+// END_PROPERTIES()
+//
+// ===== 설계 노트: 매크로 재사용을 위한 Duck Typing =====
+//
+// 중요: 변수 이름을 의도적으로 'Class'로 유지합니다!
+//
+// 이유:
+// - 모든 ADD_PROPERTY 계열 매크로(약 20개)가 'Class->' 접두사를 사용합니다
+// - UStruct*를 Struct로 명명하면 모든 매크로를 복제해야 합니다 (140줄 중복)
+// - UStruct는 UClass와 동일한 인터페이스를 제공합니다:
+//   * AddProperty(const FProperty&) 메서드
+//   * Properties 멤버 (TArray<FProperty>)
+//   * GetAllProperties() 메서드
+//
+// 따라서 변수 이름만 통일하면 타입이 달라도 모든 매크로가 작동합니다.
+// 이것이 "Duck Typing" 원리입니다:
+// "오리처럼 걷고, 오리처럼 꽥꽥거리면, 그것은 오리다"
+//
+// 제한 사항:
+// - MARK_AS_SPAWNABLE/COMPONENT는 사용 불가 (UClass 전용 필드)
+// - 코드 생성기(property_generator.py)가 struct는 MARK 매크로를 생성하지 않음
+//
+#define BEGIN_STRUCT_PROPERTIES(StructName) \
+	void StructName::StaticRegisterProperties() \
+	{ \
+		UStruct* Class = StaticStruct(); \
+		using ThisClass_t = StructName; \
+		const EOwnerKind CurrentOwnerKind = EOwnerKind::Struct; \
 
 // StaticRegisterProperties 함수 종료
 #define END_PROPERTIES() \
@@ -119,12 +187,14 @@ struct TPropertyTypeTraits
 		FProperty Prop; \
 		Prop.Name = #VarName; \
 		Prop.Type = TPropertyTypeTraits<VarType>::GetType(); \
+		Prop.TypeName = #VarType; \
 		Prop.Offset = offsetof(ThisClass_t, VarName); \
 		Prop.Category = CategoryName; \
 		Prop.MinValue = MinVal; \
 		Prop.MaxValue = MaxVal; \
 		Prop.bIsEditAnywhere = bEditAnywhere; \
 		Prop.Tooltip = "" __VA_ARGS__; \
+		Prop.OwnerKind = CurrentOwnerKind; \
 		Class->AddProperty(Prop); \
 	}
 
@@ -145,21 +215,7 @@ struct TPropertyTypeTraits
 		Prop.Category = CategoryName; \
 		Prop.bIsEditAnywhere = bEditAnywhere; \
 		Prop.Tooltip = "" __VA_ARGS__; \
-		Class->AddProperty(Prop); \
-	}
-
-// Curve 프로퍼티 추가
-#define ADD_PROPERTY_CURVE(VarName, CategoryName, bEditAnywhere, ...) \
-	{ \
-		static_assert(std::is_array_v<std::remove_reference_t<decltype(CategoryName)>>, \
-		              "CategoryName must be a string literal!"); \
-		FProperty Prop; \
-		Prop.Name = #VarName; \
-		Prop.Type = EPropertyType::Curve; \
-		Prop.Offset = offsetof(ThisClass_t, VarName); \
-		Prop.Category = CategoryName; \
-		Prop.bIsEditAnywhere = bEditAnywhere; \
-		Prop.Tooltip = "" __VA_ARGS__; \
+		Prop.OwnerKind = CurrentOwnerKind; \
 		Class->AddProperty(Prop); \
 	}
 
@@ -175,6 +231,7 @@ struct TPropertyTypeTraits
 		Prop.Category = CategoryName; \
 		Prop.bIsEditAnywhere = bEditAnywhere; \
 		Prop.Tooltip = "" __VA_ARGS__; \
+		Prop.OwnerKind = CurrentOwnerKind; \
 		Class->AddProperty(Prop); \
 	}
 
@@ -190,6 +247,7 @@ struct TPropertyTypeTraits
 		Prop.Category = CategoryName; \
 		Prop.bIsEditAnywhere = bEditAnywhere; \
 		Prop.Tooltip = "" __VA_ARGS__; \
+		Prop.OwnerKind = CurrentOwnerKind; \
 		Class->AddProperty(Prop); \
 	}
 
@@ -205,6 +263,7 @@ struct TPropertyTypeTraits
 		Prop.Category = CategoryName; \
 		Prop.bIsEditAnywhere = bEditAnywhere; \
 		Prop.Tooltip = "" __VA_ARGS__; \
+		Prop.OwnerKind = CurrentOwnerKind; \
 		Class->AddProperty(Prop); \
 	}
 
@@ -219,6 +278,7 @@ struct TPropertyTypeTraits
 		Prop.Category = CategoryName; \
 		Prop.bIsEditAnywhere = bEditAnywhere; \
 		Prop.Tooltip = "" __VA_ARGS__; \
+		Prop.OwnerKind = CurrentOwnerKind; \
 		Class->AddProperty(Prop); \
 	}
 #define ADD_PROPERTY_COUNT(VarType, VarName, CategoryName, bEditAnywhere, ...) \
@@ -232,6 +292,7 @@ struct TPropertyTypeTraits
 		Prop.Category = CategoryName; \
 		Prop.bIsEditAnywhere = bEditAnywhere; \
 		Prop.Tooltip = "" __VA_ARGS__; \
+		Prop.OwnerKind = CurrentOwnerKind; \
 		Class->AddProperty(Prop); \
 	}
 
@@ -247,6 +308,7 @@ struct TPropertyTypeTraits
 		Prop.Category = CategoryName; \
 		Prop.bIsEditAnywhere = bEditAnywhere; \
 		Prop.Tooltip = "" __VA_ARGS__; \
+		Prop.OwnerKind = CurrentOwnerKind; \
 		Class->AddProperty(Prop); \
 	}
 
@@ -264,6 +326,26 @@ struct TPropertyTypeTraits
 	Prop.Category = CategoryName; \
 	Prop.bIsEditAnywhere = bEditAnywhere; \
 	Prop.Tooltip = "" __VA_ARGS__; \
+	Prop.OwnerKind = CurrentOwnerKind; \
+	Class->AddProperty(Prop); \
+}
+
+// TMap<K, V> 프로퍼티 추가
+// 첫 번째 인자: Key 타입, 두 번째 인자: Value 타입
+#define ADD_PROPERTY_MAP(KeyPropertyType, ValuePropertyType, VarName, CategoryName, bEditAnywhere, ...) \
+{ \
+	static_assert(std::is_array_v<std::remove_reference_t<decltype(CategoryName)>>, \
+				  "CategoryName must be a string literal!"); \
+	FProperty Prop; \
+	Prop.Name = #VarName; \
+	Prop.Type = EPropertyType::Map; \
+	Prop.KeyType = KeyPropertyType; \
+	Prop.InnerType = ValuePropertyType; /* Value 타입 */ \
+	Prop.Offset = offsetof(ThisClass_t, VarName); \
+	Prop.Category = CategoryName; \
+	Prop.bIsEditAnywhere = bEditAnywhere; \
+	Prop.Tooltip = "" __VA_ARGS__; \
+	Prop.OwnerKind = CurrentOwnerKind; \
 	Class->AddProperty(Prop); \
 }
 
@@ -279,6 +361,7 @@ struct TPropertyTypeTraits
 		Prop.Category = CategoryName; \
 		Prop.bIsEditAnywhere = bEditAnywhere; \
 		Prop.Tooltip = "" __VA_ARGS__; \
+		Prop.OwnerKind = CurrentOwnerKind; \
 		Class->AddProperty(Prop); \
 	}
 
@@ -298,6 +381,7 @@ struct TPropertyTypeTraits
 		Prop.bIsEditAnywhere = bEditAnywhere; \
 		Prop.Tooltip = "" __VA_ARGS__; \
 		Prop.Metadata.Add(FName("FileExtension"), InExtension); \
+		Prop.OwnerKind = CurrentOwnerKind; \
 		Class->AddProperty(Prop); \
 	}
 

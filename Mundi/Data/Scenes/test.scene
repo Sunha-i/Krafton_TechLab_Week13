@@ -1,0 +1,174 @@
+{
+  "Actors" : {
+    "963" : {
+      "ObjectName" : "ADirectionalLightActor_1",
+      "OwnedComponents" : [{
+          "CascadedAreaColorDebugValue" : 0.000000,
+          "CascadedAreaShadowDebugValue" : -1,
+          "CascadedCount" : 4,
+          "CascadedLinearBlendingValue" : 0.500000,
+          "CascadedOverlapValue" : 0.200000,
+          "Id" : 965,
+          "Intensity" : 1.000000,
+          "LightColor" : [1.000000, 1.000000, 1.000000, 1.000000],
+          "ObjectName" : "UDirectionalLightComponent_1",
+          "ParentId" : 0,
+          "RelativeLocation" : [0.000000, 0.000000, 0.000000],
+          "RelativeRotationEuler" : [-62.900280, 16.769619, -62.900280],
+          "RelativeScale" : [1.000000, 1.000000, 1.000000],
+          "ShadowBias" : 0.000010,
+          "ShadowResolutionScale" : 2048,
+          "ShadowSharpen" : 0.500000,
+          "ShadowSlopeBias" : 0.000010,
+          "Temperature" : 6500.000000,
+          "Type" : "UDirectionalLightComponent",
+          "bCascaded" : true,
+          "bCastShadows" : true,
+          "bHiddenInGame" : false,
+          "bIsActive" : true,
+          "bIsVisible" : true,
+          "bTickEnabled" : true
+        }],
+      "RootComponentId" : 965,
+      "Tag" : "",
+      "Type" : "ADirectionalLightActor",
+      "bActorHiddenInGame" : false,
+      "bActorIsActive" : true
+    },
+    "966" : {
+      "ObjectName" : "AAmbientLightActor_1",
+      "OwnedComponents" : [{
+          "Id" : 968,
+          "Intensity" : 0.100000,
+          "LightColor" : [1.000000, 1.000000, 1.000000, 1.000000],
+          "ObjectName" : "UAmbientLightComponent_1",
+          "ParentId" : 0,
+          "RelativeLocation" : [0.000000, 0.000000, 0.000000],
+          "RelativeRotationEuler" : [0.000000, 0.000000, 0.000000],
+          "RelativeScale" : [1.000000, 1.000000, 1.000000],
+          "ShadowBias" : 0.000010,
+          "ShadowResolutionScale" : 1024,
+          "ShadowSharpen" : 0.500000,
+          "ShadowSlopeBias" : 0.000010,
+          "Temperature" : 6500.000000,
+          "Type" : "UAmbientLightComponent",
+          "bCastShadows" : true,
+          "bHiddenInGame" : false,
+          "bIsActive" : true,
+          "bIsVisible" : true,
+          "bTickEnabled" : true
+        }],
+      "RootComponentId" : 968,
+      "Tag" : "",
+      "Type" : "AAmbientLightActor",
+      "bActorHiddenInGame" : false,
+      "bActorIsActive" : true
+    },
+    "969" : {
+      "ObjectName" : "APlayerCameraManager_1",
+      "OwnedComponents" : [{
+          "AspectRatio" : 1.000000,
+          "FarClip" : 100.000000,
+          "FieldOfView" : 60.000000,
+          "Id" : 971,
+          "NearClip" : 0.100000,
+          "ObjectName" : "UCameraComponent_1",
+          "ParentId" : 0,
+          "ProjectionMode" : 0,
+          "RelativeLocation" : [0.000000, 0.000000, 0.000000],
+          "RelativeRotationEuler" : [0.000000, 0.000000, 0.000000],
+          "RelativeScale" : [1.000000, 1.000000, 1.000000],
+          "Type" : "UCameraComponent",
+          "ZoomFactor" : 1.000000,
+          "bHiddenInGame" : false,
+          "bIsActive" : true,
+          "bIsVisible" : true,
+          "bTickEnabled" : true
+        }],
+      "RootComponentId" : 971,
+      "Tag" : "",
+      "Type" : "APlayerCameraManager",
+      "bActorHiddenInGame" : false,
+      "bActorIsActive" : true
+    },
+    "972" : {
+      "ObjectName" : "빈 액터_0",
+      "OwnedComponents" : [{
+          "Id" : 973,
+          "ObjectName" : "USceneComponent_2",
+          "ParentId" : 0,
+          "RelativeLocation" : [1.532815, -1.532815, 1.173166],
+          "RelativeRotationEuler" : [0.000000, -0.000000, 0.000000],
+          "RelativeScale" : [1.000000, 1.000000, 1.000000],
+          "Type" : "USceneComponent",
+          "bHiddenInGame" : false,
+          "bIsActive" : true,
+          "bIsVisible" : true,
+          "bTickEnabled" : true
+        }, {
+          "ObjectName" : "UPropertyTestComponent_1",
+          "TestColor" : [0.031373, 0.035294, 0.039216, 0.043137],
+          "TestEnum" : 2,
+          "TestFloat" : 2.000000,
+          "TestFloatArray" : [17.000000, 18.000000, 19.000000],
+          "TestInt" : 1,
+          "TestIntArray" : [12, 13, 14, 15, 16],
+          "TestMaterial" : "MatID_1",
+          "TestName" : "TestName",
+          "TestScriptFile" : "Data/Scripts/Apple.lua",
+          "TestSkeletalMesh" : "Data/Test.fbx",
+          "TestSound" : "Data/Audio/CGC2.wav",
+          "TestSoundArray" : ["Data/Audio/SHC2.wav"],
+          "TestStaticMesh" : "Data/apple_mid.obj",
+          "TestString" : "3",
+          "TestStringArray" : ["20", "21", "22", "23"],
+          "TestStringFloatMap" : {
+            "30" : 31.000000,
+            "32" : 33.000000
+          },
+          "TestStringIntMap" : {
+            "24" : 27,
+            "25" : 28,
+            "26" : 29
+          },
+          "TestStringStringMap" : {
+            "34" : "35",
+            "36" : "37"
+          },
+          "TestStruct" : {
+            "Name" : "39",
+            "Position" : [40.000000, 41.000000, 42.000000],
+            "Value" : 38.000000
+          },
+          "TestTexture" : "Data/UI/Icons/SkyLight.dds",
+          "TestVector" : [5.000000, 6.000000, 7.000000],
+          "Type" : "UPropertyTestComponent",
+          "bHiddenInGame" : false,
+          "bIsActive" : true,
+          "bTestBool" : true,
+          "bTickEnabled" : true
+        }, {
+          "ObjectName" : "ULuaScriptComponent_1",
+          "ScriptFilePath" : "Data/Scripts/PropertySystemTest.lua",
+          "Type" : "ULuaScriptComponent",
+          "bHiddenInGame" : false,
+          "bIsActive" : true,
+          "bTickEnabled" : true
+        }],
+      "RootComponentId" : 973,
+      "Tag" : "",
+      "Type" : "AEmptyActor",
+      "bActorHiddenInGame" : false,
+      "bActorIsActive" : true
+    }
+  },
+  "NextUUID" : 995,
+  "PerspectiveCamera" : {
+    "FOV" : [60.000000],
+    "FarClip" : [2000.000000],
+    "Location" : [-3.693437, 3.693437, 4.234633],
+    "NearClip" : [0.100000],
+    "Rotation" : [0.000000, 22.500000, -45.000000]
+  },
+  "Version" : 1
+}

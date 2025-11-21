@@ -20,6 +20,7 @@
 #include "SlateManager.h"
 #include "ImGui/imgui_curve.hpp"
 #include "Source/Runtime/Engine/Viewer/EditorAssetPreviewContext.h"
+#include "EnumRegistry.generated.h"
 
 // 정적 멤버 변수 초기화
 TArray<FString> UPropertyRenderer::CachedSkeletalMeshPaths;
@@ -95,6 +96,14 @@ bool UPropertyRenderer::RenderProperty(const FProperty& Property, void* ObjectIn
 		bChanged = RenderStructProperty(Property, ObjectInstance);
 		break;
 
+	case EPropertyType::Enum:
+		bChanged = RenderEnumProperty(Property, ObjectInstance);
+		break;
+
+	case EPropertyType::Map:
+		bChanged = RenderMapProperty(Property, ObjectInstance);
+		break;
+
 	case EPropertyType::Texture:
 		bChanged = RenderTextureProperty(Property, ObjectInstance);
 		break;
@@ -153,6 +162,83 @@ bool UPropertyRenderer::RenderProperty(const FProperty& Property, void* ObjectIn
 				}
 			}
 			break;
+		case EPropertyType::Int32:
+			{
+				TArray<int32>* Arr = Property.GetValuePtr<TArray<int32>>(ObjectInstance);
+				if (Arr)
+				{
+					if (ImGui::TreeNode(Property.Name))
+					{
+						if (ImGui::Button("Add")) { Arr->Add(0); bChanged = true; }
+						for (int i = 0; i < Arr->Num(); ++i)
+						{
+							ImGui::PushID(i);
+							FString label = "[" + std::to_string(i) + "]";
+							if (ImGui::DragInt(label.c_str(), &(*Arr)[i], 1))
+								bChanged = true;
+							ImGui::SameLine();
+							if (ImGui::Button("X")) { Arr->RemoveAt(i); --i; bChanged = true; ImGui::PopID(); continue; }
+							ImGui::PopID();
+						}
+						ImGui::TreePop();
+					}
+				}
+			}
+			break;
+		case EPropertyType::Float:
+			{
+				TArray<float>* Arr = Property.GetValuePtr<TArray<float>>(ObjectInstance);
+				if (Arr)
+				{
+					if (ImGui::TreeNode(Property.Name))
+					{
+						if (ImGui::Button("Add")) { Arr->Add(0.0f); bChanged = true; }
+						for (int i = 0; i < Arr->Num(); ++i)
+						{
+							ImGui::PushID(i);
+							FString label = "[" + std::to_string(i) + "]";
+							if (ImGui::DragFloat(label.c_str(), &(*Arr)[i], 0.1f))
+								bChanged = true;
+							ImGui::SameLine();
+							if (ImGui::Button("X")) { Arr->RemoveAt(i); --i; bChanged = true; ImGui::PopID(); continue; }
+							ImGui::PopID();
+						}
+						ImGui::TreePop();
+					}
+				}
+			}
+			break;
+		case EPropertyType::FString:
+			{
+				TArray<FString>* Arr = Property.GetValuePtr<TArray<FString>>(ObjectInstance);
+				if (Arr)
+				{
+					if (ImGui::TreeNode(Property.Name))
+					{
+						if (ImGui::Button("Add")) { Arr->Add(""); bChanged = true; }
+						for (int i = 0; i < Arr->Num(); ++i)
+						{
+							ImGui::PushID(i);
+							FString label = "[" + std::to_string(i) + "]";
+							char buffer[256];
+							strncpy_s(buffer, (*Arr)[i].c_str(), sizeof(buffer) - 1);
+							if (ImGui::InputText(label.c_str(), buffer, sizeof(buffer)))
+							{
+								(*Arr)[i] = buffer;
+								bChanged = true;
+							}
+							ImGui::SameLine();
+							if (ImGui::Button("X")) { Arr->RemoveAt(i); --i; bChanged = true; ImGui::PopID(); continue; }
+							ImGui::PopID();
+						}
+						ImGui::TreePop();
+					}
+				}
+			}
+			break;
+		default:
+			ImGui::Text("%s: [Unsupported Array Type]", Property.Name);
+			break;
 		}
 		break;
 
@@ -169,13 +255,15 @@ bool UPropertyRenderer::RenderProperty(const FProperty& Property, void* ObjectIn
 		ImGui::SetTooltip("%s", Property.Tooltip);
 	}
 
-	// SceneComponent는 Transform 프로퍼티가 변경되면 Setter를 통해 동기화
-	if (bChanged && ObjectInstance)
+	// SceneComponent/LightComponent는 특정 프로퍼티가 변경되면 Setter를 통해 동기화
+	// OwnerKind가 Class인 경우에만 UObject로 캐스팅 가능 (Struct인 경우 크래시 발생)
+	if (bChanged && ObjectInstance && Property.OwnerKind == EOwnerKind::Class)
 	{
 		UObject* Obj = static_cast<UObject*>(ObjectInstance);
+
+		// SceneComponent Transform 프로퍼티 처리
 		if (USceneComponent* SceneComponent = Cast<USceneComponent>(Obj))
 		{
-			// 프로퍼티 이름으로 Transform 프로퍼티 판별 후 Setter 호출
 			if (strcmp(Property.Name, "RelativeRotationEuler") == 0)
 			{
 				FVector* EulerValue = Property.GetValuePtr<FVector>(ObjectInstance);
@@ -193,24 +281,10 @@ bool UPropertyRenderer::RenderProperty(const FProperty& Property, void* ObjectIn
 			}
 		}
 
-		// LightComponent는 Light 프로퍼티가 변경되면 UpdateLightData를 호출하여 동기화
+		// LightComponent Light 프로퍼티가 변경되면 UpdateLightData 호출
 		if (ULightComponentBase* LightComponent = Cast<ULightComponentBase>(Obj))
 		{
-			// Light 관련 프로퍼티가 변경되면 UpdateLightData 호출
-			if (strcmp(Property.Name, "LightColor") == 0 ||
-				strcmp(Property.Name, "Intensity") == 0 ||
-				strcmp(Property.Name, "Temperature") == 0 ||
-				strcmp(Property.Name, "bIsVisible") == 0 ||
-				strcmp(Property.Name, "bIsActive") == 0 ||
-				strcmp(Property.Name, "AttenuationRadius") == 0 ||
-				strcmp(Property.Name, "bUseInverseSquareFalloff") == 0 ||
-				strcmp(Property.Name, "FalloffExponent") == 0 ||
-				strcmp(Property.Name, "InnerConeAngle") == 0 ||
-				strcmp(Property.Name, "OuterConeAngle") == 0)
-
-			{
-				LightComponent->UpdateLightData();
-			}
+			LightComponent->UpdateLightData();
 		}
 	}
 
@@ -603,10 +677,428 @@ bool UPropertyRenderer::RenderObjectPtrProperty(const FProperty& Prop, void* Ins
 
 bool UPropertyRenderer::RenderStructProperty(const FProperty& Prop, void* Instance)
 {
-	// Struct는 읽기 전용으로 표시
-	// FVector, FLinearColor 등 주요 타입은 이미 별도로 처리됨
-	ImGui::Text("%s: [Struct]", Prop.Name);
-	return false;
+	// TypeName으로 UStruct 찾기
+	UStruct* StructType = UStruct::FindStruct(Prop.TypeName);
+	if (!StructType)
+	{
+		ImGui::Text("%s: [Unknown Struct: %s]", Prop.Name, Prop.TypeName ? Prop.TypeName : "null");
+		return false;
+	}
+
+	bool bChanged = false;
+	void* StructInstance = (char*)Instance + Prop.Offset;
+
+	// TreeNode로 접을 수 있게 표시
+	if (ImGui::TreeNode(Prop.Name))
+	{
+		ImGui::Indent();
+
+		// Struct의 모든 프로퍼티 순회
+		for (const FProperty& StructProp : StructType->GetAllProperties())
+		{
+			ImGui::PushID(&StructProp);
+
+			// 재귀적으로 프로퍼티 렌더링
+			if (RenderProperty(StructProp, StructInstance))
+			{
+				bChanged = true;
+			}
+
+			ImGui::PopID();
+		}
+
+		ImGui::Unindent();
+		ImGui::TreePop();
+	}
+
+	return bChanged;
+}
+
+bool UPropertyRenderer::RenderEnumProperty(const FProperty& Prop, void* Instance)
+{
+	// TypeName에서 enum 타입 이름 확인
+	if (!Prop.TypeName)
+	{
+		ImGui::Text("%s: [Error: No TypeName]", Prop.Name);
+		return false;
+	}
+
+	// EnumRegistry에서 메타데이터 조회
+	const FEnumInfo* EnumInfo = EnumRegistry::Get().FindEnum(Prop.TypeName);
+	if (!EnumInfo)
+	{
+		ImGui::Text("%s: [Error: Enum '%s' not in registry]", Prop.Name, Prop.TypeName);
+		return false;
+	}
+
+	// Enum 값의 포인터 가져오기 (uint8로 가정 - 대부분의 UENUM이 uint8)
+	uint8* EnumPtr = Prop.GetValuePtr<uint8>(Instance);
+	if (!EnumPtr)
+	{
+		ImGui::Text("%s: [Invalid Enum]", Prop.Name);
+		return false;
+	}
+
+	bool bChanged = false;
+	int CurrentValue = static_cast<int>(*EnumPtr);
+
+	// Entries에서 이름 배열과 현재 인덱스 구성
+	TArray<const char*> EnumNames;
+	int CurrentIndex = 0;
+
+	for (size_t i = 0; i < EnumInfo->Entries.size(); ++i)
+	{
+		const FEnumEntry& Entry = EnumInfo->Entries[i];
+		EnumNames.Add(Entry.DisplayName ? Entry.DisplayName : Entry.Name);
+
+		if (static_cast<int>(Entry.Value) == CurrentValue)
+		{
+			CurrentIndex = static_cast<int>(i);
+		}
+	}
+
+	// 콤보박스 렌더링
+	ImGui::SetNextItemWidth(200);
+	if (ImGui::Combo(Prop.Name, &CurrentIndex, EnumNames.data(), static_cast<int>(EnumNames.size())))
+	{
+		if (CurrentIndex >= 0 && CurrentIndex < static_cast<int>(EnumInfo->Entries.size()))
+		{
+			*EnumPtr = static_cast<uint8>(EnumInfo->Entries[CurrentIndex].Value);
+			bChanged = true;
+		}
+	}
+
+	return bChanged;
+}
+
+bool UPropertyRenderer::RenderMapProperty(const FProperty& Prop, void* Instance)
+{
+	if (Prop.KeyType == EPropertyType::Unknown || Prop.InnerType == EPropertyType::Unknown)
+	{
+		ImGui::Text("%s: [Invalid Map]", Prop.Name);
+		return false;
+	}
+
+	bool bChanged = false;
+
+	// TreeNode로 접을 수 있게 표시
+	if (ImGui::TreeNode(Prop.Name))
+	{
+		ImGui::Indent();
+
+		// FString 키 Map 처리 (가장 일반적인 경우)
+		if (Prop.KeyType == EPropertyType::FString)
+		{
+			switch (Prop.InnerType)
+			{
+			case EPropertyType::Int32:
+			{
+				TMap<FString, int32>* MapPtr = Prop.GetValuePtr<TMap<FString, int32>>(Instance);
+				if (MapPtr)
+				{
+					// Add 버튼
+					static char newKeyBuf[128] = "";
+					ImGui::InputText("New Key", newKeyBuf, sizeof(newKeyBuf));
+					ImGui::SameLine();
+					if (ImGui::Button("Add##Int32"))
+					{
+						FString newKey = newKeyBuf;
+						if (!newKey.empty() && MapPtr->find(newKey) == MapPtr->end())
+						{
+							(*MapPtr)[newKey] = 0;
+							newKeyBuf[0] = '\0';
+							bChanged = true;
+						}
+					}
+
+					// 삭제할 키 저장용
+					FString keyToDelete;
+					FString keyToRename;
+					FString newKeyName;
+
+					int idx = 0;
+					for (auto& [key, value] : *MapPtr)
+					{
+						ImGui::PushID(idx++);
+
+						// Key 편집
+						char keyBuf[128];
+						strncpy_s(keyBuf, key.c_str(), sizeof(keyBuf) - 1);
+						ImGui::SetNextItemWidth(100);
+						if (ImGui::InputText("##key", keyBuf, sizeof(keyBuf), ImGuiInputTextFlags_EnterReturnsTrue))
+						{
+							FString newName = keyBuf;
+							if (!newName.empty() && newName != key && MapPtr->find(newName) == MapPtr->end())
+							{
+								keyToRename = key;
+								newKeyName = newName;
+							}
+						}
+
+						ImGui::SameLine();
+						ImGui::SetNextItemWidth(100);
+						if (ImGui::DragInt("##val", &value, 1))
+							bChanged = true;
+
+						ImGui::SameLine();
+						if (ImGui::Button("X"))
+							keyToDelete = key;
+
+						ImGui::PopID();
+					}
+
+					// 키 이름 변경 처리
+					if (!keyToRename.empty())
+					{
+						int32 val = (*MapPtr)[keyToRename];
+						MapPtr->erase(keyToRename);
+						(*MapPtr)[newKeyName] = val;
+						bChanged = true;
+					}
+
+					// 삭제 처리
+					if (!keyToDelete.empty())
+					{
+						MapPtr->erase(keyToDelete);
+						bChanged = true;
+					}
+				}
+				break;
+			}
+			case EPropertyType::Float:
+			{
+				TMap<FString, float>* MapPtr = Prop.GetValuePtr<TMap<FString, float>>(Instance);
+				if (MapPtr)
+				{
+					// Add 버튼
+					static char newKeyBuf[128] = "";
+					ImGui::InputText("New Key", newKeyBuf, sizeof(newKeyBuf));
+					ImGui::SameLine();
+					if (ImGui::Button("Add##Float"))
+					{
+						FString newKey = newKeyBuf;
+						if (!newKey.empty() && MapPtr->find(newKey) == MapPtr->end())
+						{
+							(*MapPtr)[newKey] = 0.0f;
+							newKeyBuf[0] = '\0';
+							bChanged = true;
+						}
+					}
+
+					FString keyToDelete;
+					FString keyToRename;
+					FString newKeyName;
+
+					int idx = 0;
+					for (auto& [key, value] : *MapPtr)
+					{
+						ImGui::PushID(idx++);
+
+						char keyBuf[128];
+						strncpy_s(keyBuf, key.c_str(), sizeof(keyBuf) - 1);
+						ImGui::SetNextItemWidth(100);
+						if (ImGui::InputText("##key", keyBuf, sizeof(keyBuf), ImGuiInputTextFlags_EnterReturnsTrue))
+						{
+							FString newName = keyBuf;
+							if (!newName.empty() && newName != key && MapPtr->find(newName) == MapPtr->end())
+							{
+								keyToRename = key;
+								newKeyName = newName;
+							}
+						}
+
+						ImGui::SameLine();
+						ImGui::SetNextItemWidth(100);
+						if (ImGui::DragFloat("##val", &value, 0.1f))
+							bChanged = true;
+
+						ImGui::SameLine();
+						if (ImGui::Button("X"))
+							keyToDelete = key;
+
+						ImGui::PopID();
+					}
+
+					if (!keyToRename.empty())
+					{
+						float val = (*MapPtr)[keyToRename];
+						MapPtr->erase(keyToRename);
+						(*MapPtr)[newKeyName] = val;
+						bChanged = true;
+					}
+
+					if (!keyToDelete.empty())
+					{
+						MapPtr->erase(keyToDelete);
+						bChanged = true;
+					}
+				}
+				break;
+			}
+			case EPropertyType::FString:
+			{
+				TMap<FString, FString>* MapPtr = Prop.GetValuePtr<TMap<FString, FString>>(Instance);
+				if (MapPtr)
+				{
+					// Add 버튼
+					static char newKeyBuf[128] = "";
+					ImGui::InputText("New Key", newKeyBuf, sizeof(newKeyBuf));
+					ImGui::SameLine();
+					if (ImGui::Button("Add##String"))
+					{
+						FString newKey = newKeyBuf;
+						if (!newKey.empty() && MapPtr->find(newKey) == MapPtr->end())
+						{
+							(*MapPtr)[newKey] = "";
+							newKeyBuf[0] = '\0';
+							bChanged = true;
+						}
+					}
+
+					FString keyToDelete;
+					FString keyToRename;
+					FString newKeyName;
+
+					int idx = 0;
+					for (auto& [key, value] : *MapPtr)
+					{
+						ImGui::PushID(idx++);
+
+						char keyBuf[128];
+						strncpy_s(keyBuf, key.c_str(), sizeof(keyBuf) - 1);
+						ImGui::SetNextItemWidth(100);
+						if (ImGui::InputText("##key", keyBuf, sizeof(keyBuf), ImGuiInputTextFlags_EnterReturnsTrue))
+						{
+							FString newName = keyBuf;
+							if (!newName.empty() && newName != key && MapPtr->find(newName) == MapPtr->end())
+							{
+								keyToRename = key;
+								newKeyName = newName;
+							}
+						}
+
+						ImGui::SameLine();
+						char valBuf[256];
+						strncpy_s(valBuf, value.c_str(), sizeof(valBuf) - 1);
+						ImGui::SetNextItemWidth(150);
+						if (ImGui::InputText("##val", valBuf, sizeof(valBuf)))
+						{
+							value = valBuf;
+							bChanged = true;
+						}
+
+						ImGui::SameLine();
+						if (ImGui::Button("X"))
+							keyToDelete = key;
+
+						ImGui::PopID();
+					}
+
+					if (!keyToRename.empty())
+					{
+						FString val = (*MapPtr)[keyToRename];
+						MapPtr->erase(keyToRename);
+						(*MapPtr)[newKeyName] = val;
+						bChanged = true;
+					}
+
+					if (!keyToDelete.empty())
+					{
+						MapPtr->erase(keyToDelete);
+						bChanged = true;
+					}
+				}
+				break;
+			}
+			case EPropertyType::Bool:
+			{
+				TMap<FString, bool>* MapPtr = Prop.GetValuePtr<TMap<FString, bool>>(Instance);
+				if (MapPtr)
+				{
+					// Add 버튼
+					static char newKeyBuf[128] = "";
+					ImGui::InputText("New Key", newKeyBuf, sizeof(newKeyBuf));
+					ImGui::SameLine();
+					if (ImGui::Button("Add##Bool"))
+					{
+						FString newKey = newKeyBuf;
+						if (!newKey.empty() && MapPtr->find(newKey) == MapPtr->end())
+						{
+							(*MapPtr)[newKey] = false;
+							newKeyBuf[0] = '\0';
+							bChanged = true;
+						}
+					}
+
+					FString keyToDelete;
+					FString keyToRename;
+					FString newKeyName;
+
+					int idx = 0;
+					for (auto& [key, value] : *MapPtr)
+					{
+						ImGui::PushID(idx++);
+
+						char keyBuf[128];
+						strncpy_s(keyBuf, key.c_str(), sizeof(keyBuf) - 1);
+						ImGui::SetNextItemWidth(100);
+						if (ImGui::InputText("##key", keyBuf, sizeof(keyBuf), ImGuiInputTextFlags_EnterReturnsTrue))
+						{
+							FString newName = keyBuf;
+							if (!newName.empty() && newName != key && MapPtr->find(newName) == MapPtr->end())
+							{
+								keyToRename = key;
+								newKeyName = newName;
+							}
+						}
+
+						ImGui::SameLine();
+						if (ImGui::Checkbox("##val", &value))
+							bChanged = true;
+
+						ImGui::SameLine();
+						if (ImGui::Button("X"))
+							keyToDelete = key;
+
+						ImGui::PopID();
+					}
+
+					if (!keyToRename.empty())
+					{
+						bool val = (*MapPtr)[keyToRename];
+						MapPtr->erase(keyToRename);
+						(*MapPtr)[newKeyName] = val;
+						bChanged = true;
+					}
+
+					if (!keyToDelete.empty())
+					{
+						MapPtr->erase(keyToDelete);
+						bChanged = true;
+					}
+				}
+				break;
+			}
+			default:
+				ImGui::Text("Unsupported value type");
+				break;
+			}
+		}
+		else if (Prop.KeyType == EPropertyType::Int32)
+		{
+			// int32 키 Map은 읽기 전용으로 표시
+			ImGui::Text("(int32 key maps: read-only)");
+		}
+		else
+		{
+			ImGui::Text("Unsupported key type");
+		}
+
+		ImGui::Unindent();
+		ImGui::TreePop();
+	}
+
+	return bChanged;
 }
 
 bool UPropertyRenderer::RenderTextureProperty(const FProperty& Prop, void* Instance)

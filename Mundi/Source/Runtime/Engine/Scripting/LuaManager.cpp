@@ -1,6 +1,9 @@
 ﻿#include "pch.h"
 #include "LuaManager.h"
 #include "LuaComponentProxy.h"
+#include "LuaArrayProxy.h"
+#include "LuaMapProxy.h"
+#include "LuaStructProxy.h"
 #include "GameObject.h"
 #include "ObjectIterator.h"
 #include "CameraActor.h"
@@ -8,10 +11,12 @@
 #include "PlayerCameraManager.h"
 #include <tuple>
 
-sol::object MakeCompProxy(sol::state_view SolState, void* Instance, UClass* Class) {
+sol::object MakeCompProxy(sol::state_view SolState, UObject* Instance, UClass* Class) {
     LuaComponentProxy Proxy;
     Proxy.Instance = Instance;
     Proxy.Class = Class;
+    // Build bound class for reflection-based access
+    BuildBoundClass(Class);
     return sol::make_object(SolState, std::move(Proxy));
 }
 
@@ -335,6 +340,20 @@ FLuaManager::FLuaManager()
         "A", &FLinearColor::A
     );
 
+    // FName constructor and usertype
+    Lua->set_function("Name", sol::overload(
+        []() { return FName(); },
+        [](const char* Str) { return FName(Str); },
+        [](const FString& Str) { return FName(Str); }
+    ));
+
+    SharedLib.new_usertype<FName>("FName",
+        sol::constructors<FName(), FName(const char*), FName(const FString&)>(),
+        "ToString", &FName::ToString,
+        sol::meta_function::to_string, &FName::ToString,
+        sol::meta_function::equal_to, [](const FName& a, const FName& b) { return a == b; }
+    );
+
     RegisterComponentProxy(*Lua);
     ExposeGlobalFunctions();
     ExposeAllComponentsToLua();
@@ -369,6 +388,11 @@ sol::environment FLuaManager::CreateEnvironment()
 }
 
 void FLuaManager::RegisterComponentProxy(sol::state& Lua) {
+    // Register proxy types for Array/Map/Struct
+    LuaArrayProxy::RegisterLua(Lua);
+    LuaMapProxy::RegisterLua(Lua);
+    LuaStructProxy::RegisterLua(Lua);
+
     Lua.new_usertype<LuaComponentProxy>("Component",
         sol::meta_function::index,     &LuaComponentProxy::Index,
         sol::meta_function::new_index, &LuaComponentProxy::NewIndex

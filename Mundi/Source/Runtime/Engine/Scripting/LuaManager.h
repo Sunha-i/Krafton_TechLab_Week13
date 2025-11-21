@@ -36,4 +36,4 @@ private:
 };
 
 // Helper function to wrap C++ object pointers in LuaComponentProxy for Lua
-sol::object MakeCompProxy(sol::state_view SolState, void* Instance, UClass* Class);
+sol::object MakeCompProxy(sol::state_view SolState, UObject* Instance, UClass* Class);

@@ -9,7 +9,6 @@
 #include "CapsuleComponent.h"
 #include "CharacterMovementComponent.h"
 #include "SkeletalMeshComponent.h"
-#include "Vector.h"
 
 // ===== Class Factory Registration (IMPLEMENT_CLASS) =====
 
@@ -53,19 +52,19 @@ LUA_BIND_BEGIN(ACharacter)
         T, "GetCapsuleComponent", &ACharacter::GetCapsuleComponent);
     AddMethodR<USkeletalMeshComponent*, ACharacter>(
         T, "GetMesh", &ACharacter::GetMesh);
-    AddAlias<ACharacter>(
+    AddMethodR<virtual void, ACharacter>(
         T, "Jump", &ACharacter::Jump);
-    AddAlias<ACharacter>(
+    AddMethodR<virtual void, ACharacter>(
         T, "StopJumping", &ACharacter::StopJumping);
-    AddMethodR<bool, ACharacter>(
+    AddMethodR<virtual bool, ACharacter>(
         T, "CanJump", &ACharacter::CanJump);
-    AddAlias<ACharacter>(
+    AddMethodR<virtual void, ACharacter>(
         T, "Crouch", &ACharacter::Crouch);
-    AddAlias<ACharacter>(
+    AddMethodR<virtual void, ACharacter>(
         T, "UnCrouch", &ACharacter::UnCrouch);
     AddMethodR<bool, ACharacter>(
         T, "IsCrouched", &ACharacter::IsCrouched);
-    AddMethodR<FVector, ACharacter>(
+    AddMethodR<virtual FVector, ACharacter>(
         T, "GetVelocity", &ACharacter::GetVelocity);
     AddMethodR<bool, ACharacter>(
         T, "IsGrounded", &ACharacter::IsGrounded);

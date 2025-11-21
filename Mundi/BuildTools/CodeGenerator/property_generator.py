@@ -19,6 +19,10 @@ BEGIN_PROPERTIES({{ class_name }})
     ADD_PROPERTY_RANGE({{ prop.type }}, {{ prop.name }}, "{{ prop.category }}", {{ prop.min_value }}f, {{ prop.max_value }}f, {{ 'true' if prop.editable else 'false' }}{% if prop.tooltip %}, "{{ prop.tooltip }}"{% endif %})
     {%- elif prop.get_property_type_macro() == 'ADD_PROPERTY_ARRAY' %}
     ADD_PROPERTY_ARRAY({{ prop.metadata.get('inner_type', 'EPropertyType::ObjectPtr') }}, {{ prop.name }}, "{{ prop.category }}", {{ 'true' if prop.editable else 'false' }}{% if prop.tooltip %}, "{{ prop.tooltip }}"{% endif %})
+    {%- elif prop.get_property_type_macro() == 'ADD_PROPERTY_MAP' %}
+    ADD_PROPERTY_MAP({{ prop.metadata.get('key_type', 'EPropertyType::FString') }}, {{ prop.metadata.get('value_type', 'EPropertyType::Int32') }}, {{ prop.name }}, "{{ prop.category }}", {{ 'true' if prop.editable else 'false' }}{% if prop.tooltip %}, "{{ prop.tooltip }}"{% endif %})
+    {%- elif prop.get_property_type_macro() == 'ADD_PROPERTY_SCRIPT' %}
+    ADD_PROPERTY_SCRIPT({{ prop.type }}, {{ prop.name }}, "{{ prop.category }}", "{{ prop.metadata.get('ScriptFile', '.lua') }}", {{ 'true' if prop.editable else 'false' }}{% if prop.tooltip %}, "{{ prop.tooltip }}"{% endif %})
     {%- else %}
     {{ prop.get_property_type_macro() }}({{ prop.type }}, {{ prop.name }}, "{{ prop.category }}", {{ 'true' if prop.editable else 'false' }}{% if prop.tooltip %}, "{{ prop.tooltip }}"{% endif %})
     {%- endif %}
@@ -95,4 +99,36 @@ END_PROPERTIES()
             display_name=class_info.display_name or class_info.name,
             description=class_info.description or f"Auto-generated {class_info.name}",
             properties=class_info.properties
+        )
+
+    def generate_struct(self, struct_info) -> str:
+        """StructInfo로부터 BEGIN_STRUCT_PROPERTIES 블록 생성"""
+        from jinja2 import Template
+
+        STRUCT_TEMPLATE = """
+BEGIN_STRUCT_PROPERTIES({{ struct_name }})
+{%- for prop in properties %}
+    {%- if prop.get_property_type_macro() == 'ADD_PROPERTY_RANGE' %}
+    ADD_PROPERTY_RANGE({{ prop.type }}, {{ prop.name }}, "{{ prop.category }}", {{ prop.min_value }}f, {{ prop.max_value }}f, {{ 'true' if prop.editable else 'false' }}{% if prop.tooltip %}, "{{ prop.tooltip }}"{% endif %})
+    {%- elif prop.get_property_type_macro() == 'ADD_PROPERTY_ARRAY' %}
+    ADD_PROPERTY_ARRAY({{ prop.metadata.get('inner_type', 'EPropertyType::ObjectPtr') }}, {{ prop.name }}, "{{ prop.category }}", {{ 'true' if prop.editable else 'false' }}{% if prop.tooltip %}, "{{ prop.tooltip }}"{% endif %})
+    {%- elif prop.get_property_type_macro() == 'ADD_PROPERTY_MAP' %}
+    ADD_PROPERTY_MAP({{ prop.metadata.get('key_type', 'EPropertyType::FString') }}, {{ prop.metadata.get('value_type', 'EPropertyType::Int32') }}, {{ prop.name }}, "{{ prop.category }}", {{ 'true' if prop.editable else 'false' }}{% if prop.tooltip %}, "{{ prop.tooltip }}"{% endif %})
+    {%- else %}
+    {{ prop.get_property_type_macro() }}({{ prop.type }}, {{ prop.name }}, "{{ prop.category }}", {{ 'true' if prop.editable else 'false' }}{% if prop.tooltip %}, "{{ prop.tooltip }}"{% endif %})
+    {%- endif %}
+{%- endfor %}
+END_PROPERTIES()
+"""
+        template = Template(STRUCT_TEMPLATE)
+
+        if not struct_info.properties:
+            return f"""
+BEGIN_STRUCT_PROPERTIES({struct_info.name})
+END_PROPERTIES()
+"""
+
+        return template.render(
+            struct_name=struct_info.name,
+            properties=struct_info.properties
         )

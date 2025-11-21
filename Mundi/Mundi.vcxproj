@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version='1.0' encoding='utf-8'?>
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003" DefaultTargets="Build">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug_StandAlone|x64">
@@ -281,6 +281,7 @@ xcopy /y /d "$(ProjectDir)ThirdParty\lib\Lua\lua54.dll" "$(OutDir)"</Command>
     <ClCompile Include="Source\Runtime\Engine\Animation\AnimSequencePlayer.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Components\CharacterMovementComponent.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Components\InputComponent.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\Components\PropertyTestComponent.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Components\SkeletalMeshComponent.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Components\SkinnedMeshComponent.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Components\SpringArmComponent.cpp" />
@@ -360,11 +361,14 @@ xcopy /y /d "$(ProjectDir)ThirdParty\lib\Lua\lua54.dll" "$(OutDir)"</Command>
     <ClCompile Include="Source\Runtime\Engine\GameFramework\PointLightActor.cpp" />
     <ClCompile Include="Source\Runtime\Engine\GameFramework\SpotLightActor.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Scripting\GameObject.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\Scripting\LuaArrayProxy.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Scripting\LuaBindHelpers.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Scripting\LuaBindingRegistry.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Scripting\LuaComponentProxy.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Scripting\LuaCoroutineScheduler.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Scripting\LuaManager.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\Scripting\LuaMapProxy.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\Scripting\LuaStructProxy.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Viewer\AnimationViewerBootstrap.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Viewer\BlendSpaceEditorBootstrap.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Viewer\EditorAssetPreviewContext.cpp" />
@@ -550,6 +554,9 @@ xcopy /y /d "$(ProjectDir)ThirdParty\lib\Lua\lua54.dll" "$(OutDir)"</Command>
     <ClCompile Include="Generated\AGameStateBase.generated.cpp" />
     <ClCompile Include="Generated\UAnimBlendSpaceInstance.generated.cpp" />
     <ClCompile Include="Generated\ADancingCharacter.generated.cpp" />
+    <ClCompile Include="Generated\UPropertyTestComponent.generated.cpp" />
+    <ClCompile Include="Generated\EnumRegistry.generated.cpp" />
+    <ClCompile Include="Generated\FTestStruct.generated.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Shaders\Common\LightingBuffers.hlsl">
@@ -738,6 +745,7 @@ xcopy /y /d "$(ProjectDir)ThirdParty\lib\Lua\lua54.dll" "$(OutDir)"</Command>
     <ClInclude Include="Source\Runtime\Engine\Components\LuaScriptComponent.h" />
     <ClInclude Include="Source\Runtime\Engine\Components\MovementComponent.h" />
     <ClInclude Include="Source\Runtime\Engine\Components\ProjectileMovementComponent.h" />
+    <ClInclude Include="Source\Runtime\Engine\Components\PropertyTestComponent.h" />
     <ClInclude Include="Source\Runtime\Engine\Components\RotatingMovementComponent.h" />
     <ClInclude Include="Source\Runtime\Engine\Components\BoxComponent.h" />
     <ClInclude Include="Source\Runtime\Engine\Components\BoneAnchorComponent.h" />
@@ -770,11 +778,15 @@ xcopy /y /d "$(ProjectDir)ThirdParty\lib\Lua\lua54.dll" "$(OutDir)"</Command>
     <ClInclude Include="Source\Runtime\Engine\GameFramework\SkeletalMeshActor.h" />
     <ClInclude Include="Source\Runtime\Engine\GameFramework\SpotLightActor.h" />
     <ClInclude Include="Source\Runtime\Engine\Scripting\GameObject.h" />
+    <ClInclude Include="Source\Runtime\Engine\Scripting\LuaArrayProxy.h" />
     <ClInclude Include="Source\Runtime\Engine\Scripting\LuaBindHelpers.h" />
     <ClInclude Include="Source\Runtime\Engine\Scripting\LuaBindingRegistry.h" />
     <ClInclude Include="Source\Runtime\Engine\Scripting\LuaComponentProxy.h" />
     <ClInclude Include="Source\Runtime\Engine\Scripting\LuaCoroutineScheduler.h" />
     <ClInclude Include="Source\Runtime\Engine\Scripting\LuaManager.h" />
+    <ClInclude Include="Source\Runtime\Engine\Scripting\LuaMapProxy.h" />
+    <ClInclude Include="Source\Runtime\Engine\Scripting\LuaObjectProxyHelpers.h" />
+    <ClInclude Include="Source\Runtime\Engine\Scripting\LuaStructProxy.h" />
     <ClInclude Include="Source\Runtime\Engine\Viewer\AnimationViewerBootstrap.h" />
     <ClInclude Include="Source\Runtime\Engine\Viewer\BlendSpaceEditorBootstrap.h" />
     <ClInclude Include="Source\Runtime\Engine\Viewer\EditorAssetPreviewContext.h" />
@@ -980,6 +992,9 @@ xcopy /y /d "$(ProjectDir)ThirdParty\lib\Lua\lua54.dll" "$(OutDir)"</Command>
     <ClInclude Include="Generated\AGameStateBase.generated.h" />
     <ClInclude Include="Generated\UAnimBlendSpaceInstance.generated.h" />
     <ClInclude Include="Generated\ADancingCharacter.generated.h" />
+    <ClInclude Include="Generated\UPropertyTestComponent.generated.h" />
+    <ClInclude Include="Generated\EnumRegistry.generated.h" />
+    <ClInclude Include="Generated\FTestStruct.generated.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="BuildTools\CodeGenerator\generate.py" />
