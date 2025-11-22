@@ -60,7 +60,9 @@ $ErrorActionPreference = "Stop"
 
 # ===== 스크립트 위치 및 프로젝트 루트 경로 =====
 $ScriptDir = $PSScriptRoot
-$ProjectRoot = Split-Path (Split-Path $ScriptDir -Parent) -Parent
+# ScriptDir: Mundi\BuildTools\SymbolServer
+# -> Mundi\BuildTools -> Mundi -> Krafton_TechLab_Week12 (솔루션 루트)
+$ProjectRoot = Split-Path (Split-Path (Split-Path $ScriptDir -Parent) -Parent) -Parent
 $ConfigFile = Join-Path $ScriptDir "SymbolServerConfig.json"
 
 Write-Host ""
@@ -117,9 +119,10 @@ $BinariesDir = Join-Path $ProjectRoot "Binaries\$Configuration"
 $ExePath = Join-Path $BinariesDir "Mundi.exe"
 $PdbPath = Join-Path $BinariesDir "Mundi.pdb"
 
-$SrctoolExe = Join-Path $WinDbgKitPath "srctool.exe"
-$PdbstrExe = Join-Path $WinDbgKitPath "pdbstr.exe"
-$SymstoreExe = Join-Path $WinDbgKitPath "symstore.exe"
+# 설정 파일의 tools 경로 사용 (srcsrv 하위 폴더 지원)
+$SrctoolExe = Join-Path $WinDbgKitPath $Config.winDbgKit.tools.srctool
+$PdbstrExe = Join-Path $WinDbgKitPath $Config.winDbgKit.tools.pdbstr
+$SymstoreExe = Join-Path $WinDbgKitPath $Config.winDbgKit.tools.symstore
 $SourceIndexScript = Join-Path $ScriptDir "SourceIndex.py"
 
 Write-Host "[Paths] Git Repository: $GitRepoRoot" -ForegroundColor White
