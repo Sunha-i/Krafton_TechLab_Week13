@@ -28,6 +28,7 @@ class UGizmoArrowComponent;
 class FSceneView;
 class FTileLightCuller;
 class ULineComponent;
+class UParticleSystemComponent;
 
 struct FCandidateDrawable;
 
@@ -39,6 +40,7 @@ struct FVisibleRenderProxySet
 	TArray<UBillboardComponent*> Billboards; // 인게임 빌보드 (파티클, 잔디 등)
 	TArray<UDecalComponent*> Decals;
 	TArray<UTextRenderComponent*> Texts;
+	TArray<UParticleSystemComponent*> ParticleSystems;
 
 	// --- Type 2: In-Scene Editor (PP X, Depth-Test O) ---
 	TArray<ULineComponent*> EditorLines;	// 그리드
@@ -107,6 +109,9 @@ private:
 
 	/** @brief 데칼(Decal)을 렌더링하는 패스입니다. */
 	void RenderDecalPass();
+
+	/** @brief 파티클 시스템을 렌더링하기 위한 패스입니다. **/
+	void RenderParticleSystemPass();
 
 	void RenderPostProcessingPasses();
 	void RenderSceneDepthPostProcess();

@@ -518,6 +518,18 @@ void UResourceManager::InitShaderILMap()
     layout.clear();
     
     ShaderToInputLayoutMap["Shaders/Utility/FullScreenTriangle_VS.hlsl"] = {};  // FullScreenTriangle 는 InputLayout을 사용하지 않는다
+
+    // ────────────────────────────────
+    // 파티클 스프라이트 (FParticleSpriteVertex)
+    // ────────────────────────────────
+    layout.Add({ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 });    // WorldPosition
+    layout.Add({ "TEXCOORD", 0, DXGI_FORMAT_R32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 });         // Rotation
+    layout.Add({ "TEXCOORD", 1, DXGI_FORMAT_R32G32_FLOAT, 0, 16, D3D11_INPUT_PER_VERTEX_DATA, 0 });      // UV
+    layout.Add({ "TEXCOORD", 2, DXGI_FORMAT_R32G32_FLOAT, 0, 24, D3D11_INPUT_PER_VERTEX_DATA, 0 });      // Size
+    layout.Add({ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 32, D3D11_INPUT_PER_VERTEX_DATA, 0 });   // Color
+    layout.Add({ "TEXCOORD", 3, DXGI_FORMAT_R32_FLOAT, 0, 48, D3D11_INPUT_PER_VERTEX_DATA, 0 });         // RelativeTime
+    ShaderToInputLayoutMap["Shaders/Particle/ParticleSprite.hlsl"] = layout;
+    layout.clear();
 }
 
 TArray<D3D11_INPUT_ELEMENT_DESC>& UResourceManager::GetProperInputLayout(const FString& InShaderName)

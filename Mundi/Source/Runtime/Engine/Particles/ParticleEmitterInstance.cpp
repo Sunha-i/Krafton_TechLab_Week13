@@ -208,12 +208,14 @@ void FParticleEmitterInstance::SpawnParticles(int32 Count, float StartTime, floa
 			}
 		}
 
-		// 새 파티클의 인덱스 가져오기
-		int32 ParticleIndex = ActiveParticles;
+		// 새 파티클의 슬롯 가져오기 (인덱스 시스템 사용)
+		// ParticleIndices[ActiveParticles]는 다음 사용 가능한 슬롯을 가리킴
+		// (KillParticle에서 스왑된 빈 슬롯 또는 초기화 시 순차 슬롯)
+		int32 ParticleSlot = ParticleIndices[ActiveParticles];
 		ActiveParticles++;
 
 		// 파티클 포인터 가져오기 (언리얼 방식)
-		uint8* ParticleBase = ParticleData + (ParticleIndex * ParticleStride);
+		uint8* ParticleBase = ParticleData + (ParticleSlot * ParticleStride);
 		DECLARE_PARTICLE_PTR(Particle, ParticleBase);
 
 		// 생성 전

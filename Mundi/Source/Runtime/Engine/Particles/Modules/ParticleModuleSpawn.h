@@ -16,7 +16,12 @@ public:
 	UPROPERTY(EditAnywhere, Category="Spawn")
 	int32 BurstCount = 0;
 
-	UParticleModuleSpawn() = default;
+	UParticleModuleSpawn()
+	{
+		// 스폰 모듈은 항상 bSpawnModule = true로 설정되어야
+		// CacheModuleInfo()에서 SpawnModules 배열에 추가됨
+		bSpawnModule = true;
+	}
 	virtual ~UParticleModuleSpawn() = default;
 
 	// 언리얼 엔진 호환: 스폰 계산 로직을 모듈로 캡슐화

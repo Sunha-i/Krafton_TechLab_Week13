@@ -49,6 +49,7 @@
 #include "PostProcessing/VignettePass.h"
 #include "FbxLoader.h"
 #include "SkinnedMeshComponent.h"
+#include "ParticleSystemComponent.h"
 
 FSceneRenderer::FSceneRenderer(UWorld* InWorld, FSceneView* InView, URenderer* InOwnerRenderer)
 	: World(InWorld)
@@ -162,6 +163,19 @@ void FSceneRenderer::RenderLitPath()
 	// 래스터라이저 상태를 Solid로 명시적으로 설정 (이전 렌더 패스의 와이어프레임 상태가 남지 않도록)
 	RHIDevice->RSSetState(ERasterizerMode::Solid);
 
+	// ViewProjBuffer 설정 (모든 셰이더가 View/Projection 행렬을 사용할 수 있도록)
+	FMatrix InvView = View->ViewMatrix.Inverse();
+	FMatrix InvProjection;
+	if (View->ProjectionMode == ECameraProjectionMode::Perspective)
+	{
+		InvProjection = View->ProjectionMatrix.InversePerspectiveProjection();
+	}
+	else
+	{
+		InvProjection = View->ProjectionMatrix.InverseOrthographicProjection();
+	}
+	RHIDevice->SetAndUpdateConstantBuffer(ViewProjBufferType(View->ViewMatrix, View->ProjectionMatrix, InvView, InvProjection));
+
     RHIDevice->OMSetRenderTargets(ERTVMode::SceneColorTargetWithId);
 
 	// 이 뷰의 rect 영역에 대해 Scene Color를 클리어하여 불투명한 배경을 제공함
@@ -183,6 +197,7 @@ void FSceneRenderer::RenderLitPath()
 	RenderOpaquePass(View->RenderSettings->GetViewMode());
 
 	RenderDecalPass();
+	RenderParticleSystemPass();
 }
 
 void FSceneRenderer::RenderWireframePath()
@@ -754,6 +769,10 @@ void FSceneRenderer::GatherVisibleProxies()
 					{
 						Proxies.Decals.Add(DecalComponent);
 					}
+					else if (UParticleSystemComponent* ParticleSystemComponent = Cast<UParticleSystemComponent>(PrimitiveComponent))
+					{
+						Proxies.ParticleSystems.Add(ParticleSystemComponent);
+					}
 					else if (ULineComponent* LineComponent = Cast<ULineComponent>(PrimitiveComponent))
 					{
 						Proxies.EditorLines.Add(LineComponent);
@@ -963,7 +982,7 @@ void FSceneRenderer::RenderDecalPass()
 	if (Proxies.Decals.empty())
 		return;
 
-	// WorldNormal 모드에서는 Decal 렌더링 스킵
+	// WorldNormal 모드에서는 데칼 렌더링 스킵
 	if (View->RenderSettings->GetViewMode() == EViewMode::VMI_WorldNormal)
 		return;
 
@@ -1054,6 +1073,47 @@ void FSceneRenderer::RenderDecalPass()
 		auto CpuTimeEnd = std::chrono::high_resolution_clock::now();
 		std::chrono::duration<double, std::milli> CpuTimeMs = CpuTimeEnd - CpuTimeStart;
 		FDecalStatManager::GetInstance().GetDecalPassTimeSlot() += CpuTimeMs.count(); // CPU 소요 시간 저장
+	}
+
+	// 상태 복구
+	RHIDevice->RSSetState(ERasterizerMode::Solid);
+	RHIDevice->OMSetDepthStencilState(EComparisonFunc::LessEqual);
+	RHIDevice->OMSetBlendState(false);
+}
+
+void FSceneRenderer::RenderParticleSystemPass()
+{
+	if (Proxies.ParticleSystems.empty())
+		return;
+
+	// WorldNormal 모드에서는 파티클 렌더링 스킵
+	if (View->RenderSettings->GetViewMode() == EViewMode::VMI_WorldNormal)
+		return;
+
+	// 파티클 렌더 상태 설정
+	// 파티클은 양면 렌더링이 필요 (빌보드 없이 XY 평면 쿼드일 때 컬링 방지)
+	RHIDevice->RSSetState(ERasterizerMode::Solid_NoCull);
+	// TODO: 파티클 정렬 구현 시 depth write 관련 side effect 검토 필요
+	// DrawMeshBatches가 LessEqual(depth write ON)로 덮어쓰므로,
+	// 겹치는 파티클의 올바른 블렌딩을 위해 back-to-front 정렬 또는 depth state 수정 고려
+	RHIDevice->OMSetDepthStencilState(EComparisonFunc::LessEqualReadOnly);
+	RHIDevice->OMSetBlendState(true);
+
+	// 파티클 배치 수집
+	TArray<FMeshBatchElement> ParticleBatches;
+
+	for (UParticleSystemComponent* ParticleSystem : Proxies.ParticleSystems)
+	{
+		if (ParticleSystem && ParticleSystem->IsVisible())
+		{
+			ParticleSystem->CollectMeshBatches(ParticleBatches, View);
+		}
+	}
+
+	// 수집된 배치 그리기
+	if (ParticleBatches.Num() > 0)
+	{
+		DrawMeshBatches(ParticleBatches, true);
 	}
 
 	// 상태 복구
