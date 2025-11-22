@@ -46,56 +46,62 @@ void UParticleSystemComponent::BeginPlay()
 {
 	USceneComponent::BeginPlay();
 
-	// 테스트용: Template이 없으면 기본 파티클 시스템 생성
+	// Template이 없으면 디버그용 기본 파티클 시스템 생성
+	// Editor 완성 시 Editor에서 제공하는 Template 사용
 	if (!Template)
 	{
-		Template = NewObject<UParticleSystem>();
-
-		// 이미터 생성
-		UParticleEmitter* Emitter = NewObject<UParticleEmitter>();
-
-		// LOD 레벨 생성
-		UParticleLODLevel* LODLevel = NewObject<UParticleLODLevel>();
-		LODLevel->bEnabled = true;
-
-		// 필수 모듈 생성
-		LODLevel->RequiredModule = NewObject<UParticleModuleRequired>();
-
-		// 스폰 모듈 생성
-		UParticleModuleSpawn* SpawnModule = NewObject<UParticleModuleSpawn>();
-		SpawnModule->SpawnRate = 20.0f;  // 초당 20개 파티클
-		SpawnModule->BurstCount = 10;    // 시작 시 10개 버스트
-		// bSpawnModule은 생성자에서 자동으로 true로 설정됨
-		LODLevel->Modules.Add(SpawnModule);
-
-		// 라이프타임 모듈 생성 (파티클 수명 설정)
-		UParticleModuleLifetime* LifetimeModule = NewObject<UParticleModuleLifetime>();
-		LifetimeModule->MinLifetime = 2.0f;  // 최소 2초
-		LifetimeModule->MaxLifetime = 3.0f;  // 최대 3초
-		// bSpawnModule은 생성자에서 자동으로 true로 설정됨
-		LODLevel->Modules.Add(LifetimeModule);
-
-		// 속도 모듈 생성 (테스트용: 위쪽으로 퍼지는 랜덤 속도)
-		UParticleModuleVelocity* VelocityModule = NewObject<UParticleModuleVelocity>();
-		VelocityModule->StartVelocity = FVector(0.0f, 0.0f, 100.0f);  // 기본 위쪽 속도
-		VelocityModule->StartVelocityRange = FVector(50.0f, 50.0f, 50.0f);  // XYZ 랜덤 범위
-		LODLevel->Modules.Add(VelocityModule);
-
-		// 모듈 캐싱
-		LODLevel->CacheModuleInfo();
-
-		// LOD 레벨을 이미터에 추가
-		Emitter->LODLevels.Add(LODLevel);
-		Emitter->CacheEmitterModuleInfo();
-
-		// 이미터를 시스템에 추가
-		Template->Emitters.Add(Emitter);
+		CreateDebugParticleSystem();
 	}
 
 	if (bAutoActivate)
 	{
 		ActivateSystem();
 	}
+}
+
+void UParticleSystemComponent::CreateDebugParticleSystem()
+{
+	// 디버그/테스트용 기본 파티클 시스템 생성
+	// Editor 통합 완료 후에는 Editor에서 설정한 Template 사용
+	Template = NewObject<UParticleSystem>();
+
+	// 이미터 생성
+	UParticleEmitter* Emitter = NewObject<UParticleEmitter>();
+
+	// LOD 레벨 생성
+	UParticleLODLevel* LODLevel = NewObject<UParticleLODLevel>();
+	LODLevel->bEnabled = true;
+
+	// 필수 모듈 생성
+	LODLevel->RequiredModule = NewObject<UParticleModuleRequired>();
+
+	// 스폰 모듈 생성
+	UParticleModuleSpawn* SpawnModule = NewObject<UParticleModuleSpawn>();
+	SpawnModule->SpawnRate = 20.0f;  // 초당 20개 파티클
+	SpawnModule->BurstCount = 10;    // 시작 시 10개 버스트
+	LODLevel->Modules.Add(SpawnModule);
+
+	// 라이프타임 모듈 생성 (파티클 수명 설정)
+	UParticleModuleLifetime* LifetimeModule = NewObject<UParticleModuleLifetime>();
+	LifetimeModule->MinLifetime = 2.0f;  // 최소 2초
+	LifetimeModule->MaxLifetime = 3.0f;  // 최대 3초
+	LODLevel->Modules.Add(LifetimeModule);
+
+	// 속도 모듈 생성 (테스트용: 위쪽으로 퍼지는 랜덤 속도)
+	UParticleModuleVelocity* VelocityModule = NewObject<UParticleModuleVelocity>();
+	VelocityModule->StartVelocity = FVector(0.0f, 0.0f, 100.0f);  // 기본 위쪽 속도
+	VelocityModule->StartVelocityRange = FVector(50.0f, 50.0f, 50.0f);  // XYZ 랜덤 범위
+	LODLevel->Modules.Add(VelocityModule);
+
+	// 모듈 캐싱
+	LODLevel->CacheModuleInfo();
+
+	// LOD 레벨을 이미터에 추가
+	Emitter->LODLevels.Add(LODLevel);
+	Emitter->CacheEmitterModuleInfo();
+
+	// 이미터를 시스템에 추가
+	Template->Emitters.Add(Emitter);
 }
 
 void UParticleSystemComponent::EndPlay()
@@ -236,27 +242,42 @@ void UParticleSystemComponent::UpdateRenderData()
 			// Source 데이터 채우기
 			SpriteData->Source.ActiveParticleCount = Instance->ActiveParticles;
 			SpriteData->Source.ParticleStride = Instance->ParticleStride;
+			SpriteData->Source.Scale = GetRelativeScale();
+
+			// RequiredModule에서 Material과 렌더 설정 복사
+			UParticleModuleRequired* RequiredModule = Instance->CurrentLODLevel->RequiredModule;
+			if (RequiredModule)
+			{
+				SpriteData->Source.MaterialInterface = RequiredModule->Material;
+				// RequiredModule 데이터를 렌더 스레드용으로 복사
+				SpriteData->Source.RequiredModule = std::make_unique<FParticleRequiredModule>(
+					RequiredModule->ToRenderThreadData()
+				);
+				// SortMode는 현재 기본값 사용 (추후 RequiredModule에서 가져올 수 있음)
+				SpriteData->Source.SortMode = 2;  // Distance 정렬 (투명 렌더링용)
+			}
 
 			// 파티클 데이터 복사 (Replay 패턴 - 렌더 스레드용 스냅샷)
-			// 중요: ParticleIndices는 전체 버퍼의 인덱스를 가리키므로
-			// MaxActiveParticles 크기의 전체 버퍼를 복사해야 함
 			if (Instance->ActiveParticles > 0 && Instance->ParticleData)
 			{
-				// 전체 버퍼 크기 사용 (MaxActiveParticles)
-				int32 DataNumBytes = Instance->MaxActiveParticles * Instance->ParticleStride;
+				// 활성 파티클만 복사하기 위해 컴팩트 복사 수행
+				// ParticleIndices가 가리키는 파티클만 연속으로 복사
+				int32 DataNumBytes = Instance->ActiveParticles * Instance->ParticleStride;
 				int32 IndicesNumShorts = Instance->ActiveParticles;
 
 				if (SpriteData->Source.DataContainer.Alloc(DataNumBytes, IndicesNumShorts))
 				{
-					// 전체 파티클 버퍼 복사
-					memcpy(SpriteData->Source.DataContainer.ParticleData,
-						   Instance->ParticleData, DataNumBytes);
+					uint8* DstData = SpriteData->Source.DataContainer.ParticleData;
 
-					// 인덱스 복사
-					if (Instance->ParticleIndices)
+					// 활성 파티클만 컴팩트하게 복사
+					for (int32 j = 0; j < Instance->ActiveParticles; j++)
 					{
-						memcpy(SpriteData->Source.DataContainer.ParticleIndices,
-							   Instance->ParticleIndices, IndicesNumShorts * sizeof(uint16));
+						int32 SrcIndex = Instance->ParticleIndices[j];
+						const uint8* SrcParticle = Instance->ParticleData + SrcIndex * Instance->ParticleStride;
+						memcpy(DstData + j * Instance->ParticleStride, SrcParticle, Instance->ParticleStride);
+
+						// 인덱스는 컴팩트 복사 후 순차적으로 재매핑
+						SpriteData->Source.DataContainer.ParticleIndices[j] = static_cast<uint16>(j);
 					}
 				}
 			}
@@ -378,13 +399,23 @@ void UParticleSystemComponent::CollectMeshBatches(TArray<FMeshBatchElement>& Out
 		return;
 	}
 
-	// 2. 전체 파티클 수 계산
+	// 2. 전체 파티클 수 계산 및 정렬
 	int32 TotalParticles = 0;
 	for (FDynamicEmitterDataBase* EmitterData : EmitterRenderData)
 	{
-		if (EmitterData)
+		if (!EmitterData)
+			continue;
+
+		const FDynamicEmitterReplayDataBase& Source = EmitterData->GetSource();
+		TotalParticles += Source.ActiveParticleCount;
+
+		// 스프라이트 이미터에 대해 정렬 수행
+		if (Source.eEmitterType == EDynamicEmitterType::Sprite)
 		{
-			TotalParticles += EmitterData->GetSource().ActiveParticleCount;
+			auto* SpriteData = static_cast<FDynamicSpriteEmitterDataBase*>(EmitterData);
+			// View 원점을 기준으로 파티클 정렬 (투명 렌더링을 위해 먼 것부터)
+			FVector ViewOrigin = View ? View->ViewLocation : FVector(0.0f, 0.0f, 0.0f);
+			SpriteData->SortSpriteParticles(Source.SortMode, ViewOrigin);
 		}
 	}
 
@@ -581,8 +612,38 @@ void UParticleSystemComponent::CreateMeshBatch(TArray<FMeshBatchElement>& OutMes
 		return;
 	}
 
-	// 파티클 머티리얼/셰이더 로드
-	UMaterialInterface* Material = UResourceManager::GetInstance().Load<UMaterial>("Shaders/Particle/ParticleSprite.hlsl");
+	// 첫 번째 스프라이트 이미터에서 Material과 VertexStride 가져오기
+	UMaterialInterface* Material = nullptr;
+	int32 VertexStride = sizeof(FParticleSpriteVertex);  // 기본값
+
+	for (FDynamicEmitterDataBase* EmitterData : EmitterRenderData)
+	{
+		if (!EmitterData)
+			continue;
+
+		const FDynamicEmitterReplayDataBase& Source = EmitterData->GetSource();
+		if (Source.eEmitterType == EDynamicEmitterType::Sprite)
+		{
+			// 스프라이트 이미터에서 Material 가져오기
+			const auto& SpriteSource = static_cast<const FDynamicSpriteEmitterReplayDataBase&>(Source);
+			if (SpriteSource.MaterialInterface)
+			{
+				Material = SpriteSource.MaterialInterface;
+			}
+
+			// GetDynamicVertexStride() 사용
+			auto* SpriteData = static_cast<FDynamicSpriteEmitterDataBase*>(EmitterData);
+			VertexStride = SpriteData->GetDynamicVertexStride();
+			break;  // 첫 번째 유효한 스프라이트 이미터 사용
+		}
+	}
+
+	// Material이 없으면 기본 파티클 셰이더 사용 (폴백)
+	if (!Material)
+	{
+		Material = UResourceManager::GetInstance().Load<UMaterial>("Shaders/Particle/ParticleSprite.hlsl");
+	}
+
 	if (!Material || !Material->GetShader())
 	{
 		return;
@@ -600,7 +661,7 @@ void UParticleSystemComponent::CreateMeshBatch(TArray<FMeshBatchElement>& OutMes
 	BatchElement.Material = Material;
 	BatchElement.VertexBuffer = ParticleVertexBuffer;
 	BatchElement.IndexBuffer = ParticleIndexBuffer;
-	BatchElement.VertexStride = sizeof(FParticleSpriteVertex);
+	BatchElement.VertexStride = VertexStride;
 
 	BatchElement.IndexCount = IndexCount;
 	BatchElement.StartIndex = 0;
@@ -611,11 +672,17 @@ void UParticleSystemComponent::CreateMeshBatch(TArray<FMeshBatchElement>& OutMes
 	BatchElement.ObjectID = InternalIndex;
 	BatchElement.PrimitiveTopology = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 
-	// 기본 텍스처 로드 (테스트용)
-	UTexture* DefaultTexture = UResourceManager::GetInstance().Load<UTexture>(GDataDir + "/cube_texture.png");
-	if (DefaultTexture && DefaultTexture->GetShaderResourceView())
+	// Material에서 텍스처 가져오기 (Diffuse 슬롯)
+	UTexture* ParticleTexture = Material->GetTexture(EMaterialTextureSlot::Diffuse);
+	if (!ParticleTexture)
 	{
-		BatchElement.InstanceShaderResourceView = DefaultTexture->GetShaderResourceView();
+		// 폴백: 기본 텍스처 로드
+		ParticleTexture = UResourceManager::GetInstance().Load<UTexture>(GDataDir + "/cube_texture.png");
+	}
+
+	if (ParticleTexture && ParticleTexture->GetShaderResourceView())
+	{
+		BatchElement.InstanceShaderResourceView = ParticleTexture->GetShaderResourceView();
 	}
 
 	OutMeshBatchElements.Add(BatchElement);

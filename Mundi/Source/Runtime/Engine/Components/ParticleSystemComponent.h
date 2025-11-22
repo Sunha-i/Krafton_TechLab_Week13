@@ -93,4 +93,7 @@ private:
 	void InitializeEmitterInstances();
 	void ClearEmitterInstances();
 	void UpdateRenderData();
+
+	// 테스트용 디버그 파티클 시스템 생성
+	void CreateDebugParticleSystem();
 };
