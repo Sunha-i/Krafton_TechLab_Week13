@@ -473,6 +473,8 @@ void SParticleEditorWindow::RenderToolbar()
 			ImVec2 p_max = ImGui::GetItemRectMax();
 			ImU32 borderColor = IM_COL32(102, 204, 255, 200);
 			draw_list->AddRect(p_min, p_max, borderColor, 3.0f, 0, 2.5f);
+
+			// TODO: 파티클 바운드 그리기
 		}
 
 		if (ImGui::IsItemHovered())
