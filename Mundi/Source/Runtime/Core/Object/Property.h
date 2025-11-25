@@ -25,6 +25,9 @@ enum class EPropertyType : uint8
 	Curve,
 	UClass,         // UClass* 타입 (클래스 선택 UI)
 	Enum,           // enum class 타입 (콤보박스 UI)
+	DistributionFloat,   // FDistributionFloat 타입 (파티클 Distribution)
+	DistributionVector,  // FDistributionVector 타입 (파티클 Distribution)
+	DistributionColor,   // FDistributionColor 타입 (파티클 Distribution)
 	// 추후 추가될 프로퍼티들은 직접 해줘야함.
 	Count			// 요소 개수, 항상 마지막!
 };
