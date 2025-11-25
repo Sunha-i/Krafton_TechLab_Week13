@@ -1,10 +1,11 @@
 ﻿#include "pch.h"
 #include "ParticleModuleRotation.h"
 #include "ParticleEmitterInstance.h"
+#include "ParticleSystemComponent.h"
 
 void UParticleModuleRotation::Spawn(FParticleEmitterInstance* Owner, int32 Offset, float SpawnTime, FBaseParticle* ParticleBase)
 {
-	if (!ParticleBase)
+	if (!ParticleBase || !Owner || !Owner->Component)
 	{
 		return;
 	}
@@ -15,17 +16,19 @@ void UParticleModuleRotation::Spawn(FParticleEmitterInstance* Owner, int32 Offse
 	// 페이로드 가져오기
 	PARTICLE_ELEMENT(FParticleRotationPayload, Payload);
 
-	// 초기 회전값 저장
-	Payload.InitialRotation = StartRotation;
+	// Distribution 시스템을 사용하여 초기 회전값 계산
+	float InitialRot = StartRotation.GetValue(0.0f, Owner->RandomStream, Owner->Component);
+	Payload.InitialRotation = InitialRot;
 
-	// 랜덤 오프셋 계산 (-RotationRandomness ~ +RotationRandomness)
-	Payload.RotationRandomOffset = (static_cast<float>(rand()) / RAND_MAX * 2.0f - 1.0f) * RotationRandomness;
+	// Distribution 시스템을 사용하여 목표 회전값 계산 (RotationOverLife용)
+	float TargetRot = EndRotation.GetValue(0.0f, Owner->RandomStream, Owner->Component);
+	Payload.TargetRotation = TargetRot;
 
-	// 목표 회전값 설정 (RotationOverLife용)
-	Payload.TargetRotation = EndRotation;
+	// UniformCurve용 랜덤 비율 저장 (0~1)
+	Payload.RandomFactor = Owner->RandomStream.GetFraction();
 
 	// 파티클의 초기 회전 설정
-	ParticleBase->Rotation = Payload.InitialRotation + Payload.RotationRandomOffset;
+	ParticleBase->Rotation = InitialRot;
 
 	// RotationOverLife 활성화 시 Update 모듈로 등록
 	if (bUseRotationOverLife)
@@ -42,17 +45,39 @@ void UParticleModuleRotation::Update(FModuleUpdateContext& Context)
 		return;
 	}
 
+	// Distribution 타입 확인
+	const EDistributionType DistType = StartRotation.Type;
+
 	// 언리얼 엔진 방식: 모든 파티클 업데이트
 	BEGIN_UPDATE_LOOP;
 		// 언리얼 엔진 호환: PARTICLE_ELEMENT 매크로 (CurrentOffset 자동 증가)
 		PARTICLE_ELEMENT(FParticleRotationPayload, Payload);
 
-		// 수명에 따라 회전값 선형 보간 (InitialRotation -> TargetRotation)
-		float InterpolatedRotation = Payload.InitialRotation + Payload.RotationRandomOffset +
-			(Payload.TargetRotation - (Payload.InitialRotation + Payload.RotationRandomOffset)) * Particle.RelativeTime;
+		float CurrentRotation;
+
+		switch (DistType)
+		{
+		case EDistributionType::ConstantCurve:
+			CurrentRotation = StartRotation.ConstantCurve.Eval(Particle.RelativeTime);
+			break;
+
+		case EDistributionType::UniformCurve:
+			{
+				float MinAtTime = StartRotation.MinCurve.Eval(Particle.RelativeTime);
+				float MaxAtTime = StartRotation.MaxCurve.Eval(Particle.RelativeTime);
+				CurrentRotation = FMath::Lerp(MinAtTime, MaxAtTime, Payload.RandomFactor);
+			}
+			break;
+
+		default:
+			// Constant, Uniform, ParticleParameter: Initial -> Target 선형 보간
+			CurrentRotation = Payload.InitialRotation +
+				(Payload.TargetRotation - Payload.InitialRotation) * Particle.RelativeTime;
+			break;
+		}
 
 		// 회전값 업데이트 (RotationRate는 건드리지 않음)
-		Particle.Rotation = InterpolatedRotation;
+		Particle.Rotation = CurrentRotation;
 	END_UPDATE_LOOP;
 }
 
@@ -60,5 +85,25 @@ void UParticleModuleRotation::Serialize(const bool bInIsLoading, JSON& InOutHand
 {
 	UParticleModule::Serialize(bInIsLoading, InOutHandle);
 
-	// UPROPERTY 속성은 리플렉션 시스템에 의해 자동으로 직렬화됨
+	JSON TempJson;
+	if (bInIsLoading)
+	{
+		if (FJsonSerializer::ReadObject(InOutHandle, "StartRotation", TempJson))
+			StartRotation.Serialize(true, TempJson);
+		FJsonSerializer::ReadBool(InOutHandle, "bUseRotationOverLife", bUseRotationOverLife);
+		if (FJsonSerializer::ReadObject(InOutHandle, "EndRotation", TempJson))
+			EndRotation.Serialize(true, TempJson);
+	}
+	else
+	{
+		TempJson = JSON::Make(JSON::Class::Object);
+		StartRotation.Serialize(false, TempJson);
+		InOutHandle["StartRotation"] = TempJson;
+
+		InOutHandle["bUseRotationOverLife"] = bUseRotationOverLife;
+
+		TempJson = JSON::Make(JSON::Class::Object);
+		EndRotation.Serialize(false, TempJson);
+		InOutHandle["EndRotation"] = TempJson;
+	}
 }

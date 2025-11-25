@@ -1,15 +1,17 @@
 #pragma once
 
 #include "ParticleModule.h"
+#include "Distribution.h"
 #include "UParticleModuleVelocity.generated.h"
 
-// 언리얼 엔진 호환: 페이로드 시스템 예시
+// 언리얼 엔진 호환: 페이로드 시스템 예시 (32바이트, 16바이트 정렬)
 // 파티클별 추가 데이터를 저장하는 구조체
 struct FParticleVelocityPayload
 {
-	FVector InitialVelocity;      // 생성 시 초기 속도 (디버깅/추적용)
-	float VelocityMagnitude;      // 속도 크기 (최적화: 매 프레임 계산 대신 저장)
-	float Padding[2];             // 16바이트 정렬 유지 (32바이트 총 크기)
+	FVector InitialVelocity;      // 생성 시 초기 속도 (Distribution 샘플링 후) (12바이트)
+	float VelocityMagnitude;      // 속도 크기 (최적화: 매 프레임 계산 대신 저장) (4바이트)
+	float Padding[4];             // 정렬 패딩 (16바이트)
+	// 총 32바이트
 };
 
 UCLASS(DisplayName="속도 모듈", Description="파티클의 초기 속도와 방향을 설정하는 모듈입니다")
@@ -19,11 +21,9 @@ public:
 	GENERATED_REFLECTION_BODY()
 
 public:
+	// 파티클 초기 속도 (Distribution 시스템)
 	UPROPERTY(EditAnywhere, Category="Velocity", meta=(ToolTip="파티클 생성 시 초기 속도 (cm/s)"))
-	FVector StartVelocity = FVector(0.0f, 0.0f, 0.0f);
-
-	UPROPERTY(EditAnywhere, Category="Velocity", meta=(ClampMin="0.0", ClampMax="10000.0", ToolTip="초기 속도 랜덤 범위 (+/-) (cm/s)"))
-	FVector StartVelocityRange = FVector(0.0f, 0.0f, 0.0f);
+	FDistributionVector StartVelocity = FDistributionVector(FVector(0.0f, 0.0f, 0.0f));
 
 	// 언리얼 엔진 호환: 속도 감쇠 (OverLife 패턴)
 	UPROPERTY(EditAnywhere, Category="Velocity", meta=(ClampMin="0.0", ClampMax="1.0", ToolTip="수명에 따른 속도 감쇠 (0.0 = 감쇠 없음, 1.0 = 빠른 감쇠)"))

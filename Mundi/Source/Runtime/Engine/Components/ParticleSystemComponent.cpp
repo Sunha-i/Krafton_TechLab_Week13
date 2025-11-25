@@ -20,11 +20,6 @@
 #include "Modules/ParticleModuleRotationRate.h"
 #include "Modules/ParticleModuleLocation.h"
 
-// Static 멤버 정의
-ID3D11Buffer* UParticleSystemComponent::SpriteQuadVertexBuffer = nullptr;
-ID3D11Buffer* UParticleSystemComponent::SpriteQuadIndexBuffer = nullptr;
-bool UParticleSystemComponent::bQuadBuffersInitialized = false;
-
 // Quad 버텍스 구조체 (UV만 포함)
 struct FSpriteQuadVertex
 {
@@ -54,7 +49,7 @@ void UParticleSystemComponent::InitializeQuadBuffers()
 	D3D11_SUBRESOURCE_DATA VBData = {};
 	VBData.pSysMem = Vertices;
 
-	Device->CreateBuffer(&VBDesc, &VBData, &SpriteQuadVertexBuffer);
+	Device->CreateBuffer(&VBDesc, &VBData, SpriteQuadVertexBuffer.GetAddressOf());
 
 	// 6개 인덱스 (2개 삼각형)
 	uint32 Indices[6] = { 0, 1, 2, 2, 1, 3 };
@@ -67,25 +62,11 @@ void UParticleSystemComponent::InitializeQuadBuffers()
 	D3D11_SUBRESOURCE_DATA IBData = {};
 	IBData.pSysMem = Indices;
 
-	Device->CreateBuffer(&IBDesc, &IBData, &SpriteQuadIndexBuffer);
+	Device->CreateBuffer(&IBDesc, &IBData, SpriteQuadIndexBuffer.GetAddressOf());
 
 	bQuadBuffersInitialized = true;
 }
-
-void UParticleSystemComponent::ReleaseQuadBuffers()
-{
-	if (SpriteQuadVertexBuffer)
-	{
-		SpriteQuadVertexBuffer->Release();
-		SpriteQuadVertexBuffer = nullptr;
-	}
-	if (SpriteQuadIndexBuffer)
-	{
-		SpriteQuadIndexBuffer->Release();
-		SpriteQuadIndexBuffer = nullptr;
-	}
-	bQuadBuffersInitialized = false;
-}
+// Note: ReleaseQuadBuffers 제거됨 - ComPtr이 프로그램 종료 시 자동 해제
 
 UParticleSystemComponent::UParticleSystemComponent()
 {
@@ -141,6 +122,29 @@ UParticleSystemComponent::~UParticleSystemComponent()
 		BeamIndexBuffer->Release();
 		BeamIndexBuffer = nullptr;
 	}
+
+	// 테스트용 리소스 정리 (디버그 함수에서 생성한 리소스)
+	CleanupTestResources();
+}
+
+void UParticleSystemComponent::CleanupTestResources()
+{
+	// 테스트용 Material 정리 (Template보다 먼저 - 참조 순서)
+	for (UMaterialInterface* Mat : TestMaterials)
+	{
+		if (Mat)
+		{
+			DeleteObject(Mat);
+		}
+	}
+	TestMaterials.Empty();
+
+	// 테스트용 Template 정리 (내부 Emitter/LODLevel/Module은 소멸자 체인으로 자동 정리)
+	if (TestTemplate)
+	{
+		DeleteObject(TestTemplate);
+		TestTemplate = nullptr;
+	}
 }
 
 void UParticleSystemComponent::OnRegister(UWorld* InWorld)
@@ -172,7 +176,8 @@ void UParticleSystemComponent::CreateDebugMeshParticleSystem()
 {
 	// 디버그/테스트용 메시 파티클 시스템 생성
 	// Editor 통합 완료 후에는 Editor에서 설정한 Template 사용
-	Template = NewObject<UParticleSystem>();
+	TestTemplate = NewObject<UParticleSystem>();
+	Template = TestTemplate;  // Template도 같이 설정 (기존 로직 호환)
 
 	// 이미터 생성
 	UParticleEmitter* Emitter = NewObject<UParticleEmitter>();
@@ -181,41 +186,60 @@ void UParticleSystemComponent::CreateDebugMeshParticleSystem()
 	UParticleLODLevel* LODLevel = NewObject<UParticleLODLevel>();
 	LODLevel->bEnabled = true;
 
-	// 필수 모듈 생성
-	LODLevel->RequiredModule = NewObject<UParticleModuleRequired>();
-	// Material은 null로 두면 CreateMeshParticleBatch에서 메시의 내장 머터리얼을 자동으로 로드
+	// 필수 모듈 생성 - Modules 배열에 추가
+	UParticleModuleRequired* RequiredModule = NewObject<UParticleModuleRequired>();
+	LODLevel->Modules.Add(RequiredModule);
 
-	// 메시 타입 데이터 모듈 생성 (스프라이트 대신 메시 사용)
+	// 메시 타입 데이터 모듈 생성 - Modules 배열에 추가
 	UParticleModuleTypeDataMesh* MeshTypeData = NewObject<UParticleModuleTypeDataMesh>();
-	// 테스트용 메시 로드 (큐브)
+	// 테스트용 메시 로드 (큐브) - ResourceManager가 관리하는 공유 리소스
 	MeshTypeData->Mesh = UResourceManager::GetInstance().Load<UStaticMesh>(GDataDir + "/cube-tex.obj");
-	LODLevel->TypeDataModule = MeshTypeData;
+	LODLevel->Modules.Add(MeshTypeData);
 
-	// 스폰 모듈 생성
+	// 메시 파티클용 Material 설정 (테스트용으로 직접 생성)
+	UMaterial* MeshParticleMaterial = NewObject<UMaterial>();
+	TestMaterials.Add(MeshParticleMaterial);  // 소유권 등록
+	UShader* MeshShader = UResourceManager::GetInstance().Load<UShader>("Shaders/Particle/ParticleMesh.hlsl");
+	MeshParticleMaterial->SetShader(MeshShader);
+
+	// 메시의 내장 머터리얼에서 텍스처 정보 가져오기
+	if (MeshTypeData->Mesh)
+	{
+		const TArray<FGroupInfo>& GroupInfos = MeshTypeData->Mesh->GetMeshGroupInfo();
+		if (!GroupInfos.IsEmpty() && !GroupInfos[0].InitialMaterialName.empty())
+		{
+			UMaterial* MeshMaterial = UResourceManager::GetInstance().Load<UMaterial>(GroupInfos[0].InitialMaterialName);
+			if (MeshMaterial)
+			{
+				MeshParticleMaterial->SetMaterialInfo(MeshMaterial->GetMaterialInfo());
+				MeshParticleMaterial->ResolveTextures();
+			}
+		}
+	}
+	RequiredModule->Material = MeshParticleMaterial;
+
+	// 스폰 모듈 생성 - Modules 배열에 추가
 	UParticleModuleSpawn* SpawnModule = NewObject<UParticleModuleSpawn>();
-	SpawnModule->SpawnRate = 10000.0f;   // 초당 100개 파티클 (메시는 무거우므로 줄임)
-	SpawnModule->BurstCount = 100;     // 시작 시 100개 버스트
-	LODLevel->SpawnModule = SpawnModule;
+	SpawnModule->SpawnRate = FDistributionFloat(10000.0f);   // 초당 100개 파티클 (메시는 무거우므로 줄임)
+	SpawnModule->BurstCount = FDistributionFloat(100.0f);     // 시작 시 100개 버스트
 	LODLevel->Modules.Add(SpawnModule);
 
 	// 라이프타임 모듈 생성 (파티클 수명 설정)
 	UParticleModuleLifetime* LifetimeModule = NewObject<UParticleModuleLifetime>();
-	LifetimeModule->MinLifetime = 1.0f;  // 최소 1초
-	LifetimeModule->MaxLifetime = 1.5f;  // 최대 1.5초
+	LifetimeModule->Lifetime = FDistributionFloat(1.0f, 1.5f);  // 1.0 ~ 1.5초 랜덤
 	LODLevel->Modules.Add(LifetimeModule);
 
 	// 속도 모듈 생성 (테스트용: 위쪽으로 퍼지는 랜덤 속도)
 	UParticleModuleVelocity* VelocityModule = NewObject<UParticleModuleVelocity>();
-	VelocityModule->StartVelocity = FVector(0.0f, 0.0f, 10.0f);   // 기본 위쪽 속도
-	VelocityModule->StartVelocityRange = FVector(3.0f, 3.0f, 3.0f);  // XYZ 랜덤 범위
+	VelocityModule->StartVelocity = FDistributionVector(FVector(-3.0f, -3.0f, 7.0f), FVector(3.0f, 3.0f, 13.0f));  // 랜덤 범위
 	LODLevel->Modules.Add(VelocityModule);
 
 	// 메시 회전 모듈 생성 (3축 회전 테스트)
 	UParticleModuleMeshRotation* MeshRotModule = NewObject<UParticleModuleMeshRotation>();
-	MeshRotModule->StartRotation = FVector(0.0f, 0.0f, 0.0f);  // 초기 회전
-	MeshRotModule->RotationRandomness = FVector(0.5f, 0.5f, 0.5f);  // 랜덤 초기 회전
-	MeshRotModule->StartRotationRate = FVector(1.0f, 0.5f, 2.0f);  // 회전 속도 (라디안/초)
-	MeshRotModule->RotationRateRandomness = FVector(0.5f, 0.3f, 1.0f);  // 랜덤 회전 속도
+	// 초기 회전: Uniform 분포 (-0.5 ~ +0.5 라디안)
+	MeshRotModule->StartRotation = FDistributionVector(FVector(-0.5f, -0.5f, -0.5f), FVector(0.5f, 0.5f, 0.5f));
+	// 회전 속도: Uniform 분포 (라디안/초)
+	MeshRotModule->StartRotationRate = FDistributionVector(FVector(0.5f, 0.2f, 1.0f), FVector(1.5f, 0.8f, 3.0f));
 	LODLevel->Modules.Add(MeshRotModule);
 
 	// 위치 모듈 생성
@@ -234,13 +258,15 @@ void UParticleSystemComponent::CreateDebugMeshParticleSystem()
 	Emitter->CacheEmitterModuleInfo();
 
 	// 이미터를 시스템에 추가
-	Template->Emitters.Add(Emitter);
+	TestTemplate->Emitters.Add(Emitter);
+	// Note: ResourceManager에 등록하지 않음 - TestTemplate은 이 Component가 소유
 }
 
 void UParticleSystemComponent::CreateDebugSpriteParticleSystem()
 {
 	// 디버그/테스트용 스프라이트 파티클 시스템 생성
-	Template = NewObject<UParticleSystem>();
+	TestTemplate = NewObject<UParticleSystem>();
+	Template = TestTemplate;  // Template도 같이 설정 (기존 로직 호환)
 
 	// 이미터 생성
 	UParticleEmitter* Emitter = NewObject<UParticleEmitter>();
@@ -249,67 +275,65 @@ void UParticleSystemComponent::CreateDebugSpriteParticleSystem()
 	UParticleLODLevel* LODLevel = NewObject<UParticleLODLevel>();
 	LODLevel->bEnabled = true;
 
-	// 필수 모듈 생성
-	LODLevel->RequiredModule = NewObject<UParticleModuleRequired>();
+	// 필수 모듈 생성 - Modules 배열에 추가
+	UParticleModuleRequired* RequiredModule = NewObject<UParticleModuleRequired>();
+	LODLevel->Modules.Add(RequiredModule);
 
-	// 스프라이트용 Material 설정
+	// 스프라이트 타입 데이터 모듈 - Modules 배열에 추가
+	UParticleModuleTypeDataSprite* SpriteTypeData = NewObject<UParticleModuleTypeDataSprite>();
+	LODLevel->Modules.Add(SpriteTypeData);
+
+	// 스프라이트용 Material 설정 (테스트용으로 직접 생성)
 	UMaterial* SpriteMaterial = NewObject<UMaterial>();
+	TestMaterials.Add(SpriteMaterial);  // 소유권 등록
 	UShader* SpriteShader = UResourceManager::GetInstance().Load<UShader>("Shaders/Particle/ParticleSprite.hlsl");
 	SpriteMaterial->SetShader(SpriteShader);
 
 	// 스프라이트 텍스처 설정 (불꽃/연기 등)
 	FMaterialInfo MatInfo;
-	MatInfo.DiffuseTextureFileName = GDataDir + "/Particles/Smoke.png";
+	MatInfo.DiffuseTextureFileName = GDataDir + "/Textures/Particles/Smoke.png";
 	SpriteMaterial->SetMaterialInfo(MatInfo);
 	SpriteMaterial->ResolveTextures();
 
-	LODLevel->RequiredModule->Material = SpriteMaterial;
+	RequiredModule->Material = SpriteMaterial;
 
-	// 스프라이트 타입 데이터 모듈 (TypeDataModule이 nullptr이면 기본적으로 스프라이트)
-	UParticleModuleTypeDataSprite* SpriteTypeData = NewObject<UParticleModuleTypeDataSprite>();
-	LODLevel->TypeDataModule = SpriteTypeData;
-
-	// 스폰 모듈 생성
+	// 스폰 모듈 생성 - Modules 배열에 추가
 	UParticleModuleSpawn* SpawnModule = NewObject<UParticleModuleSpawn>();
-	SpawnModule->SpawnRate = 5000.0f;    // 초당 50개 파티클
-	SpawnModule->BurstCount = 10000;      // 시작 시 20개 버스트
-	LODLevel->SpawnModule = SpawnModule;
+	SpawnModule->SpawnRate = FDistributionFloat(5000.0f);    // 초당 50개 파티클
+	SpawnModule->BurstCount = FDistributionFloat(10000.0f);      // 시작 시 20개 버스트
 	LODLevel->Modules.Add(SpawnModule);
 
 	// 라이프타임 모듈 생성
 	UParticleModuleLifetime* LifetimeModule = NewObject<UParticleModuleLifetime>();
-	LifetimeModule->MinLifetime = 1.5f;
-	LifetimeModule->MaxLifetime = 2.5f;
+	LifetimeModule->Lifetime = FDistributionFloat(1.5f, 2.5f);  // 1.5 ~ 2.5초 랜덤
 	LODLevel->Modules.Add(LifetimeModule);
 
 	// 속도 모듈 생성 (위쪽으로 퍼지는 연기 효과)
 	UParticleModuleVelocity* VelocityModule = NewObject<UParticleModuleVelocity>();
-	VelocityModule->StartVelocity = FVector(0.0f, 0.0f, 30.0f);      // 위쪽 속도
-	VelocityModule->StartVelocityRange = FVector(15.0f, 15.0f, 10.0f); // XYZ 랜덤 범위
+	VelocityModule->StartVelocity = FDistributionVector(FVector(-15.0f, -15.0f, 20.0f), FVector(15.0f, 15.0f, 40.0f));  // 랜덤 범위
 	LODLevel->Modules.Add(VelocityModule);
 
 	// 크기 모듈 (시간에 따라 커지는 효과)
 	UParticleModuleSize* SizeModule = NewObject<UParticleModuleSize>();
-	SizeModule->StartSize = FVector(5.0f, 5.0f, 5.0f);
-	SizeModule->EndSize = FVector(15.0f, 15.0f, 15.0f);
+	SizeModule->StartSize = FDistributionVector(FVector(5.0f, 5.0f, 5.0f));
+	SizeModule->EndSize = FDistributionVector(FVector(15.0f, 15.0f, 15.0f));
 	SizeModule->bUseSizeOverLife = true;
 	LODLevel->Modules.Add(SizeModule);
 
 	// 색상 모듈 (페이드 아웃 효과 - bUpdateModule이 기본 true라 자동 보간)
 	UParticleModuleColor* ColorModule = NewObject<UParticleModuleColor>();
-	ColorModule->StartColor = FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);  // 불투명 흰색
-	ColorModule->EndColor = FLinearColor(1.0f, 1.0f, 1.0f, 0.0f);    // 투명 흰색
+	ColorModule->StartColor = FDistributionColor(FLinearColor(1.0f, 1.0f, 1.0f, 1.0f));  // 불투명 흰색
+	ColorModule->EndColor = FDistributionColor(FLinearColor(1.0f, 1.0f, 1.0f, 0.0f));    // 투명 흰색
 	LODLevel->Modules.Add(ColorModule);
 
 	// 회전 모듈 (2D 회전)
 	UParticleModuleRotation* RotationModule = NewObject<UParticleModuleRotation>();
-	RotationModule->StartRotation = 0.0f;
-	RotationModule->RotationRandomness = 3.14159f;  // 랜덤 초기 회전
+	RotationModule->StartRotation = FDistributionFloat(-3.14159f, 3.14159f);  // 랜덤 초기 회전
 	LODLevel->Modules.Add(RotationModule);
 
 	// 회전 속도 모듈
 	UParticleModuleRotationRate* RotRateModule = NewObject<UParticleModuleRotationRate>();
-	RotRateModule->StartRotationRate = 3.0f;  // 천천히 회전
+	RotRateModule->StartRotationRate = FDistributionFloat(3.0f);  // 천천히 회전
 	LODLevel->Modules.Add(RotRateModule);
 
 	// 위치 모듈 생성
@@ -330,7 +354,8 @@ void UParticleSystemComponent::CreateDebugSpriteParticleSystem()
 void UParticleSystemComponent::CreateDebugBeamParticleSystem()
 {
 	// 디버그/테스트용 빔 파티클 시스템 생성
-	Template = NewObject<UParticleSystem>();
+	TestTemplate = NewObject<UParticleSystem>();
+	Template = TestTemplate;
 
 	// 이미터 생성
 	UParticleEmitter* Emitter = NewObject<UParticleEmitter>();
@@ -357,15 +382,14 @@ void UParticleSystemComponent::CreateDebugBeamParticleSystem()
 
 	// 스폰 모듈 생성 - 빔은 최소 2개의 파티클(시작/끝)이 필요
 	UParticleModuleSpawn* SpawnModule = NewObject<UParticleModuleSpawn>();
-	SpawnModule->SpawnRate = 0.0f;    // 연속 스폰 안함
-	SpawnModule->BurstCount = 2;      // 시작 시 2개(시작점, 끝점) 버스트
+	SpawnModule->SpawnRate = FDistributionFloat(0.0f);    // 연속 스폰 안함
+	SpawnModule->BurstCount = FDistributionFloat(2.0f);      // 시작 시 2개(시작점, 끝점) 버스트
 	LODLevel->SpawnModule = SpawnModule;
 	LODLevel->Modules.Add(SpawnModule);
 
 	// 라이프타임 모듈 생성 (빔의 전체 수명)
 	UParticleModuleLifetime* LifetimeModule = NewObject<UParticleModuleLifetime>();
-	LifetimeModule->MinLifetime = 0.0f;
-	LifetimeModule->MaxLifetime = 0.0f;
+	LifetimeModule->Lifetime = FDistributionFloat(0.0f, 0.0f);
 	LODLevel->Modules.Add(LifetimeModule);
 
 	// 위치 모듈 생성
@@ -374,8 +398,7 @@ void UParticleSystemComponent::CreateDebugBeamParticleSystem()
 
 	// 속도 모듈 생성
 	UParticleModuleVelocity* VelocityModule = NewObject<UParticleModuleVelocity>();
-	VelocityModule->StartVelocity = FVector(0.0f, 0.0f, 0.0f);
-	VelocityModule->StartVelocityRange = FVector(0.0f, 0.0f, 0.0f);
+	VelocityModule->StartVelocity = FDistributionVector(FVector(0.0f, 0.0f, 0.0f), FVector(0.0f, 0.0f, 0.0f));
 	LODLevel->Modules.Add(VelocityModule);
 
 	// 모듈 캐싱
@@ -386,7 +409,8 @@ void UParticleSystemComponent::CreateDebugBeamParticleSystem()
 	Emitter->CacheEmitterModuleInfo();
 
 	// 이미터를 시스템에 추가
-	Template->Emitters.Add(Emitter);
+	TestTemplate->Emitters.Add(Emitter);
+	// Note: ResourceManager에 등록하지 않음 - TestTemplate은 이 Component가 소유
 }
 
 void UParticleSystemComponent::OnUnregister()
@@ -677,6 +701,10 @@ void UParticleSystemComponent::DuplicateSubObjects()
 	AllocatedMeshInstanceCount = 0;
 	SpriteInstanceBuffer = nullptr;
 	AllocatedSpriteInstanceCount = 0;
+
+	// 테스트용 리소스 포인터 초기화 (원본 소유, 복사본에서 삭제하면 안됨)
+	TestTemplate = nullptr;
+	TestMaterials.Empty();
 }
 
 void UParticleSystemComponent::CollectMeshBatches(TArray<FMeshBatchElement>& OutMeshBatchElements, const FSceneView* View)
@@ -704,7 +732,8 @@ void UParticleSystemComponent::CollectMeshBatches(TArray<FMeshBatchElement>& Out
 			// 스프라이트 이미터에 대해 정렬 수행
 			auto* SpriteData = static_cast<FDynamicSpriteEmitterDataBase*>(EmitterData);
 			FVector ViewOrigin = View ? View->ViewLocation : FVector(0.0f, 0.0f, 0.0f);
-			SpriteData->SortSpriteParticles(Source.SortMode, ViewOrigin);
+			FVector ViewDirection = View ? View->ViewRotation.GetForwardVector() : FVector(1.0f, 0.0f, 0.0f);
+			SpriteData->SortSpriteParticles(Source.SortMode, ViewOrigin, ViewDirection);
 		}
 	}
 
@@ -915,43 +944,14 @@ void UParticleSystemComponent::CreateMeshParticleBatch(TArray<FMeshBatchElement>
 		}
 	}
 
-	if (!Mesh || NumInstances == 0)
+	// Material이 없으면 렌더링하지 않음
+	// RequiredModule을 통해 올바르게 Material을 설정해야 함
+	if (!Mesh || !Material || NumInstances == 0)
 	{
 		return;
 	}
 
-	// Material이 없으면 메시의 내장 머터리얼에서 텍스처를 가져와 사용
-	if (!Material)
-	{
-		// ParticleMesh 셰이더 로드
-		UShader* ParticleMeshShader = UResourceManager::GetInstance().Load<UShader>("Shaders/Particle/ParticleMesh.hlsl");
-
-		// 메시의 내장 머터리얼 확인 (StaticMeshComponent와 동일한 패턴)
-		const TArray<FGroupInfo>& GroupInfos = Mesh->GetMeshGroupInfo();
-		UMaterial* MeshMaterial = nullptr;
-
-		if (!GroupInfos.IsEmpty() && !GroupInfos[0].InitialMaterialName.empty())
-		{
-			// 메시의 첫 번째 그룹의 머터리얼 로드
-			MeshMaterial = UResourceManager::GetInstance().Load<UMaterial>(GroupInfos[0].InitialMaterialName);
-		}
-
-		// 새 파티클 머터리얼 생성 (ParticleMesh 셰이더 + 메시 텍스처)
-		UMaterial* ParticleMaterial = NewObject<UMaterial>();
-		ParticleMaterial->SetShader(ParticleMeshShader);
-
-		if (MeshMaterial)
-		{
-			// 메시 머터리얼에서 MaterialInfo 복사 (텍스처 경로 포함)
-			ParticleMaterial->SetMaterialInfo(MeshMaterial->GetMaterialInfo());
-			// 텍스처 경로 기반으로 실제 텍스처 로드
-			ParticleMaterial->ResolveTextures();
-		}
-
-		Material = ParticleMaterial;
-	}
-
-	if (!Material || !Material->GetShader())
+	if (!Material->GetShader())
 	{
 		return;
 	}
@@ -1125,34 +1125,14 @@ void UParticleSystemComponent::CreateSpriteParticleBatch(TArray<FMeshBatchElemen
 		}
 	}
 
-	if (NumInstances == 0)
+	// Material이 없으면 렌더링하지 않음
+	// RequiredModule을 통해 올바르게 Material을 설정해야 함
+	if (!Material || NumInstances == 0)
 	{
 		return;
 	}
 
-	// Material이 없으면 기본 스프라이트 셰이더 + 기본 텍스처로 생성
-	if (!Material)
-	{
-		// ParticleSprite 셰이더 로드
-		UShader* ParticleSpriteShader = UResourceManager::GetInstance().Load<UShader>("Shaders/Particle/ParticleSprite.hlsl");
-
-		if (ParticleSpriteShader)
-		{
-			// 새 파티클 머터리얼 생성
-			UMaterial* ParticleMaterial = NewObject<UMaterial>();
-			ParticleMaterial->SetShader(ParticleSpriteShader);
-
-			// 기본 파티클 텍스처 설정
-			FMaterialInfo MatInfo;
-			MatInfo.DiffuseTextureFileName = GDataDir + "/Particles/Particle_Gaussian.png";
-			ParticleMaterial->SetMaterialInfo(MatInfo);
-			ParticleMaterial->ResolveTextures();
-
-			Material = ParticleMaterial;
-		}
-	}
-
-	if (!Material || !Material->GetShader())
+	if (!Material->GetShader())
 	{
 		return;
 	}
@@ -1168,9 +1148,9 @@ void UParticleSystemComponent::CreateSpriteParticleBatch(TArray<FMeshBatchElemen
 	BatchElement.InputLayout = ShaderVariant->InputLayout;
 	BatchElement.Material = Material;
 
-	// Quad 버퍼 사용
-	BatchElement.VertexBuffer = SpriteQuadVertexBuffer;
-	BatchElement.IndexBuffer = SpriteQuadIndexBuffer;
+	// Quad 버퍼 사용 (ComPtr에서 raw 포인터 추출)
+	BatchElement.VertexBuffer = SpriteQuadVertexBuffer.Get();
+	BatchElement.IndexBuffer = SpriteQuadIndexBuffer.Get();
 	BatchElement.VertexStride = sizeof(FSpriteQuadVertex);
 
 	// 인스턴싱 데이터

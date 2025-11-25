@@ -1,16 +1,19 @@
 #pragma once
 
 #include "ParticleModule.h"
+#include "Distribution.h"
 #include "UParticleModuleAcceleration.generated.h"
 
-// 언리얼 엔진 호환: 파티클별 가속도 페이로드 (32바이트, 16바이트 정렬)
+// 언리얼 엔진 호환: 파티클별 가속도 페이로드 (64바이트, 16바이트 정렬)
 struct FParticleAccelerationPayload
 {
-	FVector InitialAcceleration;          // 초기 가속도 (12바이트)
-	float Padding0;                       // 정렬 패딩 (4바이트)
-	FVector AccelerationRandomOffset;     // 랜덤 오프셋 (12바이트)
+	FVector InitialAcceleration;          // 초기 가속도 (Distribution 샘플링 후) (12바이트)
+	FVector TargetAcceleration;           // 목표 가속도 (OverLife용) (12바이트)
+	FVector RandomFactor;                 // UniformCurve용 랜덤 비율 (0~1) (12바이트)
 	float AccelerationMultiplierOverLife; // 수명에 따른 가속도 배율 (4바이트)
-	// 총 32바이트
+	float GravityZ;                       // 중력 Z 성분 (캐싱) (4바이트)
+	float Padding[5];                     // 정렬 패딩 (20바이트)
+	// 총 64바이트
 };
 
 UCLASS(DisplayName="가속도 모듈", Description="파티클에 가속도(중력 포함)를 적용하는 모듈입니다")
@@ -20,9 +23,13 @@ public:
 	GENERATED_REFLECTION_BODY()
 
 public:
-	// 기본 가속도 벡터
+	// 기본 가속도 벡터 (Distribution 시스템)
 	UPROPERTY(EditAnywhere, Category="Acceleration")
-	FVector Acceleration = FVector(0.0f, 0.0f, 0.0f);
+	FDistributionVector Acceleration = FDistributionVector(FVector(0.0f, 0.0f, 0.0f));
+
+	// 수명 종료 시 가속도 (Distribution 시스템)
+	UPROPERTY(EditAnywhere, Category="Acceleration")
+	FDistributionVector EndAcceleration = FDistributionVector(FVector(0.0f, 0.0f, 0.0f));
 
 	// 중력 적용 여부
 	UPROPERTY(EditAnywhere, Category="Acceleration")
@@ -43,10 +50,6 @@ public:
 	// 수명 종료 시 가속도 배율 (0.0 ~ 1.0)
 	UPROPERTY(EditAnywhere, Category="Acceleration")
 	float AccelerationMultiplierAtEnd = 1.0f;
-
-	// 가속도 랜덤 변화량 (각 축별)
-	UPROPERTY(EditAnywhere, Category="Acceleration")
-	FVector AccelerationRandomness = FVector(0.0f, 0.0f, 0.0f);
 
 	UParticleModuleAcceleration()
 	{

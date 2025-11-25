@@ -641,6 +641,7 @@ void SViewerWindow::CloseTab(int Index)
     ViewerState* State = Tabs[Index];
     DestroyViewerState(State);
     Tabs.RemoveAt(Index);
+
     if (Tabs.Num() == 0)
     {
         ActiveTabIndex = -1;

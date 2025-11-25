@@ -1,6 +1,20 @@
 #include "pch.h"
 #include "ParticleEmitter.h"
 #include "ObjectFactory.h"
+#include "JsonSerializer.h"
+
+UParticleEmitter::~UParticleEmitter()
+{
+	// 모든 LOD 레벨 삭제
+	for (UParticleLODLevel* LODLevel : LODLevels)
+	{
+		if (LODLevel)
+		{
+			DeleteObject(LODLevel);
+		}
+	}
+	LODLevels.Empty();
+}
 
 void UParticleEmitter::CacheEmitterModuleInfo()
 {
@@ -31,14 +45,45 @@ UParticleLODLevel* UParticleEmitter::GetLODLevel(int32 LODIndex) const
 
 void UParticleEmitter::Serialize(const bool bInIsLoading, JSON& InOutHandle)
 {
+	// 기본 타입 UPROPERTY 자동 직렬화 (EmitterName 등)
 	UObject::Serialize(bInIsLoading, InOutHandle);
 
-	// UPROPERTY 속성은 리플렉션 시스템에 의해 자동으로 직렬화됨
-
-	if (!bInIsLoading)
+	if (bInIsLoading)
 	{
-		// 로딩 후, 이미터 정보 캐싱
+		// === LODLevels 배열 로드 ===
+		JSON LODLevelsJson;
+		if (FJsonSerializer::ReadArray(InOutHandle, "LODLevels", LODLevelsJson))
+		{
+			LODLevels.Empty();
+			for (size_t i = 0; i < LODLevelsJson.size(); ++i)
+			{
+				JSON& LODData = LODLevelsJson.at(i);
+				UParticleLODLevel* LOD = NewObject<UParticleLODLevel>();
+				if (LOD)
+				{
+					LOD->Serialize(true, LODData);
+					LODLevels.Add(LOD);
+				}
+			}
+		}
+
+		// 로딩 후 캐싱
 		CacheEmitterModuleInfo();
+	}
+	else
+	{
+		// === LODLevels 배열 저장 ===
+		JSON LODLevelsJson = JSON::Make(JSON::Class::Array);
+		for (UParticleLODLevel* LOD : LODLevels)
+		{
+			if (LOD)
+			{
+				JSON LODData = JSON::Make(JSON::Class::Object);
+				LOD->Serialize(false, LODData);
+				LODLevelsJson.append(LODData);
+			}
+		}
+		InOutHandle["LODLevels"] = LODLevelsJson;
 	}
 }
 

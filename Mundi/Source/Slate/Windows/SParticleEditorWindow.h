@@ -20,6 +20,9 @@ public:
 	virtual void OnUpdate(float DeltaSeconds) override;
 	virtual void PreRenderViewportUpdate() override;
 
+	// 파일 경로 기반 탭 검색 오버라이드
+	void OpenOrFocusTab(UEditorAssetPreviewContext* Context) override;
+
 protected:
 	virtual ViewerState* CreateViewerState(const char* Name, UEditorAssetPreviewContext* Context) override;
 	virtual void DestroyViewerState(ViewerState*& State) override;
@@ -52,7 +55,6 @@ private:
 	void RenderRightCurveArea();
 
 	// 파일 작업
-	void CreateNewParticleSystem();
 	void SaveParticleSystem();
 	void SaveParticleSystemAs();
 	void LoadParticleSystem();
@@ -76,9 +78,6 @@ private:
 	UTexture* IconLODNext = nullptr;
 	UTexture* IconLODLast = nullptr;
 
-	// 원점축 렌더링
-	ULineComponent* OriginAxisLineComponent = nullptr;
-
 	// 툴바 상태
 	void LoadToolbarIcons();
 
@@ -87,6 +86,4 @@ private:
 	{
 		return static_cast<ParticleEditorState*>(ActiveState);
 	}
-
-	void CreateOriginAxisLines();
 };

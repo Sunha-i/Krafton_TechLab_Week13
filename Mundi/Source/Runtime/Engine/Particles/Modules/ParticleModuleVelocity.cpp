@@ -19,20 +19,11 @@ void UParticleModuleVelocity::Spawn(FParticleEmitterInstance* Owner, int32 Offse
 	// 언리얼 엔진 호환: CurrentOffset 초기화
 	uint32 CurrentOffset = Offset;
 
-	// 랜덤 속도 오프셋
-	static std::random_device rd;
-	static std::mt19937 gen(rd());
-	std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
+	// Distribution 시스템을 사용하여 초기 속도 계산
+	FVector LocalInitialVel = StartVelocity.GetValue(0.0f, Owner->RandomStream, Owner->Component);
 
-	FVector RandomOffset(
-		dist(gen) * StartVelocityRange.X,
-		dist(gen) * StartVelocityRange.Y,
-		dist(gen) * StartVelocityRange.Z
-	);
-
-	// 로컬 공간에서 초기 속도 계산 + 월드 공간 속도로 변환
+	// 로컬 공간에서 월드 공간 속도로 변환
 	const FTransform& ComponentTransform = Owner->Component->GetWorldTransform();
-	FVector LocalInitialVel = StartVelocity + RandomOffset;
 	FVector WorldInitialVel = ComponentTransform.TransformVector(LocalInitialVel);
 
 	// 월드 공간 속도를 파티클에 적용
@@ -85,5 +76,20 @@ void UParticleModuleVelocity::Update(FModuleUpdateContext& Context)
 void UParticleModuleVelocity::Serialize(const bool bInIsLoading, JSON& InOutHandle)
 {
 	UParticleModule::Serialize(bInIsLoading, InOutHandle);
-	// UPROPERTY 속성은 자동으로 직렬화됨
+
+	JSON TempJson;
+	if (bInIsLoading)
+	{
+		if (FJsonSerializer::ReadObject(InOutHandle, "StartVelocity", TempJson))
+			StartVelocity.Serialize(true, TempJson);
+		FJsonSerializer::ReadFloat(InOutHandle, "VelocityDamping", VelocityDamping);
+	}
+	else
+	{
+		TempJson = JSON::Make(JSON::Class::Object);
+		StartVelocity.Serialize(false, TempJson);
+		InOutHandle["StartVelocity"] = TempJson;
+
+		InOutHandle["VelocityDamping"] = VelocityDamping;
+	}
 }

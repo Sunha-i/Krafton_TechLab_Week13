@@ -103,6 +103,9 @@ struct ParticleEditorState : public ViewerState
     UParticleSystemComponent* PreviewComponent = nullptr;
     AActor* PreviewActor = nullptr;
 
+    // 원점축 라인 컴포넌트 (탭별로 소유)
+    class ULineComponent* OriginAxisLineComponent = nullptr;
+
     // 선택 상태
     int32 SelectedEmitterIndex = -1;
     int32 SelectedModuleIndex = -1;

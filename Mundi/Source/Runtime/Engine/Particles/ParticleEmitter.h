@@ -18,7 +18,7 @@ public:
 	int32 ParticleSize = 0;
 
 	UParticleEmitter() = default;
-	virtual ~UParticleEmitter() = default;
+	virtual ~UParticleEmitter();
 
 	// 이미터 모듈 정보 캐싱
 	void CacheEmitterModuleInfo();

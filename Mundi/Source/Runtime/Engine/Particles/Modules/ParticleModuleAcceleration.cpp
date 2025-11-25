@@ -1,32 +1,40 @@
 ﻿#include "pch.h"
 #include "ParticleModuleAcceleration.h"
 #include "ParticleEmitterInstance.h"
+#include "ParticleSystemComponent.h"
 
 void UParticleModuleAcceleration::Spawn(FParticleEmitterInstance* Owner, int32 Offset, float SpawnTime, FBaseParticle* ParticleBase)
 {
+	if (!Owner || !Owner->Component)
+	{
+		return;
+	}
+
 	// 언리얼 엔진 호환: CurrentOffset 초기화
 	uint32 CurrentOffset = Offset;
 
 	// 페이로드 가져오기
 	PARTICLE_ELEMENT(FParticleAccelerationPayload, Payload);
 
-	// 기본 가속도 계산 (중력 포함)
-	FVector BaseAcceleration = Acceleration;
-	if (bApplyGravity)
-	{
-		const float GravityZ = -980.0f; // cm/s^2
-		BaseAcceleration.Z += GravityZ * GravityScale;
-	}
+	// Distribution 시스템을 사용하여 가속도 계산
+	FVector BaseAcceleration = Acceleration.GetValue(0.0f, Owner->RandomStream, Owner->Component);
 
 	// 초기 가속도 저장
 	Payload.InitialAcceleration = BaseAcceleration;
 
-	// 랜덤 오프셋 계산 (각 축별로 -AccelerationRandomness ~ +AccelerationRandomness)
-	Payload.AccelerationRandomOffset = FVector(
-		(static_cast<float>(rand()) / RAND_MAX * 2.0f - 1.0f) * AccelerationRandomness.X,
-		(static_cast<float>(rand()) / RAND_MAX * 2.0f - 1.0f) * AccelerationRandomness.Y,
-		(static_cast<float>(rand()) / RAND_MAX * 2.0f - 1.0f) * AccelerationRandomness.Z
+	// 목표 가속도 계산 (OverLife용)
+	FVector TargetAccel = EndAcceleration.GetValue(0.0f, Owner->RandomStream, Owner->Component);
+	Payload.TargetAcceleration = TargetAccel;
+
+	// UniformCurve용 랜덤 비율 저장
+	Payload.RandomFactor = FVector(
+		Owner->RandomStream.GetFraction(),
+		Owner->RandomStream.GetFraction(),
+		Owner->RandomStream.GetFraction()
 	);
+
+	// 중력 Z 성분 저장
+	Payload.GravityZ = bApplyGravity ? (-980.0f * GravityScale) : 0.0f;
 
 	// AccelerationOverLife 초기화
 	Payload.AccelerationMultiplierOverLife = AccelerationMultiplierAtStart;
@@ -34,31 +42,96 @@ void UParticleModuleAcceleration::Spawn(FParticleEmitterInstance* Owner, int32 O
 
 void UParticleModuleAcceleration::Update(FModuleUpdateContext& Context)
 {
+	// Distribution 타입 확인
+	const EDistributionType DistType = Acceleration.Type;
+
 	// 언리얼 엔진 방식: 모든 파티클 업데이트 (Context 사용)
 	BEGIN_UPDATE_LOOP;
 		// 언리얼 엔진 호환: PARTICLE_ELEMENT 매크로 (CurrentOffset 자동 증가)
 		PARTICLE_ELEMENT(FParticleAccelerationPayload, Payload);
 
-		// AccelerationOverLife 계산
-		float CurrentMultiplier = Payload.AccelerationMultiplierOverLife;
+		FVector CurrentAcceleration;
+
+		// AccelerationOverLife가 활성화되어 있으면 커브/보간 평가
 		if (bUseAccelerationOverLife)
 		{
-			// 수명에 따라 선형 보간 (Start -> End)
-			CurrentMultiplier = AccelerationMultiplierAtStart +
+			switch (DistType)
+			{
+			case EDistributionType::ConstantCurve:
+				CurrentAcceleration = Acceleration.ConstantCurve.Eval(Particle.RelativeTime);
+				break;
+
+			case EDistributionType::UniformCurve:
+				{
+					FVector MinAtTime = Acceleration.MinCurve.Eval(Particle.RelativeTime);
+					FVector MaxAtTime = Acceleration.MaxCurve.Eval(Particle.RelativeTime);
+					CurrentAcceleration.X = FMath::Lerp(MinAtTime.X, MaxAtTime.X, Payload.RandomFactor.X);
+					CurrentAcceleration.Y = FMath::Lerp(MinAtTime.Y, MaxAtTime.Y, Payload.RandomFactor.Y);
+					CurrentAcceleration.Z = FMath::Lerp(MinAtTime.Z, MaxAtTime.Z, Payload.RandomFactor.Z);
+				}
+				break;
+
+			default:
+				// Constant, Uniform, ParticleParameter: Initial -> Target 선형 보간
+				{
+					float Alpha = FMath::Clamp(Particle.RelativeTime, 0.0f, 1.0f);
+					CurrentAcceleration.X = FMath::Lerp(Payload.InitialAcceleration.X, Payload.TargetAcceleration.X, Alpha);
+					CurrentAcceleration.Y = FMath::Lerp(Payload.InitialAcceleration.Y, Payload.TargetAcceleration.Y, Alpha);
+					CurrentAcceleration.Z = FMath::Lerp(Payload.InitialAcceleration.Z, Payload.TargetAcceleration.Z, Alpha);
+				}
+				break;
+			}
+
+			// Multiplier 적용
+			float CurrentMultiplier = AccelerationMultiplierAtStart +
 				(AccelerationMultiplierAtEnd - AccelerationMultiplierAtStart) * Particle.RelativeTime;
-			Payload.AccelerationMultiplierOverLife = CurrentMultiplier;
+			CurrentAcceleration = CurrentAcceleration * CurrentMultiplier;
+		}
+		else
+		{
+			// OverLife 비활성화 시 초기 가속도 사용
+			CurrentAcceleration = Payload.InitialAcceleration;
 		}
 
-		// 최종 가속도 = (초기 가속도 + 랜덤 오프셋) * OverLife 배율
-		FVector FinalAcceleration = (Payload.InitialAcceleration + Payload.AccelerationRandomOffset) * CurrentMultiplier;
+		// 중력 추가
+		CurrentAcceleration.Z += Payload.GravityZ;
 
 		// 속도에 가속도 적용
-		Particle.Velocity += FinalAcceleration * DeltaTime;
+		Particle.Velocity += CurrentAcceleration * DeltaTime;
 	END_UPDATE_LOOP;
 }
 
 void UParticleModuleAcceleration::Serialize(const bool bInIsLoading, JSON& InOutHandle)
 {
 	UParticleModule::Serialize(bInIsLoading, InOutHandle);
-	// UPROPERTY 속성은 자동으로 직렬화됨
+
+	JSON TempJson;
+	if (bInIsLoading)
+	{
+		if (FJsonSerializer::ReadObject(InOutHandle, "Acceleration", TempJson))
+			Acceleration.Serialize(true, TempJson);
+		if (FJsonSerializer::ReadObject(InOutHandle, "EndAcceleration", TempJson))
+			EndAcceleration.Serialize(true, TempJson);
+		FJsonSerializer::ReadBool(InOutHandle, "bApplyGravity", bApplyGravity);
+		FJsonSerializer::ReadFloat(InOutHandle, "GravityScale", GravityScale);
+		FJsonSerializer::ReadBool(InOutHandle, "bUseAccelerationOverLife", bUseAccelerationOverLife);
+		FJsonSerializer::ReadFloat(InOutHandle, "AccelerationMultiplierAtStart", AccelerationMultiplierAtStart);
+		FJsonSerializer::ReadFloat(InOutHandle, "AccelerationMultiplierAtEnd", AccelerationMultiplierAtEnd);
+	}
+	else
+	{
+		TempJson = JSON::Make(JSON::Class::Object);
+		Acceleration.Serialize(false, TempJson);
+		InOutHandle["Acceleration"] = TempJson;
+
+		TempJson = JSON::Make(JSON::Class::Object);
+		EndAcceleration.Serialize(false, TempJson);
+		InOutHandle["EndAcceleration"] = TempJson;
+
+		InOutHandle["bApplyGravity"] = bApplyGravity;
+		InOutHandle["GravityScale"] = GravityScale;
+		InOutHandle["bUseAccelerationOverLife"] = bUseAccelerationOverLife;
+		InOutHandle["AccelerationMultiplierAtStart"] = AccelerationMultiplierAtStart;
+		InOutHandle["AccelerationMultiplierAtEnd"] = AccelerationMultiplierAtEnd;
+	}
 }

@@ -16,14 +16,8 @@ void UParticleModuleSize::Spawn(FParticleEmitterInstance* Owner, int32 Offset, f
 		return;
 	}
 
-	// 언리얼 엔진 호환: 랜덤 스트림 사용 (결정론적)
-	FVector RandomOffset(
-		Owner->RandomStream.GetSignedFraction() * StartSizeRange.X,
-		Owner->RandomStream.GetSignedFraction() * StartSizeRange.Y,
-		Owner->RandomStream.GetSignedFraction() * StartSizeRange.Z
-	);
-
-	FVector LocalInitialSize = StartSize + RandomOffset;
+	// Distribution 시스템을 사용하여 크기 계산
+	FVector LocalInitialSize = StartSize.GetValue(0.0f, Owner->RandomStream, Owner->Component);
 
 	// 음수 크기 방지
 	LocalInitialSize.X = FMath::Max(LocalInitialSize.X, 0.01f);
@@ -43,8 +37,17 @@ void UParticleModuleSize::Spawn(FParticleEmitterInstance* Owner, int32 Offset, f
 	PARTICLE_ELEMENT(FParticleSizePayload, SizePayload);
 
 	SizePayload.InitialSize = FinalWorldScale;
-	SizePayload.EndSize = EndSize * ComponentScaleX;
+	// EndSize도 Distribution에서 샘플링
+	FVector LocalEndSize = EndSize.GetValue(0.0f, Owner->RandomStream, Owner->Component);
+	SizePayload.EndSize = LocalEndSize * ComponentScaleX;
 	SizePayload.SizeMultiplierOverLife = 1.0f;  // 기본 배율
+
+	// UniformCurve용 랜덤 비율 저장 (0~1, 각 축별)
+	SizePayload.RandomFactor = FVector(
+		Owner->RandomStream.GetFraction(),
+		Owner->RandomStream.GetFraction(),
+		Owner->RandomStream.GetFraction()
+	);
 
 	// SizeOverLife 활성화 시 Update 모듈로 동작
 	if (bUseSizeOverLife)
@@ -63,25 +66,77 @@ void UParticleModuleSize::Update(FModuleUpdateContext& Context)
 		return;
 	}
 
-	// BEGIN_UPDATE_LOOP/END_UPDATE_LOOP 매크로 사용
-	// 언리얼 엔진 표준 패턴: 역방향 순회, Freeze 자동 스킵
+	// Distribution 타입 확인
+	const EDistributionType DistType = StartSize.Type;
+	const float ComponentScaleX = Context.Owner.Component->GetWorldScale().X;
+
 	BEGIN_UPDATE_LOOP
 		// 언리얼 엔진 호환: PARTICLE_ELEMENT 매크로 (CurrentOffset 자동 증가)
 		PARTICLE_ELEMENT(FParticleSizePayload, SizePayload);
 
-		// 크기 보간 (OverLife 패턴)
-		float Alpha = Particle.RelativeTime * SizePayload.SizeMultiplierOverLife;
-		Alpha = FMath::Clamp(Alpha, 0.0f, 1.0f);
+		FVector CurrentSizeVec;
 
-		// 페이로드에 저장된 초기/목표 크기를 사용하여 보간
-		Particle.Size.X = FMath::Lerp(SizePayload.InitialSize.X, SizePayload.EndSize.X, Alpha);
-		Particle.Size.Y = FMath::Lerp(SizePayload.InitialSize.Y, SizePayload.EndSize.Y, Alpha);
-		Particle.Size.Z = FMath::Lerp(SizePayload.InitialSize.Z, SizePayload.EndSize.Z, Alpha);
+		switch (DistType)
+		{
+		case EDistributionType::ConstantCurve:
+			// ConstantCurve: RelativeTime에 따라 커브 평가
+			CurrentSizeVec = StartSize.ConstantCurve.Eval(Particle.RelativeTime);
+			CurrentSizeVec = CurrentSizeVec * ComponentScaleX;
+			break;
+
+		case EDistributionType::UniformCurve:
+			{
+				// UniformCurve: Min/Max 커브 평가 후 저장된 랜덤 비율로 보간
+				FVector MinAtTime = StartSize.MinCurve.Eval(Particle.RelativeTime);
+				FVector MaxAtTime = StartSize.MaxCurve.Eval(Particle.RelativeTime);
+				CurrentSizeVec.X = FMath::Lerp(MinAtTime.X, MaxAtTime.X, SizePayload.RandomFactor.X);
+				CurrentSizeVec.Y = FMath::Lerp(MinAtTime.Y, MaxAtTime.Y, SizePayload.RandomFactor.Y);
+				CurrentSizeVec.Z = FMath::Lerp(MinAtTime.Z, MaxAtTime.Z, SizePayload.RandomFactor.Z);
+				CurrentSizeVec = CurrentSizeVec * ComponentScaleX;
+			}
+			break;
+
+		default:
+			// Constant, Uniform, ParticleParameter: Initial -> End 선형 보간
+			{
+				float Alpha = FMath::Clamp(Particle.RelativeTime, 0.0f, 1.0f);
+				CurrentSizeVec.X = FMath::Lerp(SizePayload.InitialSize.X, SizePayload.EndSize.X, Alpha);
+				CurrentSizeVec.Y = FMath::Lerp(SizePayload.InitialSize.Y, SizePayload.EndSize.Y, Alpha);
+				CurrentSizeVec.Z = FMath::Lerp(SizePayload.InitialSize.Z, SizePayload.EndSize.Z, Alpha);
+			}
+			break;
+		}
+
+		// 음수 크기 방지
+		Particle.Size.X = FMath::Max(CurrentSizeVec.X, 0.01f);
+		Particle.Size.Y = FMath::Max(CurrentSizeVec.Y, 0.01f);
+		Particle.Size.Z = FMath::Max(CurrentSizeVec.Z, 0.01f);
 	END_UPDATE_LOOP
 }
 
 void UParticleModuleSize::Serialize(const bool bInIsLoading, JSON& InOutHandle)
 {
 	UParticleModule::Serialize(bInIsLoading, InOutHandle);
-	// UPROPERTY 속성은 자동으로 직렬화됨
+
+	JSON TempJson;
+	if (bInIsLoading)
+	{
+		if (FJsonSerializer::ReadObject(InOutHandle, "StartSize", TempJson))
+			StartSize.Serialize(true, TempJson);
+		if (FJsonSerializer::ReadObject(InOutHandle, "EndSize", TempJson))
+			EndSize.Serialize(true, TempJson);
+		FJsonSerializer::ReadBool(InOutHandle, "bUseSizeOverLife", bUseSizeOverLife);
+	}
+	else
+	{
+		TempJson = JSON::Make(JSON::Class::Object);
+		StartSize.Serialize(false, TempJson);
+		InOutHandle["StartSize"] = TempJson;
+
+		TempJson = JSON::Make(JSON::Class::Object);
+		EndSize.Serialize(false, TempJson);
+		InOutHandle["EndSize"] = TempJson;
+
+		InOutHandle["bUseSizeOverLife"] = bUseSizeOverLife;
+	}
 }

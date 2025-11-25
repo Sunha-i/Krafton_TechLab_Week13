@@ -33,5 +33,19 @@ void UParticleModuleSizeScaleBySpeed::Update(FModuleUpdateContext& Context)
 void UParticleModuleSizeScaleBySpeed::Serialize(const bool bInIsLoading, JSON& InOutHandle)
 {
 	UParticleModule::Serialize(bInIsLoading, InOutHandle);
-	// UPROPERTY 속성은 자동으로 직렬화됨
+
+	if (bInIsLoading)
+	{
+		FJsonSerializer::ReadFloat(InOutHandle, "SpeedScaleX", SpeedScale.X);
+		FJsonSerializer::ReadFloat(InOutHandle, "SpeedScaleY", SpeedScale.Y);
+		FJsonSerializer::ReadFloat(InOutHandle, "MaxScaleX", MaxScale.X);
+		FJsonSerializer::ReadFloat(InOutHandle, "MaxScaleY", MaxScale.Y);
+	}
+	else
+	{
+		InOutHandle["SpeedScaleX"] = SpeedScale.X;
+		InOutHandle["SpeedScaleY"] = SpeedScale.Y;
+		InOutHandle["MaxScaleX"] = MaxScale.X;
+		InOutHandle["MaxScaleY"] = MaxScale.Y;
+	}
 }
