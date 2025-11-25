@@ -1,17 +1,23 @@
 ﻿#include "pch.h"
 #include "ParticleModuleAcceleration.h"
 #include "ParticleEmitterInstance.h"
+#include "ParticleSystemComponent.h"
 
 void UParticleModuleAcceleration::Spawn(FParticleEmitterInstance* Owner, int32 Offset, float SpawnTime, FBaseParticle* ParticleBase)
 {
+	if (!Owner || !Owner->Component)
+	{
+		return;
+	}
+
 	// 언리얼 엔진 호환: CurrentOffset 초기화
 	uint32 CurrentOffset = Offset;
 
 	// 페이로드 가져오기
 	PARTICLE_ELEMENT(FParticleAccelerationPayload, Payload);
 
-	// 기본 가속도 계산 (중력 포함)
-	FVector BaseAcceleration = Acceleration;
+	// Distribution 시스템을 사용하여 가속도 계산
+	FVector BaseAcceleration = Acceleration.GetValue(0.0f, Owner->RandomStream, Owner->Component);
 	if (bApplyGravity)
 	{
 		const float GravityZ = -980.0f; // cm/s^2
@@ -21,12 +27,8 @@ void UParticleModuleAcceleration::Spawn(FParticleEmitterInstance* Owner, int32 O
 	// 초기 가속도 저장
 	Payload.InitialAcceleration = BaseAcceleration;
 
-	// 랜덤 오프셋 계산 (각 축별로 -AccelerationRandomness ~ +AccelerationRandomness)
-	Payload.AccelerationRandomOffset = FVector(
-		(static_cast<float>(rand()) / RAND_MAX * 2.0f - 1.0f) * AccelerationRandomness.X,
-		(static_cast<float>(rand()) / RAND_MAX * 2.0f - 1.0f) * AccelerationRandomness.Y,
-		(static_cast<float>(rand()) / RAND_MAX * 2.0f - 1.0f) * AccelerationRandomness.Z
-	);
+	// Distribution이 랜덤을 처리하므로 AccelerationRandomOffset은 사용 안함
+	Payload.AccelerationRandomOffset = FVector(0.0f, 0.0f, 0.0f);
 
 	// AccelerationOverLife 초기화
 	Payload.AccelerationMultiplierOverLife = AccelerationMultiplierAtStart;
@@ -60,5 +62,28 @@ void UParticleModuleAcceleration::Update(FModuleUpdateContext& Context)
 void UParticleModuleAcceleration::Serialize(const bool bInIsLoading, JSON& InOutHandle)
 {
 	UParticleModule::Serialize(bInIsLoading, InOutHandle);
-	// UPROPERTY 속성은 자동으로 직렬화됨
+
+	JSON TempJson;
+	if (bInIsLoading)
+	{
+		if (FJsonSerializer::ReadObject(InOutHandle, "Acceleration", TempJson))
+			Acceleration.Serialize(true, TempJson);
+		FJsonSerializer::ReadBool(InOutHandle, "bApplyGravity", bApplyGravity);
+		FJsonSerializer::ReadFloat(InOutHandle, "GravityScale", GravityScale);
+		FJsonSerializer::ReadBool(InOutHandle, "bUseAccelerationOverLife", bUseAccelerationOverLife);
+		FJsonSerializer::ReadFloat(InOutHandle, "AccelerationMultiplierAtStart", AccelerationMultiplierAtStart);
+		FJsonSerializer::ReadFloat(InOutHandle, "AccelerationMultiplierAtEnd", AccelerationMultiplierAtEnd);
+	}
+	else
+	{
+		TempJson = JSON::Make(JSON::Class::Object);
+		Acceleration.Serialize(false, TempJson);
+		InOutHandle["Acceleration"] = TempJson;
+
+		InOutHandle["bApplyGravity"] = bApplyGravity;
+		InOutHandle["GravityScale"] = GravityScale;
+		InOutHandle["bUseAccelerationOverLife"] = bUseAccelerationOverLife;
+		InOutHandle["AccelerationMultiplierAtStart"] = AccelerationMultiplierAtStart;
+		InOutHandle["AccelerationMultiplierAtEnd"] = AccelerationMultiplierAtEnd;
+	}
 }

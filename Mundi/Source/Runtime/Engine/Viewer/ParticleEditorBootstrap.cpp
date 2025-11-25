@@ -17,7 +17,40 @@
 #include "Modules/ParticleModuleColor.h"
 #include "Modules/ParticleModuleTypeDataSprite.h"
 #include "JsonSerializer.h"
-#include "ResourceManager.h"
+#include "EditorAssetPreviewContext.h"
+#include "Source/Runtime/Engine/Components/LineComponent.h"
+
+// 원점축 라인 생성 헬퍼 함수
+static void CreateOriginAxisLines(ULineComponent* LineComp)
+{
+	if (!LineComp) return;
+
+	LineComp->ClearLines();
+
+	const float AxisLength = 10.0f;
+	const FVector Origin = FVector(0.0f, 0.0f, 0.0f);
+
+	// X축 - 빨강
+	LineComp->AddLine(
+		Origin,
+		Origin + FVector(AxisLength, 0.0f, 0.0f),
+		FVector4(0.796f, 0.086f, 0.105f, 1.0f)
+	);
+
+	// Y축 - 초록
+	LineComp->AddLine(
+		Origin,
+		Origin + FVector(0.0f, AxisLength, 0.0f),
+		FVector4(0.125f, 0.714f, 0.113f, 1.0f)
+	);
+
+	// Z축 - 파랑
+	LineComp->AddLine(
+		Origin,
+		Origin + FVector(0.0f, 0.0f, AxisLength),
+		FVector4(0.054f, 0.155f, 0.527f, 1.0f)
+	);
+}
 
 ViewerState* ParticleEditorBootstrap::CreateViewerState(const char* Name, UWorld* InWorld,
 	ID3D11Device* InDevice, UEditorAssetPreviewContext* Context)
@@ -69,11 +102,38 @@ ViewerState* ParticleEditorBootstrap::CreateViewerState(const char* Name, UWorld
 			State->PreviewActor = PreviewActor;
 			State->PreviewComponent = ParticleComp;
 
-			// 기본 파티클 템플릿 생성 (6개 기본 모듈 포함)
-			UParticleSystem* DefaultTemplate = CreateDefaultParticleTemplate();
+			// Context에 AssetPath가 있으면 파일에서 로드, 없으면 기본 템플릿 생성
+			UParticleSystem* Template = nullptr;
+			if (Context && !Context->AssetPath.empty())
+			{
+				// 파일에서 파티클 시스템 로드
+				Template = LoadParticleSystem(Context->AssetPath);
+				if (Template)
+				{
+					State->CurrentFilePath = Context->AssetPath;
+					State->bIsDirty = false;
+					UE_LOG("[ParticleEditorBootstrap] 파티클 시스템 로드: %s", Context->AssetPath.c_str());
+				}
+			}
 
-			State->EditingTemplate = DefaultTemplate;
-			State->PreviewComponent->SetTemplate(DefaultTemplate);
+			// 로드 실패하거나 AssetPath가 없으면 기본 템플릿 생성
+			if (!Template)
+			{
+				Template = CreateDefaultParticleTemplate();
+				UE_LOG("[ParticleEditorBootstrap] 기본 파티클 템플릿 생성");
+			}
+
+			State->EditingTemplate = Template;
+			State->PreviewComponent->SetTemplate(Template);
+
+			// 원점축 LineComponent 생성 및 연결
+			ULineComponent* OriginLineComp = NewObject<ULineComponent>();
+			OriginLineComp->SetAlwaysOnTop(true);
+			PreviewActor->AddOwnedComponent(OriginLineComp);
+			OriginLineComp->RegisterComponent(State->World);
+			CreateOriginAxisLines(OriginLineComp);
+			OriginLineComp->SetLineVisible(false); // 기본값: 숨김
+			State->OriginAxisLineComponent = OriginLineComp;
 		}
 	}
 
@@ -131,8 +191,8 @@ UParticleSystem* ParticleEditorBootstrap::CreateDefaultParticleTemplate()
 
 	// 2. Spawn 모듈 (필수)
 	UParticleModuleSpawn* SpawnModule = NewObject<UParticleModuleSpawn>();
-	SpawnModule->SpawnRate = 20.0f;
-	SpawnModule->BurstCount = 0;
+	SpawnModule->SpawnRate = FDistributionFloat(20.0f);
+	SpawnModule->BurstCount = FDistributionFloat(0.0f);
 	LOD->SpawnModule = SpawnModule;
 
 	// 스프라이트용 Material 설정
@@ -154,26 +214,23 @@ UParticleSystem* ParticleEditorBootstrap::CreateDefaultParticleTemplate()
 
 	// 3. Lifetime 모듈
 	UParticleModuleLifetime* LifetimeModule = NewObject<UParticleModuleLifetime>();
-	LifetimeModule->MinLifetime = 1.0f;
-	LifetimeModule->MaxLifetime = 1.0f;
+	LifetimeModule->Lifetime = FDistributionFloat(1.0f);  // 1초 고정
 	LOD->Modules.Add(LifetimeModule);
 
 	// 4. Initial Size 모듈
 	UParticleModuleSize* SizeModule = NewObject<UParticleModuleSize>();
-	SizeModule->StartSize = FVector(1.0f, 1.0f, 1.0f);
-	SizeModule->StartSizeRange = FVector(1.0f, 1.0f, 1.0f);
+	SizeModule->StartSize = FDistributionVector(FVector(0.0f, 0.0f, 0.0f), FVector(2.0f, 2.0f, 2.0f));  // 0~2 랜덤
 	LOD->Modules.Add(SizeModule);
 
 	// 5. Initial Velocity 모듈
 	UParticleModuleVelocity* VelocityModule = NewObject<UParticleModuleVelocity>();
-	VelocityModule->StartVelocity = FVector(1.0f, 1.0f, 10.0f);
-	VelocityModule->StartVelocityRange = FVector(1.0f, 1.0f, 11.0f);
+	VelocityModule->StartVelocity = FDistributionVector(FVector(0.0f, 0.0f, 0.0f), FVector(2.0f, 2.0f, 21.0f));  // 랜덤 범위
 	LOD->Modules.Add(VelocityModule);
 
 	// 6. Color Over Life 모듈
 	UParticleModuleColor* ColorModule = NewObject<UParticleModuleColor>();
-	ColorModule->StartColor = FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
-	ColorModule->EndColor = FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
+	ColorModule->StartColor = FDistributionColor(FLinearColor(1.0f, 1.0f, 1.0f, 1.0f));
+	ColorModule->EndColor = FDistributionColor(FLinearColor(1.0f, 1.0f, 1.0f, 1.0f));
 	LOD->Modules.Add(ColorModule);
 
 	// 모듈 캐싱

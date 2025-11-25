@@ -224,29 +224,27 @@ void UParticleSystemComponent::CreateDebugParticleSystem()
 
 	// 스폰 모듈 생성
 	UParticleModuleSpawn* SpawnModule = NewObject<UParticleModuleSpawn>();
-	SpawnModule->SpawnRate = 10000.0f;   // 초당 100개 파티클 (메시는 무거우므로 줄임)
-	SpawnModule->BurstCount = 100;     // 시작 시 100개 버스트
+	SpawnModule->SpawnRate = FDistributionFloat(10000.0f);   // 초당 100개 파티클 (메시는 무거우므로 줄임)
+	SpawnModule->BurstCount = FDistributionFloat(100.0f);     // 시작 시 100개 버스트
 	LODLevel->SpawnModule = SpawnModule;
 	LODLevel->Modules.Add(SpawnModule);
 
 	// 라이프타임 모듈 생성 (파티클 수명 설정)
 	UParticleModuleLifetime* LifetimeModule = NewObject<UParticleModuleLifetime>();
-	LifetimeModule->MinLifetime = 1.0f;  // 최소 1초
-	LifetimeModule->MaxLifetime = 1.5f;  // 최대 1.5초
+	LifetimeModule->Lifetime = FDistributionFloat(1.0f, 1.5f);  // 1.0 ~ 1.5초 랜덤
 	LODLevel->Modules.Add(LifetimeModule);
 
 	// 속도 모듈 생성 (테스트용: 위쪽으로 퍼지는 랜덤 속도)
 	UParticleModuleVelocity* VelocityModule = NewObject<UParticleModuleVelocity>();
-	VelocityModule->StartVelocity = FVector(0.0f, 0.0f, 10.0f);   // 기본 위쪽 속도
-	VelocityModule->StartVelocityRange = FVector(3.0f, 3.0f, 3.0f);  // XYZ 랜덤 범위
+	VelocityModule->StartVelocity = FDistributionVector(FVector(-3.0f, -3.0f, 7.0f), FVector(3.0f, 3.0f, 13.0f));  // 랜덤 범위
 	LODLevel->Modules.Add(VelocityModule);
 
 	// 메시 회전 모듈 생성 (3축 회전 테스트)
 	UParticleModuleMeshRotation* MeshRotModule = NewObject<UParticleModuleMeshRotation>();
-	MeshRotModule->StartRotation = FVector(0.0f, 0.0f, 0.0f);  // 초기 회전
-	MeshRotModule->RotationRandomness = FVector(0.5f, 0.5f, 0.5f);  // 랜덤 초기 회전
-	MeshRotModule->StartRotationRate = FVector(1.0f, 0.5f, 2.0f);  // 회전 속도 (라디안/초)
-	MeshRotModule->RotationRateRandomness = FVector(0.5f, 0.3f, 1.0f);  // 랜덤 회전 속도
+	// 초기 회전: Uniform 분포 (-0.5 ~ +0.5 라디안)
+	MeshRotModule->StartRotation = FDistributionVector(FVector(-0.5f, -0.5f, -0.5f), FVector(0.5f, 0.5f, 0.5f));
+	// 회전 속도: Uniform 분포 (라디안/초)
+	MeshRotModule->StartRotationRate = FDistributionVector(FVector(0.5f, 0.2f, 1.0f), FVector(1.5f, 0.8f, 3.0f));
 	LODLevel->Modules.Add(MeshRotModule);
 
 	// 위치 모듈 생성
@@ -305,45 +303,42 @@ void UParticleSystemComponent::CreateDebugSpriteParticleSystem()
 
 	// 스폰 모듈 생성
 	UParticleModuleSpawn* SpawnModule = NewObject<UParticleModuleSpawn>();
-	SpawnModule->SpawnRate = 5000.0f;    // 초당 50개 파티클
-	SpawnModule->BurstCount = 10000;      // 시작 시 20개 버스트
+	SpawnModule->SpawnRate = FDistributionFloat(5000.0f);    // 초당 50개 파티클
+	SpawnModule->BurstCount = FDistributionFloat(10000.0f);      // 시작 시 20개 버스트
 	LODLevel->SpawnModule = SpawnModule;
 	LODLevel->Modules.Add(SpawnModule);
 
 	// 라이프타임 모듈 생성
 	UParticleModuleLifetime* LifetimeModule = NewObject<UParticleModuleLifetime>();
-	LifetimeModule->MinLifetime = 1.5f;
-	LifetimeModule->MaxLifetime = 2.5f;
+	LifetimeModule->Lifetime = FDistributionFloat(1.5f, 2.5f);  // 1.5 ~ 2.5초 랜덤
 	LODLevel->Modules.Add(LifetimeModule);
 
 	// 속도 모듈 생성 (위쪽으로 퍼지는 연기 효과)
 	UParticleModuleVelocity* VelocityModule = NewObject<UParticleModuleVelocity>();
-	VelocityModule->StartVelocity = FVector(0.0f, 0.0f, 30.0f);      // 위쪽 속도
-	VelocityModule->StartVelocityRange = FVector(15.0f, 15.0f, 10.0f); // XYZ 랜덤 범위
+	VelocityModule->StartVelocity = FDistributionVector(FVector(-15.0f, -15.0f, 20.0f), FVector(15.0f, 15.0f, 40.0f));  // 랜덤 범위
 	LODLevel->Modules.Add(VelocityModule);
 
 	// 크기 모듈 (시간에 따라 커지는 효과)
 	UParticleModuleSize* SizeModule = NewObject<UParticleModuleSize>();
-	SizeModule->StartSize = FVector(5.0f, 5.0f, 5.0f);
-	SizeModule->EndSize = FVector(15.0f, 15.0f, 15.0f);
+	SizeModule->StartSize = FDistributionVector(FVector(5.0f, 5.0f, 5.0f));
+	SizeModule->EndSize = FDistributionVector(FVector(15.0f, 15.0f, 15.0f));
 	SizeModule->bUseSizeOverLife = true;
 	LODLevel->Modules.Add(SizeModule);
 
 	// 색상 모듈 (페이드 아웃 효과 - bUpdateModule이 기본 true라 자동 보간)
 	UParticleModuleColor* ColorModule = NewObject<UParticleModuleColor>();
-	ColorModule->StartColor = FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);  // 불투명 흰색
-	ColorModule->EndColor = FLinearColor(1.0f, 1.0f, 1.0f, 0.0f);    // 투명 흰색
+	ColorModule->StartColor = FDistributionColor(FLinearColor(1.0f, 1.0f, 1.0f, 1.0f));  // 불투명 흰색
+	ColorModule->EndColor = FDistributionColor(FLinearColor(1.0f, 1.0f, 1.0f, 0.0f));    // 투명 흰색
 	LODLevel->Modules.Add(ColorModule);
 
 	// 회전 모듈 (2D 회전)
 	UParticleModuleRotation* RotationModule = NewObject<UParticleModuleRotation>();
-	RotationModule->StartRotation = 0.0f;
-	RotationModule->RotationRandomness = 3.14159f;  // 랜덤 초기 회전
+	RotationModule->StartRotation = FDistributionFloat(-3.14159f, 3.14159f);  // 랜덤 초기 회전
 	LODLevel->Modules.Add(RotationModule);
 
 	// 회전 속도 모듈
 	UParticleModuleRotationRate* RotRateModule = NewObject<UParticleModuleRotationRate>();
-	RotRateModule->StartRotationRate = 3.0f;  // 천천히 회전
+	RotRateModule->StartRotationRate = FDistributionFloat(3.0f);  // 천천히 회전
 	LODLevel->Modules.Add(RotRateModule);
 
 	// 위치 모듈 생성

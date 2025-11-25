@@ -31,16 +31,19 @@ void FThumbnailManager::Shutdown()
 	}
 	ThumbnailCache.clear();
 
-	// 기본 아이콘 해제 (항상 Manager가 소유)
+	// 기본 아이콘 해제 (Manager가 소유한 것만)
 	for (auto& Pair : DefaultIconCache)
 	{
-		if (Pair.second.SRV)
+		if (Pair.second.bOwnedByManager)
 		{
-			Pair.second.SRV->Release();
-		}
-		if (Pair.second.Texture)
-		{
-			Pair.second.Texture->Release();
+			if (Pair.second.SRV)
+			{
+				Pair.second.SRV->Release();
+			}
+			if (Pair.second.Texture)
+			{
+				Pair.second.Texture->Release();
+			}
 		}
 	}
 	DefaultIconCache.clear();
@@ -78,6 +81,10 @@ ID3D11ShaderResourceView* FThumbnailManager::GetThumbnail(const std::string& Fil
 	         Extension == ".dds" || Extension == ".tga")
 	{
 		ThumbnailData = CreateImageThumbnail(FilePath);
+	}
+	else if (Extension == ".particle")
+	{
+		ThumbnailData = CreateParticleThumbnail(FilePath);
 	}
 	else
 	{
@@ -121,6 +128,43 @@ FThumbnailData* FThumbnailManager::CreateFBXThumbnail(const std::string& FilePat
 	// 현재는 기본 아이콘 반환
 	//UE_LOG("ThumbnailManager: FBX thumbnail generation not yet implemented for %s", FilePath.c_str());
 	return CreateDefaultThumbnail(".fbx");
+}
+
+FThumbnailData* FThumbnailManager::CreateParticleThumbnail(const std::string& FilePath)
+{
+	// 파티클 시스템 아이콘 로드
+	const std::string IconPath = "Data/Icon/ParticleSystemIcon.png";
+
+	// 이미 캐시에 있으면 반환
+	auto It = DefaultIconCache.find(".particle");
+	if (It != DefaultIconCache.end())
+	{
+		return &It->second;
+	}
+
+	if (!Device)
+	{
+		return nullptr;
+	}
+
+	// 아이콘 이미지 로드
+	UTexture* IconTexture = UResourceManager::GetInstance().Load<UTexture>(FString(IconPath.c_str()), true);
+	if (!IconTexture || !IconTexture->GetShaderResourceView())
+	{
+		UE_LOG("ThumbnailManager: Failed to load particle icon: %s", IconPath.c_str());
+		return CreateDefaultThumbnail(".particle");
+	}
+
+	// 캐시에 추가 (ResourceManager가 관리하므로 Release하지 않음)
+	FThumbnailData Data;
+	Data.SRV = IconTexture->GetShaderResourceView();
+	Data.Texture = IconTexture->GetTexture2D();
+	Data.Width = IconTexture->GetWidth();
+	Data.Height = IconTexture->GetHeight();
+	Data.bOwnedByManager = false;
+
+	DefaultIconCache[".particle"] = Data;
+	return &DefaultIconCache[".particle"];
 }
 
 FThumbnailData* FThumbnailManager::CreateImageThumbnail(const std::string& FilePath)

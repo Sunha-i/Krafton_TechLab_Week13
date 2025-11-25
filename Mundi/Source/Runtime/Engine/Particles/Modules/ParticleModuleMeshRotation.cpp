@@ -1,10 +1,11 @@
 #include "pch.h"
 #include "ParticleModuleMeshRotation.h"
 #include "ParticleEmitterInstance.h"
+#include "ParticleSystemComponent.h"
 
 void UParticleModuleMeshRotation::Spawn(FParticleEmitterInstance* Owner, int32 Offset, float SpawnTime, FBaseParticle* ParticleBase)
 {
-	if (!ParticleBase)
+	if (!ParticleBase || !Owner || !Owner->Component)
 	{
 		return;
 	}
@@ -15,26 +16,14 @@ void UParticleModuleMeshRotation::Spawn(FParticleEmitterInstance* Owner, int32 O
 	// 페이로드 가져오기
 	PARTICLE_ELEMENT(FMeshRotationPayload, Payload);
 
-	// 랜덤 오프셋 계산 (-Randomness ~ +Randomness)
-	auto RandomRange = [](float Range) -> float
-	{
-		return (static_cast<float>(rand()) / RAND_MAX * 2.0f - 1.0f) * Range;
-	};
+	// Distribution 시스템을 사용하여 초기 회전값 계산
+	FVector InitialRot = StartRotation.GetValue(0.0f, Owner->RandomStream, Owner->Component);
+	Payload.InitialRotation = InitialRot;
+	Payload.Rotation = InitialRot;
 
-	// 초기 회전값 설정 (StartRotation + Random)
-	Payload.InitialRotation = StartRotation;
-	Payload.Rotation = FVector(
-		StartRotation.X + RandomRange(RotationRandomness.X),
-		StartRotation.Y + RandomRange(RotationRandomness.Y),
-		StartRotation.Z + RandomRange(RotationRandomness.Z)
-	);
-
-	// 회전 속도 설정 (StartRotationRate + Random)
-	Payload.RotationRate = FVector(
-		StartRotationRate.X + RandomRange(RotationRateRandomness.X),
-		StartRotationRate.Y + RandomRange(RotationRateRandomness.Y),
-		StartRotationRate.Z + RandomRange(RotationRateRandomness.Z)
-	);
+	// Distribution 시스템을 사용하여 회전 속도 계산
+	FVector InitialRotRate = StartRotationRate.GetValue(0.0f, Owner->RandomStream, Owner->Component);
+	Payload.RotationRate = InitialRotRate;
 
 	// 기본 Z축 회전도 동기화 (스프라이트 호환)
 	ParticleBase->Rotation = Payload.Rotation.Z;
@@ -61,5 +50,22 @@ void UParticleModuleMeshRotation::Serialize(const bool bInIsLoading, JSON& InOut
 {
 	UParticleModule::Serialize(bInIsLoading, InOutHandle);
 
-	// UPROPERTY 속성은 리플렉션 시스템에 의해 자동으로 직렬화됨
+	JSON TempJson;
+	if (bInIsLoading)
+	{
+		if (FJsonSerializer::ReadObject(InOutHandle, "StartRotation", TempJson))
+			StartRotation.Serialize(true, TempJson);
+		if (FJsonSerializer::ReadObject(InOutHandle, "StartRotationRate", TempJson))
+			StartRotationRate.Serialize(true, TempJson);
+	}
+	else
+	{
+		TempJson = JSON::Make(JSON::Class::Object);
+		StartRotation.Serialize(false, TempJson);
+		InOutHandle["StartRotation"] = TempJson;
+
+		TempJson = JSON::Make(JSON::Class::Object);
+		StartRotationRate.Serialize(false, TempJson);
+		InOutHandle["StartRotationRate"] = TempJson;
+	}
 }

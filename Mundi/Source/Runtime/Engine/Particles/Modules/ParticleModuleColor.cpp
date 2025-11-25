@@ -15,15 +15,9 @@ void UParticleModuleColor::Spawn(FParticleEmitterInstance* Owner, int32 Offset, 
 		return;
 	}
 
-	// 색상 랜덤화 적용 (언리얼 엔진 호환: 랜덤 스트림 사용)
-	FLinearColor InitialColor = StartColor;
-	if (ColorRandomness > 0.0f)
-	{
-		InitialColor.R = FMath::Clamp(StartColor.R + Owner->RandomStream.GetRangeFloat(-ColorRandomness, ColorRandomness), 0.0f, 1.0f);
-		InitialColor.G = FMath::Clamp(StartColor.G + Owner->RandomStream.GetRangeFloat(-ColorRandomness, ColorRandomness), 0.0f, 1.0f);
-		InitialColor.B = FMath::Clamp(StartColor.B + Owner->RandomStream.GetRangeFloat(-ColorRandomness, ColorRandomness), 0.0f, 1.0f);
-		InitialColor.A = FMath::Clamp(StartColor.A + Owner->RandomStream.GetRangeFloat(-ColorRandomness, ColorRandomness), 0.0f, 1.0f);
-	}
+	// Distribution 시스템을 사용하여 색상 계산
+	FLinearColor InitialColor = StartColor.GetValue(0.0f, Owner->RandomStream, Owner->Component);
+	FLinearColor TargetColor = EndColor.GetValue(0.0f, Owner->RandomStream, Owner->Component);
 
 	// 초기 색상 설정
 	ParticleBase->Color = InitialColor;
@@ -36,7 +30,7 @@ void UParticleModuleColor::Spawn(FParticleEmitterInstance* Owner, int32 Offset, 
 	PARTICLE_ELEMENT(FParticleColorPayload, ColorPayload);
 
 	ColorPayload.InitialColor = InitialColor;
-	ColorPayload.TargetColor = EndColor;
+	ColorPayload.TargetColor = TargetColor;
 	ColorPayload.ColorChangeRate = 1.0f;  // 기본 변화 속도
 }
 
@@ -61,5 +55,23 @@ void UParticleModuleColor::Update(FModuleUpdateContext& Context)
 void UParticleModuleColor::Serialize(const bool bInIsLoading, JSON& InOutHandle)
 {
 	UParticleModule::Serialize(bInIsLoading, InOutHandle);
-	// UPROPERTY 속성은 자동으로 직렬화됨
+
+	JSON TempJson;
+	if (bInIsLoading)
+	{
+		if (FJsonSerializer::ReadObject(InOutHandle, "StartColor", TempJson))
+			StartColor.Serialize(true, TempJson);
+		if (FJsonSerializer::ReadObject(InOutHandle, "EndColor", TempJson))
+			EndColor.Serialize(true, TempJson);
+	}
+	else
+	{
+		TempJson = JSON::Make(JSON::Class::Object);
+		StartColor.Serialize(false, TempJson);
+		InOutHandle["StartColor"] = TempJson;
+
+		TempJson = JSON::Make(JSON::Class::Object);
+		EndColor.Serialize(false, TempJson);
+		InOutHandle["EndColor"] = TempJson;
+	}
 }

@@ -1,13 +1,14 @@
 #pragma once
 
 #include "ParticleModule.h"
+#include "Distribution.h"
 #include "UParticleModuleSize.generated.h"
 
 // 언리얼 엔진 호환: 페이로드 시스템 - 크기 모듈
 // 파티클별 크기 데이터를 저장 (초기 크기, OverLife 배율 등)
 struct FParticleSizePayload
 {
-	FVector InitialSize;          // 생성 시 초기 크기 (랜덤 적용 후)
+	FVector InitialSize;          // 생성 시 초기 크기 (Distribution 샘플링 후)
 	float SizeMultiplierOverLife; // 수명에 따른 크기 배율
 	FVector EndSize;              // 목표 크기 (OverLife 용)
 	float Padding;                // 16바이트 정렬 유지 (48바이트 총 크기)
@@ -20,15 +21,13 @@ public:
 	GENERATED_REFLECTION_BODY()
 
 public:
+	// 파티클 시작 크기 (Distribution 시스템)
 	UPROPERTY(EditAnywhere, Category="Size")
-	FVector StartSize = FVector(1.0f, 1.0f, 1.0f);
-
-	UPROPERTY(EditAnywhere, Category="Size")
-	FVector StartSizeRange = FVector(0.0f, 0.0f, 0.0f);
+	FDistributionVector StartSize = FDistributionVector(FVector(1.0f, 1.0f, 1.0f));
 
 	// 언리얼 엔진 호환: 크기 OverLife
 	UPROPERTY(EditAnywhere, Category="Size")
-	FVector EndSize = FVector(1.0f, 1.0f, 1.0f);
+	FDistributionVector EndSize = FDistributionVector(FVector(1.0f, 1.0f, 1.0f));
 
 	UPROPERTY(EditAnywhere, Category="Size")
 	bool bUseSizeOverLife = false;  // true이면 수명에 따라 크기 변화

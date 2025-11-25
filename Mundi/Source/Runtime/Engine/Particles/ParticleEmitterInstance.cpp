@@ -395,7 +395,7 @@ void FParticleEmitterInstance::Tick(float DeltaTime, bool bSuppressSpawning)
 
 		if (SpawnModule && SpawnModule->bEnabled)
 		{
-			int32 SpawnCount = SpawnModule->CalculateSpawnCount(DeltaTime, SpawnFraction, bBurstFired);
+			int32 SpawnCount = SpawnModule->CalculateSpawnCount(this, DeltaTime, SpawnFraction, bBurstFired);
 
 			if (SpawnCount > 0)
 			{

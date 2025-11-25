@@ -16,14 +16,8 @@ void UParticleModuleSize::Spawn(FParticleEmitterInstance* Owner, int32 Offset, f
 		return;
 	}
 
-	// 언리얼 엔진 호환: 랜덤 스트림 사용 (결정론적)
-	FVector RandomOffset(
-		Owner->RandomStream.GetSignedFraction() * StartSizeRange.X,
-		Owner->RandomStream.GetSignedFraction() * StartSizeRange.Y,
-		Owner->RandomStream.GetSignedFraction() * StartSizeRange.Z
-	);
-
-	FVector LocalInitialSize = StartSize + RandomOffset;
+	// Distribution 시스템을 사용하여 크기 계산
+	FVector LocalInitialSize = StartSize.GetValue(0.0f, Owner->RandomStream, Owner->Component);
 
 	// 음수 크기 방지
 	LocalInitialSize.X = FMath::Max(LocalInitialSize.X, 0.01f);
@@ -43,7 +37,9 @@ void UParticleModuleSize::Spawn(FParticleEmitterInstance* Owner, int32 Offset, f
 	PARTICLE_ELEMENT(FParticleSizePayload, SizePayload);
 
 	SizePayload.InitialSize = FinalWorldScale;
-	SizePayload.EndSize = EndSize * ComponentScaleX;
+	// EndSize도 Distribution에서 샘플링
+	FVector LocalEndSize = EndSize.GetValue(0.0f, Owner->RandomStream, Owner->Component);
+	SizePayload.EndSize = LocalEndSize * ComponentScaleX;
 	SizePayload.SizeMultiplierOverLife = 1.0f;  // 기본 배율
 
 	// SizeOverLife 활성화 시 Update 모듈로 동작
@@ -83,5 +79,26 @@ void UParticleModuleSize::Update(FModuleUpdateContext& Context)
 void UParticleModuleSize::Serialize(const bool bInIsLoading, JSON& InOutHandle)
 {
 	UParticleModule::Serialize(bInIsLoading, InOutHandle);
-	// UPROPERTY 속성은 자동으로 직렬화됨
+
+	JSON TempJson;
+	if (bInIsLoading)
+	{
+		if (FJsonSerializer::ReadObject(InOutHandle, "StartSize", TempJson))
+			StartSize.Serialize(true, TempJson);
+		if (FJsonSerializer::ReadObject(InOutHandle, "EndSize", TempJson))
+			EndSize.Serialize(true, TempJson);
+		FJsonSerializer::ReadBool(InOutHandle, "bUseSizeOverLife", bUseSizeOverLife);
+	}
+	else
+	{
+		TempJson = JSON::Make(JSON::Class::Object);
+		StartSize.Serialize(false, TempJson);
+		InOutHandle["StartSize"] = TempJson;
+
+		TempJson = JSON::Make(JSON::Class::Object);
+		EndSize.Serialize(false, TempJson);
+		InOutHandle["EndSize"] = TempJson;
+
+		InOutHandle["bUseSizeOverLife"] = bUseSizeOverLife;
+	}
 }

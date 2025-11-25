@@ -6,6 +6,8 @@
 
 // Forward declarations
 class UParticleSystemComponent;
+namespace json { class JSON; }
+using JSON = json::JSON;
 
 // 언리얼 엔진 호환: Distribution 시스템
 // 파티클 모듈의 속성값을 유연하게 제어 (상수, 균등 분포, 커브 등)
@@ -50,6 +52,9 @@ struct FInterpCurvePointFloat
 		, InterpMode(InMode)
 	{
 	}
+
+	// 직렬화
+	void Serialize(bool bIsLoading, JSON& InOutHandle);
 };
 
 // ============================================================
@@ -80,6 +85,9 @@ struct FInterpCurvePointVector
 		, InterpMode(InMode)
 	{
 	}
+
+	// 직렬화
+	void Serialize(bool bIsLoading, JSON& InOutHandle);
 };
 
 // ============================================================
@@ -153,6 +161,9 @@ struct FInterpCurveFloat
 	{
 		Points.Add(FInterpCurvePointFloat(Time, Value, Mode));
 	}
+
+	// 직렬화
+	void Serialize(bool bIsLoading, JSON& InOutHandle);
 };
 
 // ============================================================
@@ -230,6 +241,9 @@ struct FInterpCurveVector
 	{
 		Points.Add(FInterpCurvePointVector(Time, Value, Mode));
 	}
+
+	// 직렬화
+	void Serialize(bool bIsLoading, JSON& InOutHandle);
 };
 
 // ============================================================
@@ -330,6 +344,9 @@ struct FDistributionFloat
 		Dist.ParameterDefaultValue = DefaultValue;
 		return Dist;
 	}
+
+	// 직렬화
+	void Serialize(bool bIsLoading, JSON& InOutHandle);
 };
 
 // ============================================================
@@ -418,6 +435,9 @@ struct FDistributionVector
 		Dist.ParameterDefaultValue = DefaultValue;
 		return Dist;
 	}
+
+	// 직렬화
+	void Serialize(bool bIsLoading, JSON& InOutHandle);
 };
 
 // ============================================================
@@ -484,4 +504,7 @@ struct FDistributionColor
 		Dist.Alpha = FDistributionFloat::MakeUniform(Min.A, Max.A);
 		return Dist;
 	}
+
+	// 직렬화
+	void Serialize(bool bIsLoading, JSON& InOutHandle);
 };

@@ -1,14 +1,15 @@
 #pragma once
 
 #include "ParticleModule.h"
+#include "Distribution.h"
 #include "UParticleModuleAcceleration.generated.h"
 
 // 언리얼 엔진 호환: 파티클별 가속도 페이로드 (32바이트, 16바이트 정렬)
 struct FParticleAccelerationPayload
 {
-	FVector InitialAcceleration;          // 초기 가속도 (12바이트)
+	FVector InitialAcceleration;          // 초기 가속도 (Distribution 샘플링 후) (12바이트)
 	float Padding0;                       // 정렬 패딩 (4바이트)
-	FVector AccelerationRandomOffset;     // 랜덤 오프셋 (12바이트)
+	FVector AccelerationRandomOffset;     // (사용 안함, 호환성 유지) (12바이트)
 	float AccelerationMultiplierOverLife; // 수명에 따른 가속도 배율 (4바이트)
 	// 총 32바이트
 };
@@ -20,9 +21,9 @@ public:
 	GENERATED_REFLECTION_BODY()
 
 public:
-	// 기본 가속도 벡터
+	// 기본 가속도 벡터 (Distribution 시스템)
 	UPROPERTY(EditAnywhere, Category="Acceleration")
-	FVector Acceleration = FVector(0.0f, 0.0f, 0.0f);
+	FDistributionVector Acceleration = FDistributionVector(FVector(0.0f, 0.0f, 0.0f));
 
 	// 중력 적용 여부
 	UPROPERTY(EditAnywhere, Category="Acceleration")
@@ -43,10 +44,6 @@ public:
 	// 수명 종료 시 가속도 배율 (0.0 ~ 1.0)
 	UPROPERTY(EditAnywhere, Category="Acceleration")
 	float AccelerationMultiplierAtEnd = 1.0f;
-
-	// 가속도 랜덤 변화량 (각 축별)
-	UPROPERTY(EditAnywhere, Category="Acceleration")
-	FVector AccelerationRandomness = FVector(0.0f, 0.0f, 0.0f);
 
 	UParticleModuleAcceleration()
 	{

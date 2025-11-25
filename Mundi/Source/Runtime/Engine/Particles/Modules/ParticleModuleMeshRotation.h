@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ParticleModule.h"
+#include "Source/Runtime/Engine/Particles/Distribution.h"
 #include "UParticleModuleMeshRotation.generated.h"
 
 // 메시 파티클용 3D 회전 페이로드 (48바이트)
@@ -22,21 +23,14 @@ public:
 
 public:
 	// 시작 회전값 (라디안) - X: Roll, Y: Pitch, Z: Yaw
+	// Distribution 시스템: Constant, Uniform(랜덤), Curve 등 지원
 	UPROPERTY(EditAnywhere, Category="Rotation")
-	FVector StartRotation = FVector(0.0f, 0.0f, 0.0f);
-
-	// 회전 랜덤 변화량 (라디안)
-	// 최종 회전 = StartRotation + Random(-Randomness, +Randomness)
-	UPROPERTY(EditAnywhere, Category="Rotation")
-	FVector RotationRandomness = FVector(0.0f, 0.0f, 0.0f);
+	FDistributionVector StartRotation;
 
 	// 회전 속도 (라디안/초)
+	// Distribution 시스템: Constant, Uniform(랜덤), Curve 등 지원
 	UPROPERTY(EditAnywhere, Category="Rotation")
-	FVector StartRotationRate = FVector(0.0f, 0.0f, 0.0f);
-
-	// 회전 속도 랜덤 변화량
-	UPROPERTY(EditAnywhere, Category="Rotation")
-	FVector RotationRateRandomness = FVector(0.0f, 0.0f, 0.0f);
+	FDistributionVector StartRotationRate;
 
 	UParticleModuleMeshRotation()
 	{

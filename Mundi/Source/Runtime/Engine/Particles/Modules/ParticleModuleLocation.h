@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ParticleModule.h"
+#include "Distribution.h"
 #include "UParticleModuleLocation.generated.h"
 
 // 언리얼 엔진 호환: 스폰 분포 형태
@@ -19,6 +20,8 @@ struct FParticleLocationPayload
 	// 총 16바이트
 };
 
+class FParticleRandomStream;
+
 UCLASS(DisplayName="위치 모듈", Description="파티클의 초기 위치를 결정하는 모듈입니다")
 class UParticleModuleLocation : public UParticleModule
 {
@@ -26,25 +29,25 @@ public:
 	GENERATED_REFLECTION_BODY()
 
 public:
-	// 시작 위치 중심점
+	// 시작 위치 중심점 - Distribution 시스템
 	UPROPERTY(EditAnywhere, Category="Location")
-	FVector StartLocation = FVector(0.0f, 0.0f, 0.0f);
-
-	// 언리얼 엔진 호환: 분포 범위 (Box의 경우 각 축별 범위, Sphere의 경우 X=반지름)
-	UPROPERTY(EditAnywhere, Category="Location")
-	FVector StartLocationRange = FVector(0.0f, 0.0f, 0.0f);
+	FDistributionVector StartLocation = FDistributionVector(FVector(0.0f, 0.0f, 0.0f));
 
 	// 분포 형태 (0=Box, 1=Sphere, 2=Cylinder)
 	UPROPERTY(EditAnywhere, Category="Location")
 	int32 DistributionShape = 0;
 
-	// 구/실린더 분포 시 반지름
+	// Box 분포 시 각 축별 범위 - Distribution 시스템
 	UPROPERTY(EditAnywhere, Category="Location")
-	float SphereRadius = 100.0f;
+	FDistributionVector BoxExtent = FDistributionVector(FVector(0.0f, 0.0f, 0.0f));
 
-	// 실린더 분포 시 높이
+	// 구/실린더 분포 시 반지름 - Distribution 시스템
 	UPROPERTY(EditAnywhere, Category="Location")
-	float CylinderHeight = 100.0f;
+	FDistributionFloat SphereRadius = FDistributionFloat(100.0f);
+
+	// 실린더 분포 시 높이 - Distribution 시스템
+	UPROPERTY(EditAnywhere, Category="Location")
+	FDistributionFloat CylinderHeight = FDistributionFloat(100.0f);
 
 	// 표면에만 스폰할지 여부 (Sphere/Cylinder 전용)
 	UPROPERTY(EditAnywhere, Category="Location")
@@ -66,8 +69,8 @@ public:
 	virtual void Serialize(const bool bInIsLoading, JSON& InOutHandle) override;
 
 private:
-	// 분포 형태별 랜덤 위치 생성
-	FVector GenerateRandomLocationBox();
-	FVector GenerateRandomLocationSphere();
-	FVector GenerateRandomLocationCylinder();
+	// 분포 형태별 랜덤 위치 생성 (RandomStream 사용)
+	FVector GenerateRandomLocationBox(FParticleRandomStream& RandomStream, const FVector& Extent);
+	FVector GenerateRandomLocationSphere(FParticleRandomStream& RandomStream, float Radius);
+	FVector GenerateRandomLocationCylinder(FParticleRandomStream& RandomStream, float Radius, float Height);
 };

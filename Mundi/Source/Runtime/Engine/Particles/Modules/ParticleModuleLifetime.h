@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ParticleModule.h"
+#include "Distribution.h"
 #include "UParticleModuleLifetime.generated.h"
 
 UCLASS(DisplayName="라이프타임 모듈", Description="파티클의 수명을 설정하는 모듈입니다")
@@ -10,11 +11,9 @@ public:
 	GENERATED_REFLECTION_BODY()
 
 public:
+	// 파티클 수명 (Distribution 시스템 사용)
 	UPROPERTY(EditAnywhere, Category="Lifetime")
-	float MinLifetime = 1.0f;
-
-	UPROPERTY(EditAnywhere, Category="Lifetime")
-	float MaxLifetime = 1.0f;
+	FDistributionFloat Lifetime = FDistributionFloat(1.0f);
 
 	UParticleModuleLifetime()
 	{

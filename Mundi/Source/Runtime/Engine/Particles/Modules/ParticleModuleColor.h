@@ -1,14 +1,15 @@
 #pragma once
 
 #include "ParticleModule.h"
+#include "Distribution.h"
 #include "UParticleModuleColor.generated.h"
 
 // 언리얼 엔진 호환: 페이로드 시스템 - 색상 모듈
-// 파티클별 색상 데이터를 저장 (랜덤 색상, OverLife 최적화 등)
+// 파티클별 색상 데이터를 저장 (Distribution 샘플링 결과, OverLife 최적화 등)
 struct FParticleColorPayload
 {
-	FLinearColor InitialColor;    // 생성 시 초기 색상 (랜덤 적용 후)
-	FLinearColor TargetColor;     // 목표 색상 (보간용)
+	FLinearColor InitialColor;    // 생성 시 초기 색상 (Distribution 샘플링 후)
+	FLinearColor TargetColor;     // 목표 색상 (Distribution 샘플링 후)
 	float ColorChangeRate;        // 색상 변화 속도 (OverLife 최적화)
 	float Padding;                // 16바이트 정렬 유지 (48바이트 총 크기)
 };
@@ -20,15 +21,13 @@ public:
 	GENERATED_REFLECTION_BODY()
 
 public:
+	// 파티클 시작 색상 (Distribution 시스템: RGB + Alpha 분리)
 	UPROPERTY(EditAnywhere, Category="Color")
-	FLinearColor StartColor = FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
+	FDistributionColor StartColor = FDistributionColor(FLinearColor(1.0f, 1.0f, 1.0f, 1.0f));
 
+	// 파티클 끝 색상 (Distribution 시스템)
 	UPROPERTY(EditAnywhere, Category="Color")
-	FLinearColor EndColor = FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
-
-	// 언리얼 엔진 호환: 색상 랜덤화
-	UPROPERTY(EditAnywhere, Category="Color")
-	float ColorRandomness = 0.0f;  // 0.0 = 랜덤 없음, 1.0 = 완전 랜덤
+	FDistributionColor EndColor = FDistributionColor(FLinearColor(1.0f, 1.0f, 1.0f, 1.0f));
 
 	UParticleModuleColor()
 	{
