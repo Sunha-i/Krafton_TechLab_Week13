@@ -12,6 +12,13 @@
 #include "FViewport.h"
 #include "FViewportClient.h"
 #include "Source/Runtime/Engine/Components/LineComponent.h"
+#include "Modules/ParticleModuleLifetime.h"
+#include "Modules/ParticleModuleSize.h"
+#include "Modules/ParticleModuleVelocity.h"
+#include "Modules/ParticleModuleColor.h"
+#include "Modules/ParticleModuleTypeDataSprite.h"
+#include "Modules/ParticleModuleRequired.h"
+#include "Modules/ParticleModuleSpawn.h"
 
 SParticleEditorWindow::SParticleEditorWindow()
 {
@@ -285,7 +292,7 @@ ViewerState* SParticleEditorWindow::CreateViewerState(const char* Name, UEditorA
 void SParticleEditorWindow::DestroyViewerState(ViewerState*& State)
 {
 	// OriginAxisLineComponent는 각 탭의 PreviewActor가 소유하므로
-	// World 삭제 시 자동으로 정리됨
+	// World 삭제 시 자동으로 정리
 	ParticleEditorBootstrap::DestroyViewerState(State);
 }
 
@@ -348,8 +355,70 @@ void SParticleEditorWindow::RenderLeftPanel(float PanelWidth)
 
 void SParticleEditorWindow::RenderRightPanel()
 {
-	// 이미터 패널 (나중 단계에서 구현)
-	ImGui::Text("이미터 패널 (4단계에서 구현)");
+	ParticleEditorState* State = GetActiveParticleState();
+	if (!State || !State->EditingTemplate)
+	{
+		ImGui::TextDisabled("파티클 시스템이 없습니다");
+		return;
+	}
+
+	UParticleSystem* System = State->EditingTemplate;
+
+	// 가로 스크롤 영역 시작
+	ImGui::BeginChild("EmitterScrollArea", ImVec2(0, 0), false,
+		ImGuiWindowFlags_HorizontalScrollbar | ImGuiWindowFlags_AlwaysHorizontalScrollbar);
+
+	// 이미터 열 너비 상수
+	const float EmitterColumnWidth = 200.f;
+
+	// 각 이미터를 열로 렌더링
+	for (int32 i = 0; i < System->Emitters.Num(); ++i)
+	{
+		UParticleEmitter* Emitter = System->Emitters[i];
+		if (!Emitter) continue;
+
+		if (i > 0) ImGui::SameLine();
+
+		ImGui::BeginChild(
+			("##Emitter" + std::to_string(i)).c_str(),
+			ImVec2(EmitterColumnWidth, 0),
+			true,
+			ImGuiWindowFlags_NoScrollbar
+		);
+		{
+			RenderEmitterColumn(i, Emitter);
+		}
+		ImGui::EndChild();
+	}
+
+	// 빈 영역 우클릭 → 새 이미터 추가 메뉴
+	if (ImGui::BeginPopupContextWindow("EmptyAreaContextMenu", ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems))
+	{
+		if (ImGui::MenuItem("새 파티클 스프라이트 이미터"))
+		{
+			// 새 이미터 생성
+			UParticleEmitter* NewEmitter = NewObject<UParticleEmitter>();
+			UParticleLODLevel* NewLOD = NewObject<UParticleLODLevel>();
+			NewLOD->bEnabled = true;
+			NewLOD->RequiredModule = NewObject<UParticleModuleRequired>();
+			NewLOD->SpawnModule = NewObject<UParticleModuleSpawn>();
+
+			// 기본 스프라이트 타입 데이터 설정
+			UParticleModuleTypeDataSprite* SpriteTypeData = NewObject<UParticleModuleTypeDataSprite>();
+			NewLOD->TypeDataModule = SpriteTypeData;
+
+			NewEmitter->LODLevels.Add(NewLOD);
+			NewEmitter->CacheEmitterModuleInfo();
+
+			System->Emitters.Add(NewEmitter);
+			State->bIsDirty = true;
+
+			UE_LOG("[ParticleEditor] 새 스프라이트 이미터 추가: %d", System->Emitters.Num() - 1);
+		}
+		ImGui::EndPopup();
+	}
+
+	ImGui::EndChild();
 }
 
 void SParticleEditorWindow::RenderBottomPanel()
