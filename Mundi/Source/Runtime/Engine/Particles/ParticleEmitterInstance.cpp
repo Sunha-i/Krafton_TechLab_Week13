@@ -316,7 +316,7 @@ void FParticleEmitterInstance::Resize(int32 NewMaxActiveParticles)
 
 void FParticleEmitterInstance::Tick(float DeltaTime, bool bSuppressSpawning)
 {
-	if (!CurrentLODLevel || !bEmitterEnabled)
+	if (!CurrentLODLevel || !bEmitterEnabled || !CurrentLODLevel->bEnabled)
 	{
 		return;
 	}
@@ -599,8 +599,8 @@ FBaseParticle* FParticleEmitterInstance::GetParticleAtIndex(int32 Index)
 
 FDynamicEmitterDataBase* FParticleEmitterInstance::GetDynamicData(bool bSelected)
 {
-	// 필수 객체 nullptr 체크
-	if (!ParticleData || !CurrentLODLevel || ActiveParticles <= 0)
+	// 필수 객체 nullptr 체크 및 LOD 활성화 체크
+	if (!ParticleData || !CurrentLODLevel || ActiveParticles <= 0 || !CurrentLODLevel->bEnabled)
 	{
 		return nullptr;
 	}
