@@ -248,13 +248,16 @@ void FParticleEmitterInstance::SetupEmitter()
 	PayloadOffset = ParticleSize;  // 페이로드는 기본 파티클 뒤에 위치
 	ParticleStride = ParticleSize + TotalPayloadSize;
 
+	// 인스턴스 데이터 정리 (InstancePayloadSize 변경 전에 항상 해제)
+	if (InstanceData)
+	{
+		delete[] InstanceData;
+		InstanceData = nullptr;
+	}
+
 	// 인스턴스 데이터 할당 (필요한 경우)
 	if (InstancePayloadSize > 0)
 	{
-		if (InstanceData)
-		{
-			delete[] InstanceData;
-		}
 		InstanceData = new uint8[InstancePayloadSize];
 		memset(InstanceData, 0, InstancePayloadSize);
 	}

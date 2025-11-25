@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "ParticleDefinitions.h"
 
@@ -61,6 +61,20 @@ inline FVector GetParticleBaseSize(const FBaseParticle& Particle)
 {
 	return Particle.BaseSize;
 }
+
+// TODO(human): RAII wrapper for byte array memory management
+// Implement a simple RAII wrapper class that manages uint8* arrays
+// to prevent memory leaks in particle instance data
+//
+// Requirements:
+// - Constructor should accept size (can be 0)
+// - Destructor should properly free memory
+// - Provide Reset(size) method to reallocate with new size
+// - Provide Get() method to access raw pointer
+// - Disable copy, enable move semantics
+//
+// template or non-template class FInstanceDataBuffer { ... };
+
 
 // 언리얼 엔진 호환: 인덱스로 파티클을 가져오는 헬퍼 함수
 // 구현은 ParticleEmitterInstance.h에서 정의 (순환 의존성 방지)

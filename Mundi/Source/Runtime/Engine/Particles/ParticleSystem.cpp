@@ -3,6 +3,19 @@
 #include "ObjectFactory.h"
 #include "JsonSerializer.h"
 
+UParticleSystem::~UParticleSystem()
+{
+	// 모든 이미터 삭제
+	for (UParticleEmitter* Emitter : Emitters)
+	{
+		if (Emitter)
+		{
+			DeleteObject(Emitter);
+		}
+	}
+	Emitters.Empty();
+}
+
 UParticleEmitter* UParticleSystem::GetEmitter(int32 EmitterIndex) const
 {
 	if (EmitterIndex >= 0 && EmitterIndex < Emitters.size())

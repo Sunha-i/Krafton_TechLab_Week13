@@ -19,11 +19,6 @@ SParticleEditorWindow::SParticleEditorWindow()
 	LeftPanelRatio = 0.2f;   // 20% 왼쪽 (뷰포트 + 디테일)
 	RightPanelRatio = 0.6f;  // 60% 오른쪽 (이미터 패널)
 	bHasBottomPanel = true;
-
-	// 원점축 LineComponent 생성
-	OriginAxisLineComponent = NewObject<ULineComponent>();
-	OriginAxisLineComponent->SetAlwaysOnTop(true); // 항상 위에 표시
-	CreateOriginAxisLines();
 }
 
 SParticleEditorWindow::~SParticleEditorWindow()
@@ -95,14 +90,7 @@ SParticleEditorWindow::~SParticleEditorWindow()
 		IconLODLast = nullptr;
 	}
 
-	// LineComponent 정리
-	if (OriginAxisLineComponent)
-	{
-		DeleteObject(OriginAxisLineComponent);
-		OriginAxisLineComponent = nullptr;
-	}
-
-	// 탭 정리
+	// 탭 정리 (OriginAxisLineComponent는 탭별 State가 소유하므로 따로 정리 불필요)
 	for (int i = 0; i < Tabs.Num(); ++i)
 	{
 		ViewerState* State = Tabs[i];
@@ -236,18 +224,10 @@ void SParticleEditorWindow::PreRenderViewportUpdate()
 			State->Client->SetBackgroundColor(State->BackgroundColor);
 		}
 
-		// 원점축 LineComponent 처리
-		if (State->PreviewActor && OriginAxisLineComponent)
+		// 원점축 LineComponent 가시성 제어 (각 탭이 자체 컴포넌트 소유)
+		if (State->OriginAxisLineComponent)
 		{
-			// LineComponent가 아직 PreviewActor에 연결되지 않았으면 연결
-			if (OriginAxisLineComponent->GetOwner() != State->PreviewActor)
-			{
-				State->PreviewActor->AddOwnedComponent(OriginAxisLineComponent);
-				OriginAxisLineComponent->RegisterComponent(State->World);
-			}
-
-			// bShowOriginAxis 플래그에 따라 가시성 제어
-			OriginAxisLineComponent->SetLineVisible(State->bShowOriginAxis);
+			State->OriginAxisLineComponent->SetLineVisible(State->bShowOriginAxis);
 		}
 	}
 }
@@ -304,6 +284,8 @@ ViewerState* SParticleEditorWindow::CreateViewerState(const char* Name, UEditorA
 
 void SParticleEditorWindow::DestroyViewerState(ViewerState*& State)
 {
+	// OriginAxisLineComponent는 각 탭의 PreviewActor가 소유하므로
+	// World 삭제 시 자동으로 정리됨
 	ParticleEditorBootstrap::DestroyViewerState(State);
 }
 
@@ -1005,35 +987,74 @@ void SParticleEditorWindow::RenderRightCurveArea()
 	ImGui::EndChild();
 }
 
-void SParticleEditorWindow::CreateOriginAxisLines()
+void SParticleEditorWindow::OpenOrFocusTab(UEditorAssetPreviewContext* Context)
 {
-	if (!OriginAxisLineComponent) return;
+	// Context가 없거나 AssetPath가 비어있으면 새 탭 열기
+	if (!Context || Context->AssetPath.empty())
+	{
+		char label[64];
+		sprintf_s(label, "Particle Editor %d", Tabs.Num() + 1);
+		OpenNewTab(label);
+		return;
+	}
 
-	// 기존 라인 제거
-	OriginAxisLineComponent->ClearLines();
+	// 기존 탭 중 동일한 파일 경로를 가진 탭 검색
+	for (int i = 0; i < Tabs.Num(); ++i)
+	{
+		ParticleEditorState* State = static_cast<ParticleEditorState*>(Tabs[i]);
+		if (State && State->CurrentFilePath == Context->AssetPath)
+		{
+			// 기존 탭으로 전환
+			ActiveTabIndex = i;
+			ActiveState = Tabs[i];
+			UE_LOG("[SParticleEditorWindow] 기존 탭 발견: %s", Context->AssetPath.c_str());
+			return;
+		}
+	}
 
-	// 축 길이 설정
-	const float AxisLength = 10.0f;
-	const FVector Origin = FVector(0.0f, 0.0f, 0.0f);
+	// 기존 탭이 없으면 새 탭 생성
+	UE_LOG("[SParticleEditorWindow] 새 탭 생성: %s", Context->AssetPath.c_str());
 
-	// X축 - 빨강
-	OriginAxisLineComponent->AddLine(
-		Origin,
-		Origin + FVector(AxisLength, 0.0f, 0.0f),
-		FVector4(0.796f, 0.086f, 0.105f, 1.0f)
-	);
+	// 파일 경로에서 파일 이름 추출
+	FString AssetName;
+	const size_t lastSlash = Context->AssetPath.find_last_of("/\\");
+	if (lastSlash != FString::npos)
+		AssetName = Context->AssetPath.substr(lastSlash + 1);
+	else
+		AssetName = Context->AssetPath;
 
-	// Y축 - 초록
-	OriginAxisLineComponent->AddLine(
-		Origin,
-		Origin + FVector(0.0f, AxisLength, 0.0f),
-		FVector4(0.125f, 0.714f, 0.113f, 1.0f)
-	);
+	// 확장자 제거
+	const size_t dotPos = AssetName.find_last_of('.');
+	if (dotPos != FString::npos)
+		AssetName = AssetName.substr(0, dotPos);
+	ViewerState* NewState = CreateViewerState(AssetName.c_str(), Context);
 
-	// Z축 - 파랑
-	OriginAxisLineComponent->AddLine(
-		Origin,
-		Origin + FVector(0.0f, 0.0f, AxisLength),
-		FVector4(0.054f, 0.155f, 0.527f, 1.0f)
-	);
+	if (NewState)
+	{
+		Tabs.Add(NewState);
+		ActiveTabIndex = Tabs.Num() - 1;
+		ActiveState = NewState;
+
+		// 파티클 시스템 로드
+		ParticleEditorState* ParticleState = static_cast<ParticleEditorState*>(NewState);
+		UParticleSystem* LoadedSystem = ParticleEditorBootstrap::LoadParticleSystem(Context->AssetPath);
+		if (LoadedSystem)
+		{
+			ParticleState->EditingTemplate = LoadedSystem;
+			ParticleState->CurrentFilePath = Context->AssetPath;
+			ParticleState->bIsDirty = false;
+
+			// PreviewComponent에 새 템플릿 설정
+			if (ParticleState->PreviewComponent)
+			{
+				ParticleState->PreviewComponent->SetTemplate(LoadedSystem);
+			}
+
+			UE_LOG("[SParticleEditorWindow] 파티클 시스템 로드 완료: %s", Context->AssetPath.c_str());
+		}
+		else
+		{
+			UE_LOG("[SParticleEditorWindow] 파티클 시스템 로드 실패: %s", Context->AssetPath.c_str());
+		}
+	}
 }

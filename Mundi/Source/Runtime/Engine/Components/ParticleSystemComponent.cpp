@@ -19,11 +19,6 @@
 #include "Modules/ParticleModuleRotationRate.h"
 #include "Modules/ParticleModuleLocation.h"
 
-// Static 멤버 정의
-ID3D11Buffer* UParticleSystemComponent::SpriteQuadVertexBuffer = nullptr;
-ID3D11Buffer* UParticleSystemComponent::SpriteQuadIndexBuffer = nullptr;
-bool UParticleSystemComponent::bQuadBuffersInitialized = false;
-
 // Quad 버텍스 구조체 (UV만 포함)
 struct FSpriteQuadVertex
 {
@@ -53,7 +48,7 @@ void UParticleSystemComponent::InitializeQuadBuffers()
 	D3D11_SUBRESOURCE_DATA VBData = {};
 	VBData.pSysMem = Vertices;
 
-	Device->CreateBuffer(&VBDesc, &VBData, &SpriteQuadVertexBuffer);
+	Device->CreateBuffer(&VBDesc, &VBData, SpriteQuadVertexBuffer.GetAddressOf());
 
 	// 6개 인덱스 (2개 삼각형)
 	uint32 Indices[6] = { 0, 1, 2, 2, 1, 3 };
@@ -66,25 +61,11 @@ void UParticleSystemComponent::InitializeQuadBuffers()
 	D3D11_SUBRESOURCE_DATA IBData = {};
 	IBData.pSysMem = Indices;
 
-	Device->CreateBuffer(&IBDesc, &IBData, &SpriteQuadIndexBuffer);
+	Device->CreateBuffer(&IBDesc, &IBData, SpriteQuadIndexBuffer.GetAddressOf());
 
 	bQuadBuffersInitialized = true;
 }
-
-void UParticleSystemComponent::ReleaseQuadBuffers()
-{
-	if (SpriteQuadVertexBuffer)
-	{
-		SpriteQuadVertexBuffer->Release();
-		SpriteQuadVertexBuffer = nullptr;
-	}
-	if (SpriteQuadIndexBuffer)
-	{
-		SpriteQuadIndexBuffer->Release();
-		SpriteQuadIndexBuffer = nullptr;
-	}
-	bQuadBuffersInitialized = false;
-}
+// Note: ReleaseQuadBuffers 제거됨 - ComPtr이 프로그램 종료 시 자동 해제
 
 UParticleSystemComponent::UParticleSystemComponent()
 {
@@ -128,6 +109,29 @@ UParticleSystemComponent::~UParticleSystemComponent()
 		MeshInstanceBuffer->Release();
 		MeshInstanceBuffer = nullptr;
 	}
+
+	// 테스트용 리소스 정리 (디버그 함수에서 생성한 리소스)
+	CleanupTestResources();
+}
+
+void UParticleSystemComponent::CleanupTestResources()
+{
+	// 테스트용 Material 정리 (Template보다 먼저 - 참조 순서)
+	for (UMaterialInterface* Mat : TestMaterials)
+	{
+		if (Mat)
+		{
+			DeleteObject(Mat);
+		}
+	}
+	TestMaterials.Empty();
+
+	// 테스트용 Template 정리 (내부 Emitter/LODLevel/Module은 소멸자 체인으로 자동 정리)
+	if (TestTemplate)
+	{
+		DeleteObject(TestTemplate);
+		TestTemplate = nullptr;
+	}
 }
 
 void UParticleSystemComponent::OnRegister(UWorld* InWorld)
@@ -158,7 +162,8 @@ void UParticleSystemComponent::CreateDebugParticleSystem()
 {
 	// 디버그/테스트용 메시 파티클 시스템 생성
 	// Editor 통합 완료 후에는 Editor에서 설정한 Template 사용
-	Template = NewObject<UParticleSystem>();
+	TestTemplate = NewObject<UParticleSystem>();
+	Template = TestTemplate;  // Template도 같이 설정 (기존 로직 호환)
 
 	// 이미터 생성
 	UParticleEmitter* Emitter = NewObject<UParticleEmitter>();
@@ -169,12 +174,33 @@ void UParticleSystemComponent::CreateDebugParticleSystem()
 
 	// 필수 모듈 생성
 	LODLevel->RequiredModule = NewObject<UParticleModuleRequired>();
-	// Material은 null로 두면 CreateMeshParticleBatch에서 메시의 내장 머터리얼을 자동으로 로드
 
 	// 메시 타입 데이터 모듈 생성 (스프라이트 대신 메시 사용)
 	UParticleModuleTypeDataMesh* MeshTypeData = NewObject<UParticleModuleTypeDataMesh>();
-	// 테스트용 메시 로드 (큐브)
+	// 테스트용 메시 로드 (큐브) - ResourceManager가 관리하는 공유 리소스
 	MeshTypeData->Mesh = UResourceManager::GetInstance().Load<UStaticMesh>(GDataDir + "/cube-tex.obj");
+
+	// 메시 파티클용 Material 설정 (테스트용으로 직접 생성)
+	UMaterial* MeshParticleMaterial = NewObject<UMaterial>();
+	TestMaterials.Add(MeshParticleMaterial);  // 소유권 등록
+	UShader* MeshShader = UResourceManager::GetInstance().Load<UShader>("Shaders/Particle/ParticleMesh.hlsl");
+	MeshParticleMaterial->SetShader(MeshShader);
+
+	// 메시의 내장 머터리얼에서 텍스처 정보 가져오기
+	if (MeshTypeData->Mesh)
+	{
+		const TArray<FGroupInfo>& GroupInfos = MeshTypeData->Mesh->GetMeshGroupInfo();
+		if (!GroupInfos.IsEmpty() && !GroupInfos[0].InitialMaterialName.empty())
+		{
+			UMaterial* MeshMaterial = UResourceManager::GetInstance().Load<UMaterial>(GroupInfos[0].InitialMaterialName);
+			if (MeshMaterial)
+			{
+				MeshParticleMaterial->SetMaterialInfo(MeshMaterial->GetMaterialInfo());
+				MeshParticleMaterial->ResolveTextures();
+			}
+		}
+	}
+	LODLevel->RequiredModule->Material = MeshParticleMaterial;
 	LODLevel->TypeDataModule = MeshTypeData;
 
 	// 스폰 모듈 생성
@@ -218,13 +244,15 @@ void UParticleSystemComponent::CreateDebugParticleSystem()
 	Emitter->CacheEmitterModuleInfo();
 
 	// 이미터를 시스템에 추가
-	Template->Emitters.Add(Emitter);
+	TestTemplate->Emitters.Add(Emitter);
+	// Note: ResourceManager에 등록하지 않음 - TestTemplate은 이 Component가 소유
 }
 
 void UParticleSystemComponent::CreateDebugSpriteParticleSystem()
 {
 	// 디버그/테스트용 스프라이트 파티클 시스템 생성
-	Template = NewObject<UParticleSystem>();
+	TestTemplate = NewObject<UParticleSystem>();
+	Template = TestTemplate;  // Template도 같이 설정 (기존 로직 호환)
 
 	// 이미터 생성
 	UParticleEmitter* Emitter = NewObject<UParticleEmitter>();
@@ -236,8 +264,9 @@ void UParticleSystemComponent::CreateDebugSpriteParticleSystem()
 	// 필수 모듈 생성
 	LODLevel->RequiredModule = NewObject<UParticleModuleRequired>();
 
-	// 스프라이트용 Material 설정
+	// 스프라이트용 Material 설정 (테스트용으로 직접 생성)
 	UMaterial* SpriteMaterial = NewObject<UMaterial>();
+	TestMaterials.Add(SpriteMaterial);  // 소유권 등록
 	UShader* SpriteShader = UResourceManager::GetInstance().Load<UShader>("Shaders/Particle/ParticleSprite.hlsl");
 	SpriteMaterial->SetShader(SpriteShader);
 
@@ -305,7 +334,8 @@ void UParticleSystemComponent::CreateDebugSpriteParticleSystem()
 	Emitter->CacheEmitterModuleInfo();
 
 	// 이미터를 시스템에 추가
-	Template->Emitters.Add(Emitter);
+	TestTemplate->Emitters.Add(Emitter);
+	// Note: ResourceManager에 등록하지 않음 - TestTemplate은 이 Component가 소유
 }
 
 void UParticleSystemComponent::OnUnregister()
@@ -792,43 +822,14 @@ void UParticleSystemComponent::CreateMeshParticleBatch(TArray<FMeshBatchElement>
 		}
 	}
 
-	if (!Mesh || NumInstances == 0)
+	// Material이 없으면 렌더링하지 않음
+	// RequiredModule을 통해 올바르게 Material을 설정해야 함
+	if (!Mesh || !Material || NumInstances == 0)
 	{
 		return;
 	}
 
-	// Material이 없으면 메시의 내장 머터리얼에서 텍스처를 가져와 사용
-	if (!Material)
-	{
-		// ParticleMesh 셰이더 로드
-		UShader* ParticleMeshShader = UResourceManager::GetInstance().Load<UShader>("Shaders/Particle/ParticleMesh.hlsl");
-
-		// 메시의 내장 머터리얼 확인 (StaticMeshComponent와 동일한 패턴)
-		const TArray<FGroupInfo>& GroupInfos = Mesh->GetMeshGroupInfo();
-		UMaterial* MeshMaterial = nullptr;
-
-		if (!GroupInfos.IsEmpty() && !GroupInfos[0].InitialMaterialName.empty())
-		{
-			// 메시의 첫 번째 그룹의 머터리얼 로드
-			MeshMaterial = UResourceManager::GetInstance().Load<UMaterial>(GroupInfos[0].InitialMaterialName);
-		}
-
-		// 새 파티클 머터리얼 생성 (ParticleMesh 셰이더 + 메시 텍스처)
-		UMaterial* ParticleMaterial = NewObject<UMaterial>();
-		ParticleMaterial->SetShader(ParticleMeshShader);
-
-		if (MeshMaterial)
-		{
-			// 메시 머터리얼에서 MaterialInfo 복사 (텍스처 경로 포함)
-			ParticleMaterial->SetMaterialInfo(MeshMaterial->GetMaterialInfo());
-			// 텍스처 경로 기반으로 실제 텍스처 로드
-			ParticleMaterial->ResolveTextures();
-		}
-
-		Material = ParticleMaterial;
-	}
-
-	if (!Material || !Material->GetShader())
+	if (!Material->GetShader())
 	{
 		return;
 	}
@@ -1002,34 +1003,14 @@ void UParticleSystemComponent::CreateSpriteParticleBatch(TArray<FMeshBatchElemen
 		}
 	}
 
-	if (NumInstances == 0)
+	// Material이 없으면 렌더링하지 않음
+	// RequiredModule을 통해 올바르게 Material을 설정해야 함
+	if (!Material || NumInstances == 0)
 	{
 		return;
 	}
 
-	// Material이 없으면 기본 스프라이트 셰이더 + 기본 텍스처로 생성
-	if (!Material)
-	{
-		// ParticleSprite 셰이더 로드
-		UShader* ParticleSpriteShader = UResourceManager::GetInstance().Load<UShader>("Shaders/Particle/ParticleSprite.hlsl");
-
-		if (ParticleSpriteShader)
-		{
-			// 새 파티클 머터리얼 생성
-			UMaterial* ParticleMaterial = NewObject<UMaterial>();
-			ParticleMaterial->SetShader(ParticleSpriteShader);
-
-			// 기본 파티클 텍스처 설정
-			FMaterialInfo MatInfo;
-			MatInfo.DiffuseTextureFileName = GDataDir + "/Particles/Particle_Gaussian.png";
-			ParticleMaterial->SetMaterialInfo(MatInfo);
-			ParticleMaterial->ResolveTextures();
-
-			Material = ParticleMaterial;
-		}
-	}
-
-	if (!Material || !Material->GetShader())
+	if (!Material->GetShader())
 	{
 		return;
 	}
@@ -1045,9 +1026,9 @@ void UParticleSystemComponent::CreateSpriteParticleBatch(TArray<FMeshBatchElemen
 	BatchElement.InputLayout = ShaderVariant->InputLayout;
 	BatchElement.Material = Material;
 
-	// Quad 버퍼 사용
-	BatchElement.VertexBuffer = SpriteQuadVertexBuffer;
-	BatchElement.IndexBuffer = SpriteQuadIndexBuffer;
+	// Quad 버퍼 사용 (ComPtr에서 raw 포인터 추출)
+	BatchElement.VertexBuffer = SpriteQuadVertexBuffer.Get();
+	BatchElement.IndexBuffer = SpriteQuadIndexBuffer.Get();
 	BatchElement.VertexStride = sizeof(FSpriteQuadVertex);
 
 	// 인스턴싱 데이터

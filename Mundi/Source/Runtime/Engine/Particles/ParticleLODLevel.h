@@ -41,7 +41,7 @@ public:
 	TArray<UParticleModule*> UpdateModules;
 
 	UParticleLODLevel() = default;
-	virtual ~UParticleLODLevel() = default;
+	virtual ~UParticleLODLevel();
 
 	// 모듈 정보 캐싱
 	void CacheModuleInfo();

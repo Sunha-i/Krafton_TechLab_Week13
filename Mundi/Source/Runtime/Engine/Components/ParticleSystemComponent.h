@@ -1,5 +1,6 @@
 ﻿#pragma once
 
+#include <wrl/client.h>
 #include "PrimitiveComponent.h"
 #include "Source/Runtime/Engine/Particles/ParticleSystem.h"
 #include "Source/Runtime/Engine/Particles/ParticleEmitterInstance.h"
@@ -54,11 +55,11 @@ public:
 	uint32 AllocatedSpriteInstanceCount = 0;
 
 	// Shared Quad Mesh (스프라이트 인스턴싱용)
-	static ID3D11Buffer* SpriteQuadVertexBuffer;
-	static ID3D11Buffer* SpriteQuadIndexBuffer;
-	static bool bQuadBuffersInitialized;
+	// ComPtr + static inline: 프로그램 종료 시 자동 해제, cpp 정의 불필요
+	static inline Microsoft::WRL::ComPtr<ID3D11Buffer> SpriteQuadVertexBuffer;
+	static inline Microsoft::WRL::ComPtr<ID3D11Buffer> SpriteQuadIndexBuffer;
+	static inline bool bQuadBuffersInitialized = false;
 	static void InitializeQuadBuffers();
-	static void ReleaseQuadBuffers();
 
 	UParticleSystemComponent();
 	virtual ~UParticleSystemComponent();
@@ -107,6 +108,11 @@ private:
 	void InitializeEmitterInstances();
 	void ClearEmitterInstances();
 	void UpdateRenderData();
+
+	// === 테스트용 리소스 (디버그 함수에서 생성, Component가 소유) ===
+	UParticleSystem* TestTemplate = nullptr;
+	TArray<UMaterialInterface*> TestMaterials;
+	void CleanupTestResources();
 
 	// 테스트용 디버그 파티클 시스템 생성
 	void CreateDebugParticleSystem();        // 메시 파티클 테스트

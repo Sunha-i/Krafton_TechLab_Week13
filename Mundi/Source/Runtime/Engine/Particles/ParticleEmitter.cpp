@@ -3,6 +3,19 @@
 #include "ObjectFactory.h"
 #include "JsonSerializer.h"
 
+UParticleEmitter::~UParticleEmitter()
+{
+	// 모든 LOD 레벨 삭제
+	for (UParticleLODLevel* LODLevel : LODLevels)
+	{
+		if (LODLevel)
+		{
+			DeleteObject(LODLevel);
+		}
+	}
+	LODLevels.Empty();
+}
+
 void UParticleEmitter::CacheEmitterModuleInfo()
 {
 	// 파티클 크기 계산

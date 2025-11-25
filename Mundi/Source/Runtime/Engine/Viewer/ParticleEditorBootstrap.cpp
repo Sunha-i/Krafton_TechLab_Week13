@@ -17,6 +17,40 @@
 #include "Modules/ParticleModuleColor.h"
 #include "Modules/ParticleModuleTypeDataSprite.h"
 #include "JsonSerializer.h"
+#include "EditorAssetPreviewContext.h"
+#include "Source/Runtime/Engine/Components/LineComponent.h"
+
+// 원점축 라인 생성 헬퍼 함수
+static void CreateOriginAxisLines(ULineComponent* LineComp)
+{
+	if (!LineComp) return;
+
+	LineComp->ClearLines();
+
+	const float AxisLength = 10.0f;
+	const FVector Origin = FVector(0.0f, 0.0f, 0.0f);
+
+	// X축 - 빨강
+	LineComp->AddLine(
+		Origin,
+		Origin + FVector(AxisLength, 0.0f, 0.0f),
+		FVector4(0.796f, 0.086f, 0.105f, 1.0f)
+	);
+
+	// Y축 - 초록
+	LineComp->AddLine(
+		Origin,
+		Origin + FVector(0.0f, AxisLength, 0.0f),
+		FVector4(0.125f, 0.714f, 0.113f, 1.0f)
+	);
+
+	// Z축 - 파랑
+	LineComp->AddLine(
+		Origin,
+		Origin + FVector(0.0f, 0.0f, AxisLength),
+		FVector4(0.054f, 0.155f, 0.527f, 1.0f)
+	);
+}
 
 ViewerState* ParticleEditorBootstrap::CreateViewerState(const char* Name, UWorld* InWorld,
 	ID3D11Device* InDevice, UEditorAssetPreviewContext* Context)
@@ -68,11 +102,38 @@ ViewerState* ParticleEditorBootstrap::CreateViewerState(const char* Name, UWorld
 			State->PreviewActor = PreviewActor;
 			State->PreviewComponent = ParticleComp;
 
-			// 기본 파티클 템플릿 생성 (6개 기본 모듈 포함)
-			UParticleSystem* DefaultTemplate = CreateDefaultParticleTemplate();
+			// Context에 AssetPath가 있으면 파일에서 로드, 없으면 기본 템플릿 생성
+			UParticleSystem* Template = nullptr;
+			if (Context && !Context->AssetPath.empty())
+			{
+				// 파일에서 파티클 시스템 로드
+				Template = LoadParticleSystem(Context->AssetPath);
+				if (Template)
+				{
+					State->CurrentFilePath = Context->AssetPath;
+					State->bIsDirty = false;
+					UE_LOG("[ParticleEditorBootstrap] 파티클 시스템 로드: %s", Context->AssetPath.c_str());
+				}
+			}
 
-			State->EditingTemplate = DefaultTemplate;
-			State->PreviewComponent->SetTemplate(DefaultTemplate);
+			// 로드 실패하거나 AssetPath가 없으면 기본 템플릿 생성
+			if (!Template)
+			{
+				Template = CreateDefaultParticleTemplate();
+				UE_LOG("[ParticleEditorBootstrap] 기본 파티클 템플릿 생성");
+			}
+
+			State->EditingTemplate = Template;
+			State->PreviewComponent->SetTemplate(Template);
+
+			// 원점축 LineComponent 생성 및 연결
+			ULineComponent* OriginLineComp = NewObject<ULineComponent>();
+			OriginLineComp->SetAlwaysOnTop(true);
+			PreviewActor->AddOwnedComponent(OriginLineComp);
+			OriginLineComp->RegisterComponent(State->World);
+			CreateOriginAxisLines(OriginLineComp);
+			OriginLineComp->SetLineVisible(false); // 기본값: 숨김
+			State->OriginAxisLineComponent = OriginLineComp;
 		}
 	}
 
@@ -227,6 +288,14 @@ UParticleSystem* ParticleEditorBootstrap::LoadParticleSystem(const FString& File
 		return nullptr;
 	}
 
+	// ResourceManager에서 이미 로드된 파티클 시스템 확인
+	UParticleSystem* ExistingSystem = UResourceManager::GetInstance().Get<UParticleSystem>(FilePath);
+	if (ExistingSystem)
+	{
+		UE_LOG("[ParticleEditorBootstrap] LoadParticleSystem: 캐시된 시스템 반환: %s", FilePath.c_str());
+		return ExistingSystem;
+	}
+
 	// FString을 FWideString으로 변환
 	FWideString WidePath(FilePath.begin(), FilePath.end());
 
@@ -248,6 +317,9 @@ UParticleSystem* ParticleEditorBootstrap::LoadParticleSystem(const FString& File
 
 	// ParticleSystem 역직렬화 (true = 로딩 모드)
 	LoadedSystem->Serialize(true, JsonHandle);
+
+	// ResourceManager에 등록
+	UResourceManager::GetInstance().Add<UParticleSystem>(FilePath, LoadedSystem);
 
 	UE_LOG("[ParticleEditorBootstrap] LoadParticleSystem: 로드 성공: %s", FilePath.c_str());
 	return LoadedSystem;
