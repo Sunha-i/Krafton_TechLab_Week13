@@ -16,7 +16,7 @@ void UParticleModuleLifetime::Spawn(FParticleEmitterInstance* Owner, int32 Offse
 	ParticleBase->OneOverMaxLifetime = (Lifetime > 0.0f) ? (1.0f / Lifetime) : 0.0f;
 	ParticleBase->RelativeTime = 0.0f;
 
-	UE_LOG("[Lifetime] Spawn: Lifetime=%.2f, OneOverMaxLifetime=%.4f", Lifetime, ParticleBase->OneOverMaxLifetime);
+	//UE_LOG("[Lifetime] Spawn: Lifetime=%.2f, OneOverMaxLifetime=%.4f", Lifetime, ParticleBase->OneOverMaxLifetime);
 }
 
 void UParticleModuleLifetime::Serialize(const bool bInIsLoading, JSON& InOutHandle)

@@ -1037,3 +1037,75 @@ void SParticleEditorWindow::CreateOriginAxisLines()
 		FVector4(0.054f, 0.155f, 0.527f, 1.0f)
 	);
 }
+
+void SParticleEditorWindow::OpenOrFocusTab(UEditorAssetPreviewContext* Context)
+{
+	// Context가 없거나 AssetPath가 비어있으면 새 탭 열기
+	if (!Context || Context->AssetPath.empty())
+	{
+		char label[64];
+		sprintf_s(label, "Particle Editor %d", Tabs.Num() + 1);
+		OpenNewTab(label);
+		return;
+	}
+
+	// 기존 탭 중 동일한 파일 경로를 가진 탭 검색
+	for (int i = 0; i < Tabs.Num(); ++i)
+	{
+		ParticleEditorState* State = static_cast<ParticleEditorState*>(Tabs[i]);
+		if (State && State->CurrentFilePath == Context->AssetPath)
+		{
+			// 기존 탭으로 전환
+			ActiveTabIndex = i;
+			ActiveState = Tabs[i];
+			UE_LOG("[SParticleEditorWindow] 기존 탭 발견: %s", Context->AssetPath.c_str());
+			return;
+		}
+	}
+
+	// 기존 탭이 없으면 새 탭 생성
+	UE_LOG("[SParticleEditorWindow] 새 탭 생성: %s", Context->AssetPath.c_str());
+
+	// 파일 경로에서 파일 이름 추출
+	FString AssetName;
+	const size_t lastSlash = Context->AssetPath.find_last_of("/\\");
+	if (lastSlash != FString::npos)
+		AssetName = Context->AssetPath.substr(lastSlash + 1);
+	else
+		AssetName = Context->AssetPath;
+
+	// 확장자 제거
+	const size_t dotPos = AssetName.find_last_of('.');
+	if (dotPos != FString::npos)
+		AssetName = AssetName.substr(0, dotPos);
+	ViewerState* NewState = CreateViewerState(AssetName.c_str(), Context);
+
+	if (NewState)
+	{
+		Tabs.Add(NewState);
+		ActiveTabIndex = Tabs.Num() - 1;
+		ActiveState = NewState;
+
+		// 파티클 시스템 로드
+		ParticleEditorState* ParticleState = static_cast<ParticleEditorState*>(NewState);
+		UParticleSystem* LoadedSystem = ParticleEditorBootstrap::LoadParticleSystem(Context->AssetPath);
+		if (LoadedSystem)
+		{
+			ParticleState->EditingTemplate = LoadedSystem;
+			ParticleState->CurrentFilePath = Context->AssetPath;
+			ParticleState->bIsDirty = false;
+
+			// PreviewComponent에 새 템플릿 설정
+			if (ParticleState->PreviewComponent)
+			{
+				ParticleState->PreviewComponent->SetTemplate(LoadedSystem);
+			}
+
+			UE_LOG("[SParticleEditorWindow] 파티클 시스템 로드 완료: %s", Context->AssetPath.c_str());
+		}
+		else
+		{
+			UE_LOG("[SParticleEditorWindow] 파티클 시스템 로드 실패: %s", Context->AssetPath.c_str());
+		}
+	}
+}

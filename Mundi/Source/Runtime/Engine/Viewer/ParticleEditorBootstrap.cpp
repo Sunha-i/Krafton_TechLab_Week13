@@ -17,6 +17,7 @@
 #include "Modules/ParticleModuleColor.h"
 #include "Modules/ParticleModuleTypeDataSprite.h"
 #include "JsonSerializer.h"
+#include "EditorAssetPreviewContext.h"
 
 ViewerState* ParticleEditorBootstrap::CreateViewerState(const char* Name, UWorld* InWorld,
 	ID3D11Device* InDevice, UEditorAssetPreviewContext* Context)
@@ -68,11 +69,29 @@ ViewerState* ParticleEditorBootstrap::CreateViewerState(const char* Name, UWorld
 			State->PreviewActor = PreviewActor;
 			State->PreviewComponent = ParticleComp;
 
-			// 기본 파티클 템플릿 생성 (6개 기본 모듈 포함)
-			UParticleSystem* DefaultTemplate = CreateDefaultParticleTemplate();
+			// Context에 AssetPath가 있으면 파일에서 로드, 없으면 기본 템플릿 생성
+			UParticleSystem* Template = nullptr;
+			if (Context && !Context->AssetPath.empty())
+			{
+				// 파일에서 파티클 시스템 로드
+				Template = LoadParticleSystem(Context->AssetPath);
+				if (Template)
+				{
+					State->CurrentFilePath = Context->AssetPath;
+					State->bIsDirty = false;
+					UE_LOG("[ParticleEditorBootstrap] 파티클 시스템 로드: %s", Context->AssetPath.c_str());
+				}
+			}
 
-			State->EditingTemplate = DefaultTemplate;
-			State->PreviewComponent->SetTemplate(DefaultTemplate);
+			// 로드 실패하거나 AssetPath가 없으면 기본 템플릿 생성
+			if (!Template)
+			{
+				Template = CreateDefaultParticleTemplate();
+				UE_LOG("[ParticleEditorBootstrap] 기본 파티클 템플릿 생성");
+			}
+
+			State->EditingTemplate = Template;
+			State->PreviewComponent->SetTemplate(Template);
 		}
 	}
 

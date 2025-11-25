@@ -47,7 +47,7 @@
             "EmitterRotation" : [0.000000, 0.000000, 0.000000],
             "Material" : "",
             "MaterialShader" : "Shaders/Particle/ParticleSprite.hlsl",
-            "MaterialTexture" : "Data/Textures/Particles/OrientParticle.png",
+            "MaterialTexture" : "Data/Textures/Particles/Smoke.png",
             "ScreenAlignment" : 0,
             "SortMode" : 0,
             "bDelayFirstLoopOnly" : false,

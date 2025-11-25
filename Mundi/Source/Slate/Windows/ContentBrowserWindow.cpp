@@ -6,6 +6,7 @@
 #include "ImGui/imgui_internal.h"
 #include "SlateManager.h"
 #include "ThumbnailManager.h"
+#include "Source/Runtime/Engine/Viewer/EditorAssetPreviewContext.h"
 #include <algorithm>
 
 IMPLEMENT_CLASS(UContentBrowserWindow)
@@ -455,6 +456,16 @@ void UContentBrowserWindow::HandleDoubleClick(FFileEntry& Entry)
 		// 텍스처 뷰어 (향후 구현)
 		UE_LOG("Texture file clicked: %s (Texture viewer not implemented yet)", Entry.FileName.c_str());
 	}
+	else if (ext == ".particle")
+	{
+		// 파티클 에디터 열기
+		std::string pathStr = WideToUTF8(Entry.Path.wstring());
+		UEditorAssetPreviewContext* Context = NewObject<UEditorAssetPreviewContext>();
+		Context->ViewerType = EViewerType::Particle;
+		Context->AssetPath = pathStr.c_str();
+		USlateManager::GetInstance().OpenAssetViewer(Context);
+		UE_LOG("Opening ParticleEditor for: %s", Entry.FileName.c_str());
+	}
 	else
 	{
 		UE_LOG("Unsupported file type: %s", ext.c_str());
@@ -495,6 +506,10 @@ const char* UContentBrowserWindow::GetIconForFile(const FFileEntry& Entry) const
 	else if (ext == ".mat")
 	{
 		return "[MAT]";
+	}
+	else if (ext == ".particle")
+	{
+		return "[PTCL]";
 	}
 	else if (ext == ".level" || ext == ".json")
 	{

@@ -18,7 +18,7 @@ public:
 	virtual void OnMouseDown(FVector2D MousePos, uint32 Button) override;
 	virtual void OnMouseUp(FVector2D MousePos, uint32 Button) override;
 
-	void OpenOrFocusTab(UEditorAssetPreviewContext* Context);
+	virtual void OpenOrFocusTab(UEditorAssetPreviewContext* Context);
 	void RequestFocus() { bRequestFocus = true; }
 	void OnRenderViewport();
 	virtual void PreRenderViewportUpdate() {}

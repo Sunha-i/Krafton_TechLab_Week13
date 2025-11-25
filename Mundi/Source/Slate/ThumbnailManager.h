@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include <string>
 #include <unordered_map>
 #include <d3d11.h>
@@ -65,6 +65,11 @@ private:
 	 * @brief FBX 파일용 썸네일 생성
 	 */
 	FThumbnailData* CreateFBXThumbnail(const std::string& FilePath);
+
+	/**
+	 * @brief 파티클 시스템용 썸네일 생성
+	 */
+	FThumbnailData* CreateParticleThumbnail(const std::string& FilePath);
 
 	/**
 	 * @brief 기본 아이콘 텍스처 생성 (Prefab 등)

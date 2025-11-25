@@ -20,6 +20,9 @@ public:
 	virtual void OnUpdate(float DeltaSeconds) override;
 	virtual void PreRenderViewportUpdate() override;
 
+	// 파일 경로 기반 탭 검색 오버라이드
+	void OpenOrFocusTab(UEditorAssetPreviewContext* Context) override;
+
 protected:
 	virtual ViewerState* CreateViewerState(const char* Name, UEditorAssetPreviewContext* Context) override;
 	virtual void DestroyViewerState(ViewerState*& State) override;
