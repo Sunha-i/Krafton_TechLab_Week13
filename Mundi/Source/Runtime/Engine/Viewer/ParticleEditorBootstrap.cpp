@@ -194,6 +194,7 @@ UParticleSystem* ParticleEditorBootstrap::CreateDefaultParticleTemplate()
 	SpawnModule->SpawnRate = FDistributionFloat(20.0f);
 	SpawnModule->BurstCount = FDistributionFloat(0.0f);
 	LOD->SpawnModule = SpawnModule;
+	LOD->Modules.Add(SpawnModule);  // Modules 배열에도 추가 (직렬화를 위해 필수)
 
 	// 스프라이트용 Material 설정
 	UMaterial* SpriteMaterial = NewObject<UMaterial>();
