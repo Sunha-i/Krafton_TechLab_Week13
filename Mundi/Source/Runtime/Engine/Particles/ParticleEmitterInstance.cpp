@@ -282,9 +282,26 @@ void FParticleEmitterInstance::SetupEmitter()
 
 void FParticleEmitterInstance::Resize(int32 NewMaxActiveParticles)
 {
+	// 엔진 레벨 하드 리밋 (언리얼 Cascade 방식: CPU 파티클 1000개)
+	const int32 HardLimit = 1000;
+	NewMaxActiveParticles = FMath::Min(NewMaxActiveParticles, HardLimit);
+
 	if (NewMaxActiveParticles == MaxActiveParticles)
 	{
 		return;
+	}
+
+	// 기존 데이터 백업 (확장 시 보존을 위해)
+	int32 OldActiveParticles = ActiveParticles;
+	int32 OldMaxActiveParticles = MaxActiveParticles;
+	FParticleDataContainer OldContainer;
+
+	// 기존 파티클이 있고 확장하는 경우에만 데이터 보존
+	bool bPreserveData = (OldActiveParticles > 0) && (NewMaxActiveParticles > OldMaxActiveParticles);
+	if (bPreserveData)
+	{
+		// 기존 컨테이너를 임시로 이동 (swap)
+		OldContainer = std::move(ParticleDataContainer);
 	}
 
 	MaxActiveParticles = NewMaxActiveParticles;
@@ -301,13 +318,38 @@ void FParticleEmitterInstance::Resize(int32 NewMaxActiveParticles)
 			ParticleData = ParticleDataContainer.ParticleData;
 			ParticleIndices = ParticleDataContainer.ParticleIndices;
 
-			// 인덱스 초기화
-			if (ParticleIndices)
+			// 기존 파티클 데이터 복사 (확장 시)
+			if (bPreserveData && OldContainer.ParticleData && OldContainer.ParticleIndices)
 			{
-				for (int32 i = 0; i < MaxActiveParticles; i++)
+				// 전체 기존 데이터 복사 (KillParticle로 인해 인덱스가 섞여있을 수 있음)
+				// ParticleIndices가 [99, 50, 3, ...] 처럼 비순차적일 수 있으므로
+				// 기존 전체 슬롯을 복사해야 함
+				int32 CopySize = OldMaxActiveParticles * ParticleStride;
+				memcpy(ParticleData, OldContainer.ParticleData, CopySize);
+
+				// 인덱스도 전체 복사 (기존 매핑 유지)
+				memcpy(ParticleIndices, OldContainer.ParticleIndices, OldMaxActiveParticles * sizeof(uint16));
+
+				// 새로 확장된 부분의 인덱스만 초기화
+				for (int32 i = OldMaxActiveParticles; i < MaxActiveParticles; i++)
 				{
-					ParticleIndices[i] = i;
+					ParticleIndices[i] = static_cast<uint16>(i);
 				}
+
+				// ActiveParticles 유지
+				ActiveParticles = OldActiveParticles;
+			}
+			else
+			{
+				// 새로 할당하는 경우 인덱스 전체 초기화
+				if (ParticleIndices)
+				{
+					for (int32 i = 0; i < MaxActiveParticles; i++)
+					{
+						ParticleIndices[i] = static_cast<uint16>(i);
+					}
+				}
+				ActiveParticles = 0;
 			}
 		}
 		else
@@ -318,6 +360,7 @@ void FParticleEmitterInstance::Resize(int32 NewMaxActiveParticles)
 			ParticleData = nullptr;
 			ParticleIndices = nullptr;
 			MaxActiveParticles = 0;
+			ActiveParticles = 0;
 		}
 	}
 	else
@@ -326,9 +369,10 @@ void FParticleEmitterInstance::Resize(int32 NewMaxActiveParticles)
 		ParticleDataContainer.Free();
 		ParticleData = nullptr;
 		ParticleIndices = nullptr;
+		ActiveParticles = 0;
 	}
 
-	ActiveParticles = 0;
+	// OldContainer는 스코프 종료 시 자동 해제됨
 }
 
 void FParticleEmitterInstance::Tick(float DeltaTime, bool bSuppressSpawning)
@@ -444,7 +488,13 @@ void FParticleEmitterInstance::Tick(float DeltaTime, bool bSuppressSpawning)
 void FParticleEmitterInstance::SpawnParticles(int32 Count, float StartTime, float Increment, const FVector& InitialLocation, const FVector& InitialVelocity)
 {
 	// 필수 객체 nullptr 체크
-	if (!CurrentLODLevel || !ParticleData)
+	if (!CurrentLODLevel || !ParticleData || !ParticleIndices)
+	{
+		return;
+	}
+
+	// Component 유효성 검사 (언리얼 방식)
+	if (!Component || Component->IsPendingDestroy())
 	{
 		return;
 	}
@@ -454,11 +504,17 @@ void FParticleEmitterInstance::SpawnParticles(int32 Count, float StartTime, floa
 		// 공간이 있는지 확인
 		if (ActiveParticles >= MaxActiveParticles)
 		{
-			// 더 많은 파티클을 수용하도록 크기 조정
+			// 더 많은 파티클을 수용하도록 크기 조정 (Resize에서 하드 리밋 적용)
 			Resize(MaxActiveParticles * 2);
 
-			// Resize 실패 시 중단
-			if (!ParticleData)
+			// Resize 후 포인터 유효성 재검사
+			if (!ParticleData || !ParticleIndices)
+			{
+				return;
+			}
+
+			// Resize 후에도 공간 부족하면 중단 (하드 리밋 도달)
+			if (ActiveParticles >= MaxActiveParticles)
 			{
 				return;
 			}
@@ -561,7 +617,8 @@ void FParticleEmitterInstance::UpdateParticles(float DeltaTime)
 		return;
 	}
 
-	// 모든 파티클의 기본 속성 업데이트 (역방향 순회)
+	// PHASE 1: 모든 파티클의 기본 속성 업데이트 (수명, 위치, 회전)
+	// 이 단계에서는 파티클을 죽이지 않음 - 모듈들이 먼저 처리할 수 있도록
 	for (int32 i = ActiveParticles - 1; i >= 0; i--)
 	{
 		// 파티클 가져오기
@@ -580,13 +637,8 @@ void FParticleEmitterInstance::UpdateParticles(float DeltaTime)
 		// 이전 위치 저장 (충돌 처리용)
 		Particle->OldLocation = Particle->Location;
 
-		// 수명 업데이트 (수명 초과 시 파티클 제거)
+		// 수명 업데이트 (아직 파티클을 죽이지 않음)
 		Particle->RelativeTime += DeltaTime * Particle->OneOverMaxLifetime;
-		if (Particle->RelativeTime >= 1.0f)
-		{
-			KillParticle(i);
-			continue;
-		}
 
 		// 위치 업데이트
 		if ((Particle->Flags & STATE_Particle_FreezeTranslation) == 0)
@@ -605,7 +657,9 @@ void FParticleEmitterInstance::UpdateParticles(float DeltaTime)
 		Particle->Flags &= ~STATE_Particle_JustSpawned;
 	}
 
-	// 업데이트 모듈 적용 (언리얼 엔진 방식: Context 사용)
+	// PHASE 2: 업데이트 모듈 적용 (언리얼 엔진 방식: Context 사용)
+	// EventGenerator가 RelativeTime >= 1.0인 파티클의 Death 이벤트를 생성할 수 있도록
+	// 파티클을 죽이기 전에 모듈을 먼저 실행
 	for (UParticleModule* Module : CurrentLODLevel->UpdateModules)
 	{
 		if (Module && Module->bEnabled && Module->bUpdateModule)
@@ -613,6 +667,22 @@ void FParticleEmitterInstance::UpdateParticles(float DeltaTime)
 			// PayloadOffset 추가: 페이로드는 FBaseParticle 뒤에 위치
 			FModuleUpdateContext Context = { *this, PayloadOffset + Module->ModuleOffsetInParticle, DeltaTime };
 			Module->Update(Context);
+		}
+	}
+
+	// PHASE 3: 수명이 다한 파티클 제거 (역방향 순회)
+	for (int32 i = ActiveParticles - 1; i >= 0; i--)
+	{
+		FBaseParticle* Particle = GetParticleAtIndex(i);
+		if (!Particle)
+		{
+			continue;
+		}
+
+		// 수명 초과 시 파티클 제거
+		if (Particle->RelativeTime >= 1.0f)
+		{
+			KillParticle(i);
 		}
 	}
 }
@@ -624,18 +694,8 @@ void FParticleEmitterInstance::KillParticle(int32 Index)
 		return;
 	}
 
-	// 언리얼 엔진 호환: Death 이벤트 생성
-	FBaseParticle* Particle = GetParticleAtIndex(Index);
-	if (Particle && Component)
-	{
-		FParticleEventData DeathEvent;
-		DeathEvent.Type = EParticleEventType::Death;
-		DeathEvent.Position = Particle->Location;
-		DeathEvent.Velocity = Particle->Velocity;
-		DeathEvent.EmitterTime = EmitterTime;
-		DeathEvent.ParticleIndex = Index;
-		Component->AddDeathEvent(DeathEvent);
-	}
+	// Death 이벤트는 EventGenerator 모듈에서 생성함
+	// (여기서 생성하면 Generator 없는 이미터에서도 이벤트가 발생하는 문제)
 
 	// 마지막 활성 파티클과 교체
 	if (Index != ActiveParticles - 1)

@@ -94,7 +94,22 @@ public: \\
     static UStruct* StaticStruct() \\
     {{ \\
         static UStruct Str{{ "{struct_name}", sizeof({struct_name}) }}; \\
-        static bool bRegistered = (UStruct::SignUpStruct(&Str), true); \\
+        static bool bRegistered = []() {{ \\
+            Str.ArrayAdd = [](void* ArrayPtr) {{ \\
+                static_cast<TArray<{struct_name}>*>(ArrayPtr)->Add({struct_name}()); \\
+            }}; \\
+            Str.ArrayRemoveAt = [](void* ArrayPtr, int32 Index) {{ \\
+                static_cast<TArray<{struct_name}>*>(ArrayPtr)->RemoveAt(Index); \\
+            }}; \\
+            Str.ArrayNum = [](void* ArrayPtr) -> int32 {{ \\
+                return static_cast<TArray<{struct_name}>*>(ArrayPtr)->Num(); \\
+            }}; \\
+            Str.ArrayGetData = [](void* ArrayPtr) -> void* {{ \\
+                return static_cast<TArray<{struct_name}>*>(ArrayPtr)->GetData(); \\
+            }}; \\
+            UStruct::SignUpStruct(&Str); \\
+            return true; \\
+        }}(); \\
         return &Str; \\
     }} \\
 private: \\

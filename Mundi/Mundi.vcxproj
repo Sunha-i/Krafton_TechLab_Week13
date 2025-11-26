@@ -665,6 +665,8 @@ powershell.exe -ExecutionPolicy Bypass -File "$(ProjectDir)BuildTools\SymbolServ
     <ClCompile Include="Source\Runtime\Engine\Particles\Modules\ParticleModuleEventReceiver.cpp" />
     <ClCompile Include="Generated\UParticleModuleEventReceiverKill.generated.cpp" />
     <ClCompile Include="Generated\UParticleModuleEventReceiverSpawn.generated.cpp" />
+    <ClCompile Include="Generated\FParticleEventGeneratorInfo.generated.cpp" />
+    <ClCompile Include="Generated\FParticleBurst.generated.cpp" />
     <ClCompile Include="Generated\UParticleModuleTrailSource.generated.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -889,6 +891,7 @@ powershell.exe -ExecutionPolicy Bypass -File "$(ProjectDir)BuildTools\SymbolServ
     <ClInclude Include="Source\Runtime\Engine\GameFramework\SkeletalMeshActor.h" />
     <ClInclude Include="Source\Runtime\Engine\GameFramework\SpotLightActor.h" />
     <ClInclude Include="Source\Runtime\Engine\Particles\Distribution.h" />
+    <ClInclude Include="Source\Runtime\Engine\Particles\Modules\ParticleEventGeneratorInfo.h" />
     <ClInclude Include="Source\Runtime\Engine\Particles\Modules\ParticleModuleEventReceiverBase.h" />
     <ClInclude Include="Source\Runtime\Engine\Particles\Modules\ParticleModuleEventReceiverKill.h" />
     <ClInclude Include="Source\Runtime\Engine\Particles\Modules\ParticleModuleEventReceiverSpawn.h" />
@@ -896,6 +899,8 @@ powershell.exe -ExecutionPolicy Bypass -File "$(ProjectDir)BuildTools\SymbolServ
     <ClInclude Include="Source\Runtime\Engine\Particles\Modules\ParticleModuleTrailSource.h" />
     <ClInclude Include="Source\Runtime\Engine\Particles\Modules\ParticleModuleTypeDataBeam.h" />
     <ClInclude Include="Source\Runtime\Engine\Particles\Modules\ParticleModuleTypeDataRibbon.h" />
+    <ClInclude Include="Source\Runtime\Engine\Particles\ParticleBurstTypes.h" />
+    <ClInclude Include="Source\Runtime\Engine\Particles\ParticleEventGeneratorTypes.h" />
     <ClInclude Include="Source\Runtime\Engine\Particles\ParticleEventTypes.h" />
     <ClInclude Include="Source\Runtime\Engine\Particles\ParticleRandomStream.h" />
     <ClInclude Include="Source\Runtime\Engine\Particles\ParticleStats.h" />
@@ -1177,6 +1182,8 @@ powershell.exe -ExecutionPolicy Bypass -File "$(ProjectDir)BuildTools\SymbolServ
     <ClInclude Include="Source\Runtime\Engine\Particles\Modules\ParticleModuleEventReceiver.h" />
     <ClInclude Include="Generated\UParticleModuleEventReceiverKill.generated.h" />
     <ClInclude Include="Generated\UParticleModuleEventReceiverSpawn.generated.h" />
+    <ClInclude Include="Generated\FParticleEventGeneratorInfo.generated.h" />
+    <ClInclude Include="Generated\FParticleBurst.generated.h" />
     <ClInclude Include="Generated\UParticleModuleTrailSource.generated.h" />
   </ItemGroup>
   <ItemGroup>

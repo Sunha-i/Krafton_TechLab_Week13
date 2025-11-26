@@ -108,8 +108,17 @@ class Property:
         if 'tarray' in type_lower:
             template_args = HeaderParser._extract_template_args(self.type)
             if template_args:
-                inner_type = template_args[0]
-                self.metadata['inner_type'] = self._get_property_type_enum(inner_type)
+                inner_type = template_args[0].strip()
+                inner_type_enum = self._get_property_type_enum(inner_type)
+                self.metadata['inner_type'] = inner_type_enum
+                # Struct 타입인 경우 (F로 시작하는 사용자 정의 구조체)
+                if inner_type_enum == 'EPropertyType::Struct' or (
+                    inner_type.startswith('F') and
+                    inner_type not in ['FString', 'FName', 'FVector', 'FVector2D', 'FLinearColor'] and
+                    '*' not in inner_type
+                ):
+                    self.metadata['struct_type'] = inner_type
+                    return 'ADD_PROPERTY_STRUCT_ARRAY'
             return 'ADD_PROPERTY_ARRAY'
 
         # 특수 타입 체크 (포인터보다 먼저)
@@ -222,6 +231,7 @@ class ClassInfo:
     is_component: bool = False
     is_spawnable: bool = False
     is_abstract: bool = False  # UCLASS(Abstract) 플래그
+    not_spawnable: bool = False  # UCLASS(NotSpawnable) 플래그 - 시스템 액터용
     display_name: str = ""
     description: str = ""
     uclass_metadata: Dict[str, str] = field(default_factory=dict)
@@ -466,6 +476,10 @@ class HeaderParser:
             # Abstract 플래그 확인
             if 'Abstract' in class_info.uclass_metadata:
                 class_info.is_abstract = True
+
+            # NotSpawnable 플래그 확인 (시스템 액터용)
+            if 'NotSpawnable' in class_info.uclass_metadata:
+                class_info.not_spawnable = True
 
         # UPROPERTY 파싱 (주석 제거된 버전에서)
         uproperty_decls = self._parse_uproperty_declarations(content_no_comments)

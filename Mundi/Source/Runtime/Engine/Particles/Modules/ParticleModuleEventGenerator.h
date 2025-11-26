@@ -1,34 +1,8 @@
 #pragma once
 
 #include "ParticleModule.h"
-#include "ParticleEventTypes.h"
+#include "ParticleEventGeneratorTypes.h"
 #include "UParticleModuleEventGenerator.generated.h"
-
-/**
- * 이벤트 생성 설정 (하나의 이벤트 타입에 대한 설정)
- */
-struct FParticleEventGeneratorInfo
-{
-	// 생성할 이벤트 타입
-	EParticleEventType Type = EParticleEventType::Any;
-
-	// 이벤트 빈도 제한 (0 = 무제한)
-	int32 Frequency = 0;
-
-	// 이벤트를 받을 이미터 이름 (빈 문자열이면 전체 브로드캐스트)
-	FString CustomName;
-
-	// 스폰 이벤트: 첫 스폰 시에만 발생할지 여부
-	bool bFirstSpawnOnly = false;
-
-	// 사망 이벤트: 라이프타임 종료 시에만 발생할지 (Kill에 의한 사망 제외)
-	bool bNaturalDeathOnly = false;
-
-	// 충돌 이벤트: 첫 충돌 시에만 발생할지 여부
-	bool bFirstCollisionOnly = true;
-
-	void Serialize(const bool bInIsLoading, JSON& InOutHandle);
-};
 
 /**
  * UParticleModuleEventGenerator
@@ -50,6 +24,7 @@ public:
 
 public:
 	// 생성할 이벤트 목록
+	UPROPERTY(EditAnywhere, Category="Events", Tooltip="생성할 이벤트 목록")
 	TArray<FParticleEventGeneratorInfo> Events;
 
 	UParticleModuleEventGenerator()

@@ -189,6 +189,13 @@ struct UStruct
 	const char* DisplayName = nullptr;
 	const char* Description = nullptr;
 
+	// 동적 배열 조작 함수 포인터 (TArray<ThisStruct> 조작용)
+	// PropertyRenderer에서 TArray<Struct>를 타입 안전하게 조작하기 위해 사용
+	void (*ArrayAdd)(void* ArrayPtr) = nullptr;           // 배열에 기본 요소 추가
+	void (*ArrayRemoveAt)(void* ArrayPtr, int32 Index) = nullptr;  // 인덱스로 요소 삭제
+	int32 (*ArrayNum)(void* ArrayPtr) = nullptr;          // 배열 크기 반환
+	void* (*ArrayGetData)(void* ArrayPtr) = nullptr;      // 데이터 포인터 반환
+
 	constexpr UStruct() = default;
 	constexpr UStruct(const char* n, SIZE_T z) : Name(n), Size(z) {}
 

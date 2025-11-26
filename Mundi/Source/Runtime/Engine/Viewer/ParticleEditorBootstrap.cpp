@@ -290,22 +290,25 @@ UParticleSystem* ParticleEditorBootstrap::LoadParticleSystem(const FString& File
 		return nullptr;
 	}
 
+	// 경로를 상대 경로로 정규화 (PropertyRenderer와 일치시키기 위해)
+	FString NormalizedFilePath = ResolveAssetRelativePath(NormalizePath(FilePath), "");
+
 	// ResourceManager에서 이미 로드된 파티클 시스템 확인
-	UParticleSystem* ExistingSystem = UResourceManager::GetInstance().Get<UParticleSystem>(FilePath);
+	UParticleSystem* ExistingSystem = UResourceManager::GetInstance().Get<UParticleSystem>(NormalizedFilePath);
 	if (ExistingSystem)
 	{
-		UE_LOG("[ParticleEditorBootstrap] LoadParticleSystem: 캐시된 시스템 반환: %s", FilePath.c_str());
+		UE_LOG("[ParticleEditorBootstrap] LoadParticleSystem: 캐시된 시스템 반환: %s", NormalizedFilePath.c_str());
 		return ExistingSystem;
 	}
 
 	// FString을 FWideString으로 변환
-	FWideString WidePath(FilePath.begin(), FilePath.end());
+	FWideString WidePath(NormalizedFilePath.begin(), NormalizedFilePath.end());
 
 	// 파일에서 JSON 로드
 	JSON JsonHandle;
 	if (!FJsonSerializer::LoadJsonFromFile(JsonHandle, WidePath))
 	{
-		UE_LOG("[ParticleEditorBootstrap] LoadParticleSystem: 파일 로드 실패: %s", FilePath.c_str());
+		UE_LOG("[ParticleEditorBootstrap] LoadParticleSystem: 파일 로드 실패: %s", NormalizedFilePath.c_str());
 		return nullptr;
 	}
 
@@ -321,8 +324,8 @@ UParticleSystem* ParticleEditorBootstrap::LoadParticleSystem(const FString& File
 	LoadedSystem->Serialize(true, JsonHandle);
 
 	// ResourceManager에 등록
-	UResourceManager::GetInstance().Add<UParticleSystem>(FilePath, LoadedSystem);
+	UResourceManager::GetInstance().Add<UParticleSystem>(NormalizedFilePath, LoadedSystem);
 
-	UE_LOG("[ParticleEditorBootstrap] LoadParticleSystem: 로드 성공: %s", FilePath.c_str());
+	UE_LOG("[ParticleEditorBootstrap] LoadParticleSystem: 로드 성공: %s", NormalizedFilePath.c_str());
 	return LoadedSystem;
 }

@@ -46,6 +46,10 @@ public:
 	template<typename T>
 	bool Add(const FString& InFilePath, UObject* InObject);
 
+	// 리소스 추가 또는 교체 (이미 존재하면 교체)
+	template<typename T>
+	void AddOrReplace(const FString& InFilePath, UObject* InObject);
+
 	template<typename T>
 	T* Get(const FString& InFilePath);
 
@@ -157,6 +161,19 @@ bool UResourceManager::Add(const FString& InFilePath, UObject* InObject)
 		return true;
 	}
 	return false;
+}
+
+// 리소스 추가 또는 교체 (이미 존재하면 교체)
+template<typename T>
+void UResourceManager::AddOrReplace(const FString& InFilePath, UObject* InObject)
+{
+	// 경로 정규화: 모든 백슬래시를 슬래시로 변환하여 일관성 유지
+	FString NormalizedPath = NormalizePath(InFilePath);
+
+	uint8 typeIndex = static_cast<uint8>(GetResourceType<T>());
+	Resources[typeIndex][NormalizedPath] = static_cast<T*>(InObject);
+	// 경로 저장
+	Resources[typeIndex][NormalizedPath]->SetFilePath(NormalizedPath);
 }
 
 template<typename T>

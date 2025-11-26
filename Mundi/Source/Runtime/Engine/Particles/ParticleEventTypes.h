@@ -8,6 +8,7 @@ class UShapeComponent;
 class AActor;
 
 // 파티클 이벤트 타입 (언리얼 엔진 호환)
+UENUM(DisplayName="파티클 이벤트 타입")
 enum class EParticleEventType : uint8
 {
 	Any,        // 모든 이벤트
@@ -18,6 +19,7 @@ enum class EParticleEventType : uint8
 };
 
 // 충돌 완료 시 동작 옵션 (언리얼 엔진 호환)
+UENUM(DisplayName="충돌 완료 옵션")
 enum class EParticleCollisionComplete : uint8
 {
 	HaltCollisions,  // 충돌 검사 중단 (더 이상 충돌 검사 안함)
@@ -29,6 +31,7 @@ enum class EParticleCollisionComplete : uint8
 struct FParticleEventData
 {
 	EParticleEventType Type = EParticleEventType::Any;
+	FString EventName;                 // 이벤트 소스 이름 (필터링용)
 	float EmitterTime = 0.0f;          // 이벤트 발생 시 이미터 시간
 	FVector Position = FVector(0.0f, 0.0f, 0.0f);
 	FVector Velocity = FVector(0.0f, 0.0f, 0.0f);

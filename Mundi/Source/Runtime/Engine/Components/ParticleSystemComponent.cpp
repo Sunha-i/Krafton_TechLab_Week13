@@ -633,6 +633,11 @@ void UParticleSystemComponent::TickComponent(float DeltaTime)
 		SetVectorParameter("BeamTarget", WorldOrigin);
 	}
 
+	// DeltaTime 제한 (에디터 로딩/탭 전환 시 스파이크 방지)
+	// 10fps 미만은 비정상적인 상황으로 간주
+	const float MaxDeltaTime = 0.1f;
+	DeltaTime = FMath::Min(DeltaTime, MaxDeltaTime);
+
 	// 이벤트 클리어 (매 프레임 시작 시)
 	ClearEvents();
 
@@ -703,10 +708,28 @@ void UParticleSystemComponent::DispatchEventsToReceivers()
 		return;
 	}
 
+	// this 컴포넌트 파괴 상태 체크 (언리얼 방식)
+	if (IsPendingDestroy())
+	{
+		return;
+	}
+
 	// 각 이미터 인스턴스의 EventReceiver 모듈에 이벤트 전달
 	for (FParticleEmitterInstance* Instance : EmitterInstances)
 	{
+		// 매 반복마다 this 파괴 상태 재확인
+		if (IsPendingDestroy())
+		{
+			return;
+		}
+
 		if (!Instance || !Instance->CurrentLODLevel)
+		{
+			continue;
+		}
+
+		// Instance->Component 파괴 상태 체크
+		if (!Instance->Component || Instance->Component->IsPendingDestroy())
 		{
 			continue;
 		}
@@ -720,30 +743,40 @@ void UParticleSystemComponent::DispatchEventsToReceivers()
 				continue;
 			}
 
-			// 충돌 이벤트 전달
+			// 충돌 이벤트 전달 (EventName 필터링 적용)
 			if (Receiver->EventType == EParticleEventType::Collision || Receiver->EventType == EParticleEventType::Any)
 			{
 				for (const FParticleEventCollideData& Event : CollisionEvents)
 				{
-					Receiver->HandleCollisionEvent(Instance, Event);
+					// EventName 필터링: Receiver의 EventName이 비어있으면 모두 수신
+					if (Receiver->EventName.empty() || Receiver->EventName == Event.EventName)
+					{
+						Receiver->HandleCollisionEvent(Instance, Event);
+					}
 				}
 			}
 
-			// 스폰 이벤트 전달
+			// 스폰 이벤트 전달 (EventName 필터링 적용)
 			if (Receiver->EventType == EParticleEventType::Spawn || Receiver->EventType == EParticleEventType::Any)
 			{
 				for (const FParticleEventData& Event : SpawnEvents)
 				{
-					Receiver->HandleEvent(Instance, Event);
+					if (Receiver->EventName.empty() || Receiver->EventName == Event.EventName)
+					{
+						Receiver->HandleEvent(Instance, Event);
+					}
 				}
 			}
 
-			// 사망 이벤트 전달
+			// 사망 이벤트 전달 (EventName 필터링 적용)
 			if (Receiver->EventType == EParticleEventType::Death || Receiver->EventType == EParticleEventType::Any)
 			{
 				for (const FParticleEventData& Event : DeathEvents)
 				{
-					Receiver->HandleEvent(Instance, Event);
+					if (Receiver->EventName.empty() || Receiver->EventName == Event.EventName)
+					{
+						Receiver->HandleEvent(Instance, Event);
+					}
 				}
 			}
 		}
@@ -1589,6 +1622,20 @@ void UParticleSystemComponent::FillSpriteInstanceBuffer(uint32 TotalInstances)
 		if (!ParticleData || ParticleCount == 0)
 			continue;
 
+		// Sub-UV 설정 가져오기
+		const FDynamicSpriteEmitterData* SpriteEmitterData = static_cast<const FDynamicSpriteEmitterData*>(EmitterData);
+		int32 SubImages_H = 1;
+		int32 SubImages_V = 1;
+		int32 TotalFrames = 1;
+
+		if (SpriteEmitterData->Source.RequiredModule)
+		{
+			SubImages_H = SpriteEmitterData->Source.RequiredModule->SubImages_Horizontal;
+			SubImages_V = SpriteEmitterData->Source.RequiredModule->SubImages_Vertical;
+			int32 MaxElements = SpriteEmitterData->Source.RequiredModule->SubUV_MaxElements;
+			TotalFrames = (MaxElements > 0) ? MaxElements : (SubImages_H * SubImages_V);
+		}
+
 		// 각 파티클의 인스턴스 데이터 생성
 		for (int32 ParticleIdx = 0; ParticleIdx < ParticleCount; ParticleIdx++)
 		{
@@ -1613,6 +1660,10 @@ void UParticleSystemComponent::FillSpriteInstanceBuffer(uint32 TotalInstances)
 
 			// RelativeTime
 			Instance.RelativeTime = Particle->RelativeTime;
+
+			// Sub-UV 프레임 인덱스 계산
+			// RelativeTime (0~1)을 프레임 인덱스 (0~TotalFrames-1)로 변환
+			Instance.SubImageIndex = Particle->RelativeTime * (float)(TotalFrames - 1);
 
 			InstanceOffset++;
 		}
@@ -1702,6 +1753,15 @@ void UParticleSystemComponent::CreateSpriteParticleBatch(TArray<FMeshBatchElemen
 
 		// 스프라이트 파티클: 반투명 렌더링 (no culling, depth read-only, alpha blend)
 		BatchElement.RenderMode = EBatchRenderMode::Translucent;
+
+		// Sub-UV 설정 (스프라이트 시트 정보)
+		if (SpriteSource.RequiredModule)
+		{
+			float SubH = (float)SpriteSource.RequiredModule->SubImages_Horizontal;
+			float SubV = (float)SpriteSource.RequiredModule->SubImages_Vertical;
+			// xy = 타일 수, zw = 1/타일 수 (프레임 크기)
+			BatchElement.SubImageSize = FVector4(SubH, SubV, 1.0f / SubH, 1.0f / SubV);
+		}
 
 		OutMeshBatchElements.Add(BatchElement);
 

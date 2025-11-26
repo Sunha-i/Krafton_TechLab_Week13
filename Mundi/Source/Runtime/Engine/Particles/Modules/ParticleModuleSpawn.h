@@ -2,24 +2,11 @@
 
 #include "ParticleModule.h"
 #include "Distribution.h"
+#include "ParticleBurstTypes.h"
 #include "UParticleModuleSpawn.generated.h"
 
 // Forward declaration
 class FParticleEmitterInstance;
-
-// 언리얼 엔진 호환: 버스트 정보 구조체
-struct FParticleBurst
-{
-	int32 Count;      // 버스트 시 생성할 파티클 개수
-	int32 CountLow;   // 랜덤 범위 최소값 (-1이면 Count 사용, 아니면 CountLow~Count 랜덤)
-	float Time;       // 버스트 발생 시점 (0..1: 이미터 수명 비율, Duration=0이면 절대 초)
-
-	FParticleBurst() : Count(0), CountLow(-1), Time(0.0f) {}
-	FParticleBurst(int32 InCount, float InTime) : Count(InCount), CountLow(-1), Time(InTime) {}
-	FParticleBurst(int32 InCount, int32 InCountLow, float InTime) : Count(InCount), CountLow(InCountLow), Time(InTime) {}
-
-	void Serialize(bool bIsLoading, JSON& InOutHandle);
-};
 
 UCLASS(DisplayName="스폰 모듈", Description="파티클의 생성 빈도와 수량을 제어하는 모듈입니다")
 class UParticleModuleSpawn : public UParticleModule

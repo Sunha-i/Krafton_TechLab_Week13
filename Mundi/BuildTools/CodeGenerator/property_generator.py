@@ -17,6 +17,8 @@ BEGIN_PROPERTIES({{ class_name }})
 {%- for prop in properties %}
     {%- if prop.get_property_type_macro() == 'ADD_PROPERTY_RANGE' %}
     ADD_PROPERTY_RANGE({{ prop.type }}, {{ prop.name }}, "{{ prop.category }}", {{ prop.min_value }}f, {{ prop.max_value }}f, {{ 'true' if prop.editable else 'false' }}{% if prop.tooltip %}, "{{ prop.tooltip }}"{% endif %})
+    {%- elif prop.get_property_type_macro() == 'ADD_PROPERTY_STRUCT_ARRAY' %}
+    ADD_PROPERTY_STRUCT_ARRAY({{ prop.metadata.get('struct_type', 'Unknown') }}, {{ prop.name }}, "{{ prop.category }}", {{ 'true' if prop.editable else 'false' }}{% if prop.tooltip %}, "{{ prop.tooltip }}"{% endif %})
     {%- elif prop.get_property_type_macro() == 'ADD_PROPERTY_ARRAY' %}
     ADD_PROPERTY_ARRAY({{ prop.metadata.get('inner_type', 'EPropertyType::ObjectPtr') }}, {{ prop.name }}, "{{ prop.category }}", {{ 'true' if prop.editable else 'false' }}{% if prop.tooltip %}, "{{ prop.tooltip }}"{% endif %})
     {%- elif prop.get_property_type_macro() == 'ADD_PROPERTY_MAP' %}
@@ -64,13 +66,16 @@ class PropertyGenerator:
 
         # mark_type 결정:
         # 1. Abstract 클래스는 MARK 없음 (에디터 목록에서 제외)
-        # 2. AActor, UActorComponent 베이스 클래스는 MARK 없음
-        # 3. AActor를 상속받은 클래스는 MARK_AS_SPAWNABLE
-        # 4. UActorComponent를 상속받은 클래스는 MARK_AS_COMPONENT
-        # 5. 그 외 (순수 UObject 등)는 MARK 없음
+        # 2. NotSpawnable 클래스는 MARK 없음 (시스템 액터 등)
+        # 3. AActor, UActorComponent 베이스 클래스는 MARK 없음
+        # 4. AActor를 상속받은 클래스는 MARK_AS_SPAWNABLE
+        # 5. UActorComponent를 상속받은 클래스는 MARK_AS_COMPONENT
+        # 6. 그 외 (순수 UObject 등)는 MARK 없음
         mark_type = None
         if class_info.is_abstract:
             mark_type = None  # Abstract 클래스는 MARK 없음
+        elif getattr(class_info, 'not_spawnable', False):
+            mark_type = None  # NotSpawnable 클래스는 MARK 없음 (시스템 액터)
         elif class_info.name in ['AActor', 'UActorComponent']:
             mark_type = None  # 베이스 클래스는 MARK 없음
         elif self._is_derived_from(class_info.name, 'AActor'):
@@ -115,6 +120,8 @@ BEGIN_STRUCT_PROPERTIES({{ struct_name }})
 {%- for prop in properties %}
     {%- if prop.get_property_type_macro() == 'ADD_PROPERTY_RANGE' %}
     ADD_PROPERTY_RANGE({{ prop.type }}, {{ prop.name }}, "{{ prop.category }}", {{ prop.min_value }}f, {{ prop.max_value }}f, {{ 'true' if prop.editable else 'false' }}{% if prop.tooltip %}, "{{ prop.tooltip }}"{% endif %})
+    {%- elif prop.get_property_type_macro() == 'ADD_PROPERTY_STRUCT_ARRAY' %}
+    ADD_PROPERTY_STRUCT_ARRAY({{ prop.metadata.get('struct_type', 'Unknown') }}, {{ prop.name }}, "{{ prop.category }}", {{ 'true' if prop.editable else 'false' }}{% if prop.tooltip %}, "{{ prop.tooltip }}"{% endif %})
     {%- elif prop.get_property_type_macro() == 'ADD_PROPERTY_ARRAY' %}
     ADD_PROPERTY_ARRAY({{ prop.metadata.get('inner_type', 'EPropertyType::ObjectPtr') }}, {{ prop.name }}, "{{ prop.category }}", {{ 'true' if prop.editable else 'false' }}{% if prop.tooltip %}, "{{ prop.tooltip }}"{% endif %})
     {%- elif prop.get_property_type_macro() == 'ADD_PROPERTY_MAP' %}

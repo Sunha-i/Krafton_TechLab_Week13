@@ -47,6 +47,7 @@ private:
 	static bool RenderMaterialProperty(const FProperty& Prop, void* Instance);
 	static bool RenderMaterialArrayProperty(const FProperty& Prop, void* Instance);
 	static bool RenderSingleMaterialSlot(const char* Label, UMaterialInterface** MaterialPtr, UObject* OwningObject, uint32 MaterialIndex);	// 단일 UMaterial* 슬롯을 렌더링하는 헬퍼 함수.
+	static bool RenderStructArrayProperty(const FProperty& Prop, void* Instance);	// TArray<Struct> 렌더링
 	static bool RenderParticleSystemProperty(const FProperty& Prop, void* Instance);
 	static bool RenderTextureSelectionCombo(const char* Label, UTexture* CurrentTexture, UTexture*& OutNewTexture);
 	static bool RenderSoundSelectionCombo(const char* Label, USound* CurrentSound, USound*& OutNewSound);
@@ -67,6 +68,8 @@ private:
 	static bool RenderDistributionVectorModeCombo(const char* Label, enum class EDistributionType& Type);
 	static bool RenderInterpCurveFloat(const char* Label, struct FInterpCurveFloat& Curve);
 	static bool RenderInterpCurveVector(const char* Label, struct FInterpCurveVector& Curve);
+	static bool RenderInterpCurveFloatUniform(const char* Label, struct FInterpCurveFloat& MinCurve, struct FInterpCurveFloat& MaxCurve);
+	static bool RenderInterpCurveVectorUniform(const char* Label, struct FInterpCurveVector& MinCurve, struct FInterpCurveVector& MaxCurve);
 
 	static void CacheResources();	// 필요할 때 리소스 목록을 멤버 변수에 캐시합니다.
 	static void ClearResourcesCache();	// 렌더링 패스가 끝날 때 캐시를 비웁니다.
