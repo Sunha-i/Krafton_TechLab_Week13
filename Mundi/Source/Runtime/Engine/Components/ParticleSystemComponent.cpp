@@ -379,25 +379,30 @@ void UParticleSystemComponent::CreateDebugSpriteParticleSystem()
 
 	// 크기 모듈 (시간에 따라 커지는 효과)
 	UParticleModuleSize* SizeModule = NewObject<UParticleModuleSize>();
-	SizeModule->StartSize = FDistributionVector(FVector(5.0f, 5.0f, 5.0f));
-	SizeModule->EndSize = FDistributionVector(FVector(15.0f, 15.0f, 15.0f));
-	SizeModule->bUseSizeOverLife = true;
+	// ConstantCurve로 시간에 따른 크기 변화 설정 (5 → 15)
+	SizeModule->SizeOverLife.Type = EDistributionType::ConstantCurve;
+	SizeModule->SizeOverLife.ConstantCurve.Points.Add(FInterpCurvePointVector(0.0f, FVector(5.0f, 5.0f, 5.0f)));
+	SizeModule->SizeOverLife.ConstantCurve.Points.Add(FInterpCurvePointVector(1.0f, FVector(15.0f, 15.0f, 15.0f)));
 	LODLevel->Modules.Add(SizeModule);
 
-	// 색상 모듈 (페이드 아웃 효과 - bUpdateModule이 기본 true라 자동 보간)
+	// 색상 모듈 (페이드 아웃 효과)
 	UParticleModuleColor* ColorModule = NewObject<UParticleModuleColor>();
-	ColorModule->StartColor = FDistributionColor(FLinearColor(1.0f, 1.0f, 1.0f, 1.0f));  // 불투명 흰색
-	ColorModule->EndColor = FDistributionColor(FLinearColor(1.0f, 1.0f, 1.0f, 0.0f));    // 투명 흰색
+	// ConstantCurve로 시간에 따른 알파 변화 설정 (1.0 → 0.0)
+	ColorModule->ColorOverLife.RGB.Type = EDistributionType::Constant;
+	ColorModule->ColorOverLife.RGB.ConstantValue = FVector(1.0f, 1.0f, 1.0f);  // 흰색 유지
+	ColorModule->ColorOverLife.Alpha.Type = EDistributionType::ConstantCurve;
+	ColorModule->ColorOverLife.Alpha.ConstantCurve.Points.Add(FInterpCurvePointFloat(0.0f, 1.0f));
+	ColorModule->ColorOverLife.Alpha.ConstantCurve.Points.Add(FInterpCurvePointFloat(1.0f, 0.0f));
 	LODLevel->Modules.Add(ColorModule);
 
 	// 회전 모듈 (2D 회전)
 	UParticleModuleRotation* RotationModule = NewObject<UParticleModuleRotation>();
-	RotationModule->StartRotation = FDistributionFloat(-3.14159f, 3.14159f);  // 랜덤 초기 회전
+	RotationModule->RotationOverLife = FDistributionFloat(-3.14159f, 3.14159f);  // 랜덤 초기 회전
 	LODLevel->Modules.Add(RotationModule);
 
 	// 회전 속도 모듈
 	UParticleModuleRotationRate* RotRateModule = NewObject<UParticleModuleRotationRate>();
-	RotRateModule->StartRotationRate = FDistributionFloat(3.0f);  // 천천히 회전
+	RotRateModule->RotationRateOverLife = FDistributionFloat(3.0f);  // 천천히 회전
 	LODLevel->Modules.Add(RotRateModule);
 
 	// 위치 모듈 생성

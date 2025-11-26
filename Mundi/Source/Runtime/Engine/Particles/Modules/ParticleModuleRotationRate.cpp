@@ -16,38 +16,19 @@ void UParticleModuleRotationRate::Spawn(FParticleEmitterInstance* Owner, int32 O
 	// 페이로드 가져오기
 	PARTICLE_ELEMENT(FParticleRotationRatePayload, Payload);
 
-	// Distribution 시스템을 사용하여 초기 회전 속도 계산
-	float InitialRate = StartRotationRate.GetValue(0.0f, Owner->RandomStream, Owner->Component);
-	Payload.InitialRotationRate = InitialRate;
-
-	// Distribution 시스템을 사용하여 목표 회전 속도 계산 (RotationRateOverLife용)
-	float TargetRate = EndRotationRate.GetValue(0.0f, Owner->RandomStream, Owner->Component);
-	Payload.TargetRotationRate = TargetRate;
-
 	// UniformCurve용 랜덤 비율 저장 (0~1)
 	Payload.RandomFactor = Owner->RandomStream.GetFraction();
 
-	// 파티클의 초기 회전 속도 설정
+	// 초기 회전 속도 설정 (RelativeTime = 0)
+	float InitialRate = RotationRateOverLife.GetValue(0.0f, Owner->RandomStream, Owner->Component);
 	ParticleBase->RotationRate = InitialRate;
 	ParticleBase->BaseRotationRate = InitialRate;
-
-	// RotationRateOverLife 활성화 시 Update 모듈로 등록
-	if (bUseRotationRateOverLife)
-	{
-		bUpdateModule = true;
-	}
 }
 
 void UParticleModuleRotationRate::Update(FModuleUpdateContext& Context)
 {
-	// RotationRateOverLife가 비활성화되어 있으면 업데이트 불필요
-	if (!bUseRotationRateOverLife)
-	{
-		return;
-	}
-
 	// Distribution 타입 확인
-	const EDistributionType DistType = StartRotationRate.Type;
+	const EDistributionType DistType = RotationRateOverLife.Type;
 
 	// 언리얼 엔진 방식: 모든 파티클 업데이트
 	BEGIN_UPDATE_LOOP;
@@ -59,21 +40,20 @@ void UParticleModuleRotationRate::Update(FModuleUpdateContext& Context)
 		switch (DistType)
 		{
 		case EDistributionType::ConstantCurve:
-			CurrentRotationRate = StartRotationRate.ConstantCurve.Eval(Particle.RelativeTime);
+			CurrentRotationRate = RotationRateOverLife.ConstantCurve.Eval(Particle.RelativeTime);
 			break;
 
 		case EDistributionType::UniformCurve:
 			{
-				float MinAtTime = StartRotationRate.MinCurve.Eval(Particle.RelativeTime);
-				float MaxAtTime = StartRotationRate.MaxCurve.Eval(Particle.RelativeTime);
+				float MinAtTime = RotationRateOverLife.MinCurve.Eval(Particle.RelativeTime);
+				float MaxAtTime = RotationRateOverLife.MaxCurve.Eval(Particle.RelativeTime);
 				CurrentRotationRate = FMath::Lerp(MinAtTime, MaxAtTime, Payload.RandomFactor);
 			}
 			break;
 
 		default:
-			// Constant, Uniform, ParticleParameter: Initial -> Target 선형 보간
-			CurrentRotationRate = Payload.InitialRotationRate +
-				(Payload.TargetRotationRate - Payload.InitialRotationRate) * Particle.RelativeTime;
+			// Constant: 고정값 사용
+			CurrentRotationRate = RotationRateOverLife.GetValue(Particle.RelativeTime, Context.Owner.RandomStream, Context.Owner.Component);
 			break;
 		}
 
@@ -89,22 +69,16 @@ void UParticleModuleRotationRate::Serialize(const bool bInIsLoading, JSON& InOut
 	JSON TempJson;
 	if (bInIsLoading)
 	{
-		if (FJsonSerializer::ReadObject(InOutHandle, "StartRotationRate", TempJson))
-			StartRotationRate.Serialize(true, TempJson);
-		FJsonSerializer::ReadBool(InOutHandle, "bUseRotationRateOverLife", bUseRotationRateOverLife);
-		if (FJsonSerializer::ReadObject(InOutHandle, "EndRotationRate", TempJson))
-			EndRotationRate.Serialize(true, TempJson);
+		// 새 필드명 우선, 이전 필드명(StartRotationRate)도 호환성 위해 지원
+		if (FJsonSerializer::ReadObject(InOutHandle, "RotationRateOverLife", TempJson))
+			RotationRateOverLife.Serialize(true, TempJson);
+		else if (FJsonSerializer::ReadObject(InOutHandle, "StartRotationRate", TempJson))
+			RotationRateOverLife.Serialize(true, TempJson);
 	}
 	else
 	{
 		TempJson = JSON::Make(JSON::Class::Object);
-		StartRotationRate.Serialize(false, TempJson);
-		InOutHandle["StartRotationRate"] = TempJson;
-
-		InOutHandle["bUseRotationRateOverLife"] = bUseRotationRateOverLife;
-
-		TempJson = JSON::Make(JSON::Class::Object);
-		EndRotationRate.Serialize(false, TempJson);
-		InOutHandle["EndRotationRate"] = TempJson;
+		RotationRateOverLife.Serialize(false, TempJson);
+		InOutHandle["RotationRateOverLife"] = TempJson;
 	}
 }

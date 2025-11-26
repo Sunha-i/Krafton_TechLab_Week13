@@ -7,10 +7,8 @@
 // 언리얼 엔진 호환: 파티클별 회전 페이로드 (16바이트, 16바이트 정렬)
 struct FParticleRotationPayload
 {
-	float InitialRotation;      // 초기 회전값 (라디안) (4바이트)
-	float TargetRotation;       // 목표 회전값 (RotationOverLife용) (4바이트)
 	float RandomFactor;         // UniformCurve용 랜덤 비율 (0~1) (4바이트)
-	float Padding;              // 정렬 패딩 (4바이트)
+	float Padding[3];           // 정렬 패딩 (12바이트)
 	// 총 16바이트
 };
 
@@ -21,22 +19,14 @@ public:
 	GENERATED_REFLECTION_BODY()
 
 public:
-	// 시작 회전값 (라디안) - Distribution 시스템
+	// 회전값 (라디안) - Distribution 시스템: Curve로 시간에 따른 변화 정의
 	UPROPERTY(EditAnywhere, Category="Rotation")
-	FDistributionFloat StartRotation = FDistributionFloat(0.0f);
-
-	// 수명에 따른 회전 변화 활성화
-	UPROPERTY(EditAnywhere, Category="Rotation")
-	bool bUseRotationOverLife = false;
-
-	// 수명 종료 시 회전값 (라디안) - Distribution 시스템
-	UPROPERTY(EditAnywhere, Category="Rotation")
-	FDistributionFloat EndRotation = FDistributionFloat(0.0f);
+	FDistributionFloat RotationOverLife = FDistributionFloat(0.0f);
 
 	UParticleModuleRotation()
 	{
 		bSpawnModule = true;   // Spawn 시 초기화 필요
-		bUpdateModule = false; // 기본적으로 Update 불필요
+		bUpdateModule = true;  // 매 프레임 업데이트 필요
 	}
 	virtual ~UParticleModuleRotation() = default;
 

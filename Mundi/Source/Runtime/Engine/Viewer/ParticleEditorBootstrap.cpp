@@ -229,7 +229,7 @@ UParticleSystem* ParticleEditorBootstrap::CreateDefaultParticleTemplate()
 
 	// 5. Initial Size 모듈
 	UParticleModuleSize* SizeModule = NewObject<UParticleModuleSize>();
-	SizeModule->StartSize = FDistributionVector(FVector(0.0f, 0.0f, 0.0f), FVector(2.0f, 2.0f, 2.0f));  // 0~2 랜덤
+	SizeModule->SizeOverLife = FDistributionVector(FVector(0.0f, 0.0f, 0.0f), FVector(2.0f, 2.0f, 2.0f));  // 0~2 랜덤
 	LOD->Modules.Add(SizeModule);
 
 	// 6. Initial Velocity 모듈
@@ -239,8 +239,7 @@ UParticleSystem* ParticleEditorBootstrap::CreateDefaultParticleTemplate()
 
 	// 7. Color Over Life 모듈
 	UParticleModuleColor* ColorModule = NewObject<UParticleModuleColor>();
-	ColorModule->StartColor = FDistributionColor(FLinearColor(1.0f, 1.0f, 1.0f, 1.0f));
-	ColorModule->EndColor = FDistributionColor(FLinearColor(1.0f, 1.0f, 1.0f, 1.0f));
+	ColorModule->ColorOverLife = FDistributionColor(FLinearColor(1.0f, 1.0f, 1.0f, 1.0f));  // 고정 흰색
 	LOD->Modules.Add(ColorModule);
 
 	// 모듈 캐싱
