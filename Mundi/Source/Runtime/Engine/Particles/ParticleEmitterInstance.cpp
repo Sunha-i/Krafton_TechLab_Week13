@@ -1,6 +1,7 @@
 ﻿#include "pch.h"
 #include "ParticleEmitterInstance.h"
 #include "ParticleSystemComponent.h"
+#include "ParticleEventTypes.h"
 #include "Modules/ParticleModule.h"
 #include "Modules/ParticleModuleSpawn.h"
 #include "Modules/ParticleModuleMeshRotation.h"
@@ -503,7 +504,28 @@ void FParticleEmitterInstance::PreSpawn(FBaseParticle* Particle, const FVector& 
 
 void FParticleEmitterInstance::PostSpawn(FBaseParticle* Particle, float InterpolationParameter, float SpawnTime)
 {
-	// 생성 후 추가 로직을 여기에 추가할 수 있음
+	if (!Particle)
+	{
+		return;
+	}
+
+	// 언리얼 엔진 호환: 스폰 후 처리
+
+	// 1. 월드 스페이스일 때 이미터 이동 보간 (TODO: LocalSpace 플래그 확인 필요)
+	// if (CurrentLODLevel && CurrentLODLevel->RequiredModule && !CurrentLODLevel->RequiredModule->bUseLocalSpace)
+	// {
+	//     // 이미터가 이동한 경우 보간
+	// }
+
+	// 2. OldLocation 초기화 (충돌 터널링 방지용)
+	Particle->OldLocation = Particle->Location;
+
+	// 3. 스폰 시간만큼 미리 이동 (서브프레임 보간)
+	// 같은 프레임에 여러 파티클이 생성될 때 자연스러운 분포를 위함
+	Particle->Location += Particle->Velocity * SpawnTime;
+
+	// 4. 플래그 설정 - 방금 생성된 파티클임을 표시
+	Particle->Flags |= STATE_Particle_JustSpawned;
 }
 
 void FParticleEmitterInstance::UpdateParticles(float DeltaTime)
@@ -574,6 +596,19 @@ void FParticleEmitterInstance::KillParticle(int32 Index)
 	if (Index < 0 || Index >= ActiveParticles)
 	{
 		return;
+	}
+
+	// 언리얼 엔진 호환: Death 이벤트 생성
+	FBaseParticle* Particle = GetParticleAtIndex(Index);
+	if (Particle && Component)
+	{
+		FParticleEventData DeathEvent;
+		DeathEvent.Type = EParticleEventType::Death;
+		DeathEvent.Position = Particle->Location;
+		DeathEvent.Velocity = Particle->Velocity;
+		DeathEvent.EmitterTime = EmitterTime;
+		DeathEvent.ParticleIndex = Index;
+		Component->AddDeathEvent(DeathEvent);
 	}
 
 	// 마지막 활성 파티클과 교체

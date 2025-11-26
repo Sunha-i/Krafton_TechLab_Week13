@@ -1,163 +1,455 @@
-﻿#include "pch.h"
+// ────────────────────────────────────────────────────────────────────────────
+// CapsuleComponent.cpp
+// Capsule 형태의 충돌 컴포넌트 구현 (Week09 기반, Week12 적응)
+// ────────────────────────────────────────────────────────────────────────────
+#include "pch.h"
 #include "CapsuleComponent.h"
-// IMPLEMENT_CLASS is now auto-generated in .generated.cpp
-//BEGIN_PROPERTIES(UCapsuleComponent)
-//MARK_AS_COMPONENT("캡슐 충돌 컴포넌트", "캡슐 모양의 충돌체를 생성하는 컴포넌트입니다.")
-//ADD_PROPERTY(float , CapsuleHalfHeight, "CapsuleHalfHeight", true, "박스 충돌체의 크기입니다.")
-//ADD_PROPERTY(float , CapsuleRadius, "CapsuleHalfHeight", true, "박스 충돌체의 크기입니다.")
-//END_PROPERTIES()
+#include "SphereComponent.h"
+#include "BoxComponent.h"
+#include "Actor.h"
+#include "World.h"
+#include "CollisionManager.h"
+#include "WorldPartitionManager.h"
+
+// ────────────────────────────────────────────────────────────────────────────
+// 생성자 / 소멸자
+// ────────────────────────────────────────────────────────────────────────────
 
 UCapsuleComponent::UCapsuleComponent()
 {
-    CapsuleHalfHeight = 0.5f;
-    CapsuleRadius = 0.5f;
-
-	//CapsuleHalfHeight = WorldAABB.GetHalfExtent().Z;
-	//CapsuleRadius = FMath::Max(WorldAABB.GetHalfExtent().X, WorldAABB.GetHalfExtent().Y);
+	CapsuleRadius = 50.0f;
+	CapsuleHalfHeight = 100.0f;
+	UpdateBounds();
 }
 
-void UCapsuleComponent::OnRegister(UWorld* World)
+UCapsuleComponent::~UCapsuleComponent()
 {
-	//Super::OnRegister(World);
-    //
-	//CapsuleHalfHeight = WorldAABB.GetHalfExtent().Z ;
-	//CapsuleRadius = WorldAABB.GetHalfExtent().X < WorldAABB.GetHalfExtent().Y ? WorldAABB.GetHalfExtent().Y : WorldAABB.GetHalfExtent().X;
-    //CapsuleRadius *= 2;
-
-
-    Super::OnRegister(World);
-
-    if (AActor* Owner = GetOwner())
-    {
-        FAABB ActorBounds = Owner->GetBounds();
-        FVector WorldHalfExtent = ActorBounds.GetHalfExtent();
-
-        // World scale로 나눠서 local 값 계산
-        const FTransform WorldTransform = GetWorldTransform();
-        const FVector S = FVector(
-            std::fabs(WorldTransform.Scale3D.X),
-            std::fabs(WorldTransform.Scale3D.Y),
-            std::fabs(WorldTransform.Scale3D.Z)
-        );
-
-        constexpr float Eps = 1e-6f;
-
-        // Z축 = 높이, XY축 = 반지름
-        float LocalHalfHeight = S.Z > Eps ? WorldHalfExtent.Z / S.Z : WorldHalfExtent.Z;
-        float LocalRadiusX = S.X > Eps ? WorldHalfExtent.X / S.X : WorldHalfExtent.X;
-        float LocalRadiusY = S.Y > Eps ? WorldHalfExtent.Y / S.Y : WorldHalfExtent.Y;
-
-        CapsuleHalfHeight = LocalHalfHeight;
-        CapsuleRadius = FMath::Max(LocalRadiusX, LocalRadiusY); 
-    }
-
 }
 
 void UCapsuleComponent::DuplicateSubObjects()
 {
-    Super::DuplicateSubObjects();
+	Super::DuplicateSubObjects();
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Capsule 속성 함수
+// ────────────────────────────────────────────────────────────────────────────
+
+void UCapsuleComponent::SetCapsuleSize(float InRadius, float InHalfHeight, bool bUpdateBoundsNow)
+{
+	CapsuleRadius = InRadius;
+	CapsuleHalfHeight = InHalfHeight;
+
+	if (bUpdateBoundsNow)
+	{
+		UpdateBounds();
+
+		// BVH 업데이트를 위해 dirty 마킹
+		if (UWorld* World = GetWorld())
+		{
+			if (UCollisionManager* Manager = World->GetCollisionManager())
+			{
+				Manager->MarkComponentDirty(this);
+			}
+			if (UWorldPartitionManager* Partition = World->GetPartitionManager())
+			{
+				Partition->MarkDirty(this);
+			}
+		}
+	}
+}
+
+float UCapsuleComponent::GetScaledCapsuleRadius() const
+{
+	FVector Scale = GetWorldScale();
+
+	// XY 평면 스케일 사용 (Capsule은 Z축 방향)
+	float MaxRadialScale = FMath::Max(FMath::Abs(Scale.X), FMath::Abs(Scale.Y));
+
+	return CapsuleRadius * MaxRadialScale;
+}
+
+float UCapsuleComponent::GetScaledCapsuleHalfHeight() const
+{
+	FVector Scale = GetWorldScale();
+
+	// Z축 스케일 사용
+	return CapsuleHalfHeight * FMath::Abs(Scale.Z);
+}
+
+FVector UCapsuleComponent::GetCapsuleCenter() const
+{
+	return GetWorldLocation();
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// UShapeComponent 인터페이스 구현
+// ────────────────────────────────────────────────────────────────────────────
+
+void UCapsuleComponent::OnRegister(UWorld* InWorld)
+{
+	Super::OnRegister(InWorld);
+	UpdateBounds();
 }
 
 void UCapsuleComponent::GetShape(FShape& Out) const
 {
 	Out.Kind = EShapeKind::Capsule;
-	Out.Capsule.CapsuleHalfHeight = CapsuleHalfHeight;
 	Out.Capsule.CapsuleRadius = CapsuleRadius;
+	Out.Capsule.CapsuleHalfHeight = CapsuleHalfHeight;
+}
+
+FAABB UCapsuleComponent::GetWorldAABB() const
+{
+	return CachedBounds.GetBox();
+}
+
+void UCapsuleComponent::UpdateBounds()
+{
+	float ScaledRadius = GetScaledCapsuleRadius();
+	float ScaledHalfHeight = GetScaledCapsuleHalfHeight();
+	FVector Center = GetCapsuleCenter();
+
+	// 회전 정보 가져오기
+	FQuat Rotation = GetWorldRotation();
+
+	// 회전이 없으면 기존 방식 사용 (Z축 정렬 가정)
+	// 언리얼 방식: HalfHeight는 반구 끝까지 포함
+	if (Rotation.IsIdentity())
+	{
+		FVector Extent(ScaledRadius, ScaledRadius, ScaledHalfHeight);
+		CachedBounds = FBoxSphereBounds(Center, Extent);
+		return;
+	}
+
+	// 회전된 Capsule의 끝점 계산
+	FVector SegmentStart, SegmentEnd;
+	GetCapsuleSegment(SegmentStart, SegmentEnd);
+
+	// Capsule을 감싸는 AABB 계산
+	FVector Min = FVector(
+		FMath::Min(SegmentStart.X, SegmentEnd.X) - ScaledRadius,
+		FMath::Min(SegmentStart.Y, SegmentEnd.Y) - ScaledRadius,
+		FMath::Min(SegmentStart.Z, SegmentEnd.Z) - ScaledRadius
+	);
+
+	FVector Max = FVector(
+		FMath::Max(SegmentStart.X, SegmentEnd.X) + ScaledRadius,
+		FMath::Max(SegmentStart.Y, SegmentEnd.Y) + ScaledRadius,
+		FMath::Max(SegmentStart.Z, SegmentEnd.Z) + ScaledRadius
+	);
+
+	// AABB의 중심과 Extent 계산
+	FVector AABBCenter = (Min + Max) * 0.5f;
+	FVector AABBExtent = (Max - Min) * 0.5f;
+
+	CachedBounds = FBoxSphereBounds(AABBCenter, AABBExtent);
+}
+
+FBoxSphereBounds UCapsuleComponent::GetScaledBounds() const
+{
+	return CachedBounds;
 }
 
 void UCapsuleComponent::RenderDebugVolume(URenderer* Renderer) const
 {
-    if (!bShapeIsVisible) return;
-    if (GetOwner() && (GetOwner()->GetWorld()->bPie))
-    {
-        if (bShapeHiddenInGame)
-            return;
-    }
+	if (!Renderer) return;
+	if (!GetOwner()) return;
 
-    // Compute cylinder half-length (halfHeight in AABB includes radius)
-    const float Radius = CapsuleRadius;
-    const float HalfHeightAABB = CapsuleHalfHeight;
-    const float HalfHeightCylinder = FMath::Max(0.0f, HalfHeightAABB - Radius *0.5f);
-     
+	UWorld* World = GetOwner()->GetWorld();
+	if (!World) return;
 
-    // 위치, 회전 변환만 가져와서 사용, Scale은 사용자가 조정 
-    const FMatrix WorldNoScale = FMatrix::FromTRS(GetWorldLocation(), 
-        GetWorldRotation(), FVector(1.0f, 1.0f, 1.0f));
-     
-    const int NumOfSphereSlice = 4;
-    const int NumHemisphereSegments = 8; 
+	// Visibility 체크
+	if (!World->bPie)
+	{
+		if (!bShapeIsVisible)
+			return;
+	}
+	if (World->bPie)
+	{
+		if (bShapeHiddenInGame)
+			return;
+	}
 
-    TArray<FVector> StartPoints;
-    TArray<FVector> EndPoints;
-    TArray<FVector4> Colors;
+	FVector Center = GetCapsuleCenter();
+	float Radius = GetScaledCapsuleRadius();
+	float HalfHeight = GetScaledCapsuleHalfHeight();
 
-    TArray<FVector> TopRingLocal;
-    TArray<FVector> BottomRingLocal;
-    TopRingLocal.Reserve(NumOfSphereSlice);
-    BottomRingLocal.Reserve(NumOfSphereSlice);
+	// Capsule의 선분 끝점 계산
+	FVector SegmentStart, SegmentEnd;
+	GetCapsuleSegment(SegmentStart, SegmentEnd);
 
-     
-    //윗면 아랫면 
-    for (int i = 0; i < NumOfSphereSlice; ++i)
-    {
-        const float a0 = (static_cast<float>(i) / NumOfSphereSlice) * TWO_PI;
-        const float x = Radius * std::sin(a0);
-        const float y = Radius * std::cos(a0);
-        TopRingLocal.Add(FVector(x, y, +HalfHeightCylinder));
-        BottomRingLocal.Add(FVector(x, y, -HalfHeightCylinder));
-    }
-     
-    for (int i = 0; i < NumOfSphereSlice; ++i)
-    {
-        const int j = (i + 1) % NumOfSphereSlice;
+	// 회전 정보 가져오기
+	FQuat Rotation = GetWorldRotation();
+	FVector UpVector = Rotation.GetUpVector();
+	FVector RightVector = Rotation.GetRightVector();
+	FVector ForwardVector = Rotation.GetForwardVector();
 
-        //윗면
-        StartPoints.Add(TopRingLocal[i] * WorldNoScale);
-        EndPoints.Add(TopRingLocal[j] * WorldNoScale);
-        Colors.Add(ShapeColor);
+	// 라인 데이터 준비
+	TArray<FVector> StartPoints;
+	TArray<FVector> EndPoints;
+	TArray<FVector4> Colors;
 
-        // 아랫면
-        StartPoints.Add(BottomRingLocal[i] * WorldNoScale);
-        EndPoints.Add(BottomRingLocal[j] * WorldNoScale);
-        Colors.Add(ShapeColor);
-    }
-     
-    //윗면 아랫면 잇는 선분
-    for (int i = 0; i < NumOfSphereSlice; ++i)
-    {
-        StartPoints.Add(TopRingLocal[i] * WorldNoScale);
-        EndPoints.Add(BottomRingLocal[i] * WorldNoScale);
-        Colors.Add(ShapeColor);
-    }
-    
-    // 반구 위아래 
-    auto AddHemisphereArcs = [&](float CenterZSign)
-    {
-        const float CenterZ = CenterZSign * HalfHeightCylinder;
+	// 충돌 중이면 빨간색, 아니면 원래 색상 (Week09 방식)
+	const FVector4 LineColor = bIsOverlapping ?
+		FVector4(1.0f, 0.0f, 0.0f, 1.0f) :
+		FVector4(ShapeColor.X, ShapeColor.Y, ShapeColor.Z, 1.0f);
+	const int32 NumSegments = 16;
 
-        for (int i = 0; i < NumHemisphereSegments; ++i)
-        {
-            const float t0 = (static_cast<float>(i) / NumHemisphereSegments) * PI;
-            const float t1 = (static_cast<float>(i + 1) / NumHemisphereSegments) * PI;
-    
-            FVector PlaneXZ0(Radius * std::cos(t0), 0.0f, CenterZ + CenterZSign* Radius * std::sin(t0));
-            FVector PlaneXZ1(Radius * std::cos(t1), 0.0f, CenterZ + CenterZSign* Radius * std::sin(t1));
-            
-            StartPoints.Add(PlaneXZ0 * WorldNoScale);
-            EndPoints.Add(PlaneXZ1 * WorldNoScale);
-            Colors.Add(ShapeColor);
-            
-            FVector PlaneYZ0(0.0f, Radius * std::cos(t0), CenterZ + CenterZSign * Radius * std::sin(t0));
-            FVector PlaneYZ1(0.0f, Radius * std::cos(t1), CenterZ + CenterZSign * Radius * std::sin(t1));
+	// 상단 원 (회전이 적용된 원 - Z축에 수직)
+	for (int32 i = 0; i < NumSegments; ++i)
+	{
+		float Angle1 = (static_cast<float>(i) / NumSegments) * 2.0f * PI;
+		float Angle2 = (static_cast<float>((i + 1) % NumSegments) / NumSegments) * 2.0f * PI;
 
-            StartPoints.Add(PlaneYZ0 * WorldNoScale);
-            EndPoints.Add(PlaneYZ1 * WorldNoScale);
-            Colors.Add(ShapeColor);
-        }
-    };
-     
-    AddHemisphereArcs(+1.0f);
-    AddHemisphereArcs(-1.0f);
+		FVector Offset1 = (RightVector * cos(Angle1) + ForwardVector * sin(Angle1)) * Radius;
+		FVector Offset2 = (RightVector * cos(Angle2) + ForwardVector * sin(Angle2)) * Radius;
 
-    Renderer->AddLines(StartPoints, EndPoints, Colors);
+		StartPoints.push_back(SegmentEnd + Offset1);
+		EndPoints.push_back(SegmentEnd + Offset2);
+		Colors.push_back(LineColor);
+	}
+
+	// 하단 원 (회전이 적용된 원 - Z축에 수직)
+	for (int32 i = 0; i < NumSegments; ++i)
+	{
+		float Angle1 = (static_cast<float>(i) / NumSegments) * 2.0f * PI;
+		float Angle2 = (static_cast<float>((i + 1) % NumSegments) / NumSegments) * 2.0f * PI;
+
+		FVector Offset1 = (RightVector * cos(Angle1) + ForwardVector * sin(Angle1)) * Radius;
+		FVector Offset2 = (RightVector * cos(Angle2) + ForwardVector * sin(Angle2)) * Radius;
+
+		StartPoints.push_back(SegmentStart + Offset1);
+		EndPoints.push_back(SegmentStart + Offset2);
+		Colors.push_back(LineColor);
+	}
+
+	// 중앙 원 (회전이 적용된 원 - Z축에 수직)
+	for (int32 i = 0; i < NumSegments; ++i)
+	{
+		float Angle1 = (static_cast<float>(i) / NumSegments) * 2.0f * PI;
+		float Angle2 = (static_cast<float>((i + 1) % NumSegments) / NumSegments) * 2.0f * PI;
+
+		FVector Offset1 = (RightVector * cos(Angle1) + ForwardVector * sin(Angle1)) * Radius;
+		FVector Offset2 = (RightVector * cos(Angle2) + ForwardVector * sin(Angle2)) * Radius;
+
+		StartPoints.push_back(Center + Offset1);
+		EndPoints.push_back(Center + Offset2);
+		Colors.push_back(LineColor);
+	}
+
+	// 상단 반원 호 (Right 방향)
+	for (int32 i = 0; i < NumSegments / 2; ++i)
+	{
+		float Angle1 = (static_cast<float>(i) / NumSegments) * 2.0f * PI;
+		float Angle2 = (static_cast<float>(i + 1) / NumSegments) * 2.0f * PI;
+
+		FVector Offset1 = (RightVector * cos(Angle1) + UpVector * sin(Angle1)) * Radius;
+		FVector Offset2 = (RightVector * cos(Angle2) + UpVector * sin(Angle2)) * Radius;
+
+		StartPoints.push_back(SegmentEnd + Offset1);
+		EndPoints.push_back(SegmentEnd + Offset2);
+		Colors.push_back(LineColor);
+	}
+
+	// 하단 반원 호 (Right 방향)
+	for (int32 i = NumSegments / 2; i < NumSegments; ++i)
+	{
+		float Angle1 = (static_cast<float>(i) / NumSegments) * 2.0f * PI;
+		float Angle2 = (static_cast<float>(i + 1) / NumSegments) * 2.0f * PI;
+
+		FVector Offset1 = (RightVector * cos(Angle1) + UpVector * sin(Angle1)) * Radius;
+		FVector Offset2 = (RightVector * cos(Angle2) + UpVector * sin(Angle2)) * Radius;
+
+		StartPoints.push_back(SegmentStart + Offset1);
+		EndPoints.push_back(SegmentStart + Offset2);
+		Colors.push_back(LineColor);
+	}
+
+	// 상단 반원 호 (Forward 방향)
+	for (int32 i = 0; i < NumSegments / 2; ++i)
+	{
+		float Angle1 = (static_cast<float>(i) / NumSegments) * 2.0f * PI;
+		float Angle2 = (static_cast<float>(i + 1) / NumSegments) * 2.0f * PI;
+
+		FVector Offset1 = (ForwardVector * cos(Angle1) + UpVector * sin(Angle1)) * Radius;
+		FVector Offset2 = (ForwardVector * cos(Angle2) + UpVector * sin(Angle2)) * Radius;
+
+		StartPoints.push_back(SegmentEnd + Offset1);
+		EndPoints.push_back(SegmentEnd + Offset2);
+		Colors.push_back(LineColor);
+	}
+
+	// 하단 반원 호 (Forward 방향)
+	for (int32 i = NumSegments / 2; i < NumSegments; ++i)
+	{
+		float Angle1 = (static_cast<float>(i) / NumSegments) * 2.0f * PI;
+		float Angle2 = (static_cast<float>(i + 1) / NumSegments) * 2.0f * PI;
+
+		FVector Offset1 = (ForwardVector * cos(Angle1) + UpVector * sin(Angle1)) * Radius;
+		FVector Offset2 = (ForwardVector * cos(Angle2) + UpVector * sin(Angle2)) * Radius;
+
+		StartPoints.push_back(SegmentStart + Offset1);
+		EndPoints.push_back(SegmentStart + Offset2);
+		Colors.push_back(LineColor);
+	}
+
+	// 수직 연결 라인 (4개 방향 - 회전 적용)
+	FVector Offsets[4] = {
+		RightVector * Radius,
+		RightVector * -Radius,
+		ForwardVector * Radius,
+		ForwardVector * -Radius
+	};
+
+	for (int32 i = 0; i < 4; ++i)
+	{
+		StartPoints.push_back(SegmentStart + Offsets[i]);
+		EndPoints.push_back(SegmentEnd + Offsets[i]);
+		Colors.push_back(LineColor);
+	}
+
+	Renderer->AddLines(StartPoints, EndPoints, Colors);
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// 내부 함수
+// ────────────────────────────────────────────────────────────────────────────
+
+void UCapsuleComponent::GetCapsuleSegment(FVector& OutStart, FVector& OutEnd) const
+{
+	FVector Center = GetCapsuleCenter();
+	float Radius = GetScaledCapsuleRadius();
+	float HalfHeight = GetScaledCapsuleHalfHeight();
+
+	// 실린더 부분의 높이 (언리얼 방식: HalfHeight는 반구 포함, 선분은 반구 중심까지)
+	float CylinderHalfHeight = FMath::Max(0.0f, HalfHeight - Radius);
+
+	// Z축 방향 (로컬)
+	FVector UpDirection = GetWorldRotation().GetUpVector();
+
+	OutStart = Center - UpDirection * CylinderHalfHeight;
+	OutEnd = Center + UpDirection * CylinderHalfHeight;
+}
+
+float UCapsuleComponent::PointToSegmentDistanceSquared(
+	const FVector& Point,
+	const FVector& SegmentStart,
+	const FVector& SegmentEnd)
+{
+	FVector Segment = SegmentEnd - SegmentStart;
+	FVector PointToStart = Point - SegmentStart;
+
+	float SegmentLengthSquared = Segment.SizeSquared();
+
+	// 선분이 점인 경우 (길이가 0)
+	if (SegmentLengthSquared < KINDA_SMALL_NUMBER)
+	{
+		return PointToStart.SizeSquared();
+	}
+
+	// 투영 비율 계산 (0~1 사이로 클램프)
+	float t = FVector::Dot(PointToStart, Segment) / SegmentLengthSquared;
+	t = FMath::Clamp(t, 0.0f, 1.0f);
+
+	// 선분 위의 가장 가까운 점
+	FVector ClosestPoint = SegmentStart + Segment * t;
+
+	return (Point - ClosestPoint).SizeSquared();
+}
+
+float UCapsuleComponent::SegmentToSegmentDistanceSquared(
+	const FVector& Seg1Start,
+	const FVector& Seg1End,
+	const FVector& Seg2Start,
+	const FVector& Seg2End)
+{
+	// 간략 구현: 각 선분의 끝점과 중점을 샘플링하여 최단 거리 근사
+	float MinDistSq = FLT_MAX;
+
+	// Seg1의 샘플 점들과 Seg2 사이의 거리
+	MinDistSq = FMath::Min(MinDistSq, PointToSegmentDistanceSquared(Seg1Start, Seg2Start, Seg2End));
+	MinDistSq = FMath::Min(MinDistSq, PointToSegmentDistanceSquared(Seg1End, Seg2Start, Seg2End));
+	MinDistSq = FMath::Min(MinDistSq, PointToSegmentDistanceSquared((Seg1Start + Seg1End) * 0.5f, Seg2Start, Seg2End));
+
+	// Seg2의 샘플 점들과 Seg1 사이의 거리
+	MinDistSq = FMath::Min(MinDistSq, PointToSegmentDistanceSquared(Seg2Start, Seg1Start, Seg1End));
+	MinDistSq = FMath::Min(MinDistSq, PointToSegmentDistanceSquared(Seg2End, Seg1Start, Seg1End));
+	MinDistSq = FMath::Min(MinDistSq, PointToSegmentDistanceSquared((Seg2Start + Seg2End) * 0.5f, Seg1Start, Seg1End));
+
+	return MinDistSq;
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Capsule 전용 충돌 감지 함수
+// ────────────────────────────────────────────────────────────────────────────
+
+bool UCapsuleComponent::IsOverlappingCapsule(const UCapsuleComponent* OtherCapsule) const
+{
+	if (!OtherCapsule)
+	{
+		return false;
+	}
+
+	// 두 Capsule의 선분 끝점 계산
+	FVector MyStart, MyEnd;
+	GetCapsuleSegment(MyStart, MyEnd);
+	float MyRadius = GetScaledCapsuleRadius();
+
+	FVector OtherStart, OtherEnd;
+	OtherCapsule->GetCapsuleSegment(OtherStart, OtherEnd);
+	float OtherRadius = OtherCapsule->GetScaledCapsuleRadius();
+
+	// 선분 vs 선분 최단 거리 계산
+	float DistanceSquared = SegmentToSegmentDistanceSquared(MyStart, MyEnd, OtherStart, OtherEnd);
+	float RadiusSum = MyRadius + OtherRadius;
+
+	// 거리가 반지름의 합보다 작거나 같으면 충돌
+	return DistanceSquared <= (RadiusSum * RadiusSum);
+}
+
+bool UCapsuleComponent::IsOverlappingSphere(const USphereComponent* OtherSphere) const
+{
+	if (!OtherSphere)
+	{
+		return false;
+	}
+
+	FVector SphereCenter = OtherSphere->GetSphereCenter();
+	float SphereRadius = OtherSphere->GetScaledSphereRadius();
+
+	FVector SegmentStart, SegmentEnd;
+	GetCapsuleSegment(SegmentStart, SegmentEnd);
+	float CapsuleRad = GetScaledCapsuleRadius();
+
+	// 점과 선분 사이의 거리 계산
+	float DistanceSquared = PointToSegmentDistanceSquared(SphereCenter, SegmentStart, SegmentEnd);
+	float RadiusSum = CapsuleRad + SphereRadius;
+
+	// 거리가 반지름의 합보다 작거나 같으면 충돌
+	return DistanceSquared <= (RadiusSum * RadiusSum);
+}
+
+bool UCapsuleComponent::IsOverlappingBox(const UBoxComponent* OtherBox) const
+{
+	if (!OtherBox)
+	{
+		return false;
+	}
+
+	// 간략 구현: Bounds 기반 체크
+	return CachedBounds.Intersects(OtherBox->GetScaledBounds());
+}
+
+bool UCapsuleComponent::ContainsPoint(const FVector& Point) const
+{
+	FVector SegmentStart, SegmentEnd;
+	GetCapsuleSegment(SegmentStart, SegmentEnd);
+	float Radius = GetScaledCapsuleRadius();
+
+	// 점과 선분 사이의 거리 계산
+	float DistanceSquared = PointToSegmentDistanceSquared(Point, SegmentStart, SegmentEnd);
+
+	// 거리가 반지름보다 작거나 같으면 포함
+	return DistanceSquared <= (Radius * Radius);
 }

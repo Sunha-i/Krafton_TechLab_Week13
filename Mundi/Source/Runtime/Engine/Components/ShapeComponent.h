@@ -49,10 +49,15 @@ public:
 
 	virtual void GetShape(FShape& OutShape) const {};
 	virtual void BeginPlay() override;
+	virtual void EndPlay() override;
     virtual void OnRegister(UWorld* InWorld) override;
+	virtual void OnUnregister() override;
     virtual void OnTransformUpdated() override;
 
-    void UpdateOverlaps(); 
+    void UpdateOverlaps();
+
+    // Bounds 업데이트 (자식 클래스에서 구현)
+    virtual void UpdateBounds() {}
 
     FAABB GetWorldAABB() const override;
 	virtual const TArray<FOverlapInfo>& GetOverlapInfos() const override { return OverlapInfos; }
@@ -62,10 +67,12 @@ public:
 
 	// ㅡㅡㅡㅡㅡㅡㅡㅡㅡ디버깅용ㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡ
  
-protected: 
-	mutable FAABB WorldAABB; //브로드 페이즈 용 
+protected:
+	mutable FAABB WorldAABB; //브로드 페이즈 용
 	TSet<UShapeComponent*> OverlapNow; // 이번 프레임에서 overlap 된 Shap Comps
 	TSet<UShapeComponent*> OverlapPrev; // 지난 프레임에서 overlap 됐으면 Cache
+
+	bool bIsOverlapping = false;  // 충돌 상태 플래그 (Week09 호환)
 	 
 
 	FVector4 ShapeColor ;

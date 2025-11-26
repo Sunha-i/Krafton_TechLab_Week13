@@ -6,6 +6,7 @@
 #include "WorldPartitionManager.h"
 #include "BVHierarchy.h"
 #include "ShapeComponent.h"
+#include "StaticMeshComponent.h"
 #include "Collision.h"
 #include "BoundingSphere.h"
 #include "AABB.h"
@@ -32,7 +33,7 @@ void UParticleModuleCollision::Spawn(FParticleEmitterInstance* Owner, int32 Offs
 
 void UParticleModuleCollision::Update(FModuleUpdateContext& Context)
 {
-	// World와 BVH 가져오기
+	// World와 CollisionManager 가져오기
 	UParticleSystemComponent* PSC = Context.Owner.Component;
 	if (!PSC)
 	{
@@ -45,17 +46,12 @@ void UParticleModuleCollision::Update(FModuleUpdateContext& Context)
 		return;
 	}
 
-	UWorldPartitionManager* PartitionMgr = World->GetPartitionManager();
-	if (!PartitionMgr)
+	UWorldPartitionManager* Partition = World->GetPartitionManager();
+	if (!Partition || !Partition->GetBVH())
 	{
 		return;
 	}
-
-	FBVHierarchy* BVH = PartitionMgr->GetBVH();
-	if (!BVH)
-	{
-		return;
-	}
+	FBVHierarchy* BVH = Partition->GetBVH();
 
 	float DeltaTime = Context.DeltaTime;
 	int32 Offset = Context.Offset;
@@ -81,7 +77,7 @@ void UParticleModuleCollision::Update(FModuleUpdateContext& Context)
 		FVector Start = Particle.OldLocation;
 		FVector End = Particle.Location;
 
-		// 1. 광역 검사 (BVH AABB 쿼리) - 경로 전체를 포함하는 바운드
+		// 1. 광역 검사 (CollisionManager AABB 쿼리) - 경로 전체를 포함하는 바운드
 		FAABB PathBounds;
 		// Component-wise min/max
 		PathBounds.Min = FVector(
@@ -95,13 +91,13 @@ void UParticleModuleCollision::Update(FModuleUpdateContext& Context)
 			FMath::Max(Start.Z, End.Z) + ParticleRadius
 		);
 
+		// BVH에서 PrimitiveComponent 쿼리 (ShapeComponent + StaticMeshComponent 포함)
 		TArray<UPrimitiveComponent*> Candidates = BVH->QueryIntersectedComponents(PathBounds);
 
-		// 2. 정밀 검사 (ShapeComponent만)
-		for (UPrimitiveComponent* Comp : Candidates)
+		// 2. 정밀 검사
+		for (UPrimitiveComponent* PrimComp : Candidates)
 		{
-			UShapeComponent* ShapeComp = Cast<UShapeComponent>(Comp);
-			if (!ShapeComp)
+			if (!PrimComp)
 			{
 				continue;
 			}
@@ -111,91 +107,122 @@ void UParticleModuleCollision::Update(FModuleUpdateContext& Context)
 			ParticleSphere.Center = Particle.Location;
 			ParticleSphere.Radius = ParticleRadius;
 
-			// ShapeComponent의 형상 가져오기
-			FShape Shape;
-			ShapeComp->GetShape(Shape);
-			FTransform ShapeTransform = ShapeComp->GetWorldTransform();
-
 			// 충돌 여부 검사
 			bool bCollided = false;
 			FVector HitNormal = FVector(0.0f, 0.0f, 0.0f);
 
-			switch (Shape.Kind)
+			// 1. ShapeComponent인 경우 - 기존 정밀 충돌 검사
+			if (UShapeComponent* ShapeComp = Cast<UShapeComponent>(PrimComp))
 			{
-			case EShapeKind::Box:
-				{
-					FOBB BoxOBB;
-					Collision::BuildOBB(Shape, ShapeTransform, BoxOBB);
-					bCollided = Collision::Overlap_Sphere_OBB(ParticleSphere.Center, ParticleSphere.Radius, BoxOBB);
-					if (bCollided)
-					{
-						// 박스의 가장 가까운 표면 법선 계산 (단순화)
-						// 역변환을 통해 로컬 공간으로 변환
-						FMatrix InvMatrix = ShapeTransform.ToMatrix().Inverse();
-						FVector LocalPos = InvMatrix.TransformPosition(Particle.Location);
-						FVector Extent = Shape.Box.BoxExtent;
+				FShape Shape;
+				ShapeComp->GetShape(Shape);
+				FTransform ShapeTransform = ShapeComp->GetWorldTransform();
 
-						// 각 축에서 가장 가까운 면 찾기
-						float MinDist = FLT_MAX;
-						for (int32 Axis = 0; Axis < 3; Axis++)
+				switch (Shape.Kind)
+				{
+				case EShapeKind::Box:
+					{
+						FOBB BoxOBB;
+						Collision::BuildOBB(Shape, ShapeTransform, BoxOBB);
+						bCollided = Collision::Overlap_Sphere_OBB(ParticleSphere.Center, ParticleSphere.Radius, BoxOBB);
+						if (bCollided)
 						{
-							float Dist = FMath::Abs(FMath::Abs(LocalPos[Axis]) - Extent[Axis]);
-							if (Dist < MinDist)
+							// 박스의 가장 가까운 표면 법선 계산 (단순화)
+							FMatrix InvMatrix = ShapeTransform.ToMatrix().Inverse();
+							FVector LocalPos = InvMatrix.TransformPosition(Particle.Location);
+							FVector Extent = Shape.Box.BoxExtent;
+
+							// 각 축에서 가장 가까운 면 찾기
+							float MinDist = FLT_MAX;
+							for (int32 Axis = 0; Axis < 3; Axis++)
 							{
-								MinDist = Dist;
-								HitNormal = FVector(0.0f, 0.0f, 0.0f);
-								HitNormal[Axis] = (LocalPos[Axis] > 0) ? 1.0f : -1.0f;
+								float Dist = FMath::Abs(FMath::Abs(LocalPos[Axis]) - Extent[Axis]);
+								if (Dist < MinDist)
+								{
+									MinDist = Dist;
+									HitNormal = FVector(0.0f, 0.0f, 0.0f);
+									HitNormal[Axis] = (LocalPos[Axis] > 0) ? 1.0f : -1.0f;
+								}
 							}
+							// 월드 공간으로 변환
+							HitNormal = ShapeTransform.ToMatrix().TransformVector(HitNormal);
+							HitNormal.Normalize();
 						}
-						// 월드 공간으로 변환
-						HitNormal = ShapeTransform.ToMatrix().TransformVector(HitNormal);
-						HitNormal.Normalize();
 					}
-				}
-				break;
+					break;
 
-			case EShapeKind::Sphere:
+				case EShapeKind::Sphere:
+					{
+						FVector SphereCenter = ShapeTransform.Translation;
+						float SphereRadius = Shape.Sphere.SphereRadius * Collision::UniformScaleMax(ShapeTransform.Scale3D);
+						float Dist = FVector::Distance(ParticleSphere.Center, SphereCenter);
+						bCollided = (Dist < (ParticleSphere.Radius + SphereRadius));
+						if (bCollided)
+						{
+							HitNormal = (ParticleSphere.Center - SphereCenter);
+							HitNormal.Normalize();
+						}
+					}
+					break;
+
+				case EShapeKind::Capsule:
+					{
+						// 캡슐 충돌 검사
+						FVector P0, P1;
+						float CapsuleRadius;
+						Collision::BuildCapsule(Shape, ShapeTransform, P0, P1, CapsuleRadius);
+
+						// 파티클 위치에서 캡슐 중심선까지의 최단 거리
+						FVector CapsuleDir = P1 - P0;
+						float CapsuleLen = CapsuleDir.Size();
+						if (CapsuleLen > KINDA_SMALL_NUMBER)
+						{
+							CapsuleDir /= CapsuleLen;
+						}
+
+						FVector ToParticle = ParticleSphere.Center - P0;
+						float Projection = FMath::Clamp(FVector::Dot(ToParticle, CapsuleDir), 0.0f, CapsuleLen);
+						FVector ClosestPoint = P0 + CapsuleDir * Projection;
+
+						float Dist = FVector::Distance(ParticleSphere.Center, ClosestPoint);
+						bCollided = (Dist < (ParticleSphere.Radius + CapsuleRadius));
+						if (bCollided)
+						{
+							HitNormal = (ParticleSphere.Center - ClosestPoint);
+							HitNormal.Normalize();
+						}
+					}
+					break;
+				}
+			}
+			// 2. StaticMeshComponent인 경우 - AABB 기반 충돌
+			else if (UStaticMeshComponent* MeshComp = Cast<UStaticMeshComponent>(PrimComp))
+			{
+				FAABB MeshAABB = MeshComp->GetWorldAABB();
+
+				// 파티클 구체와 AABB 충돌 검사
+				FVector ClosestPoint;
+				ClosestPoint.X = FMath::Clamp(ParticleSphere.Center.X, MeshAABB.Min.X, MeshAABB.Max.X);
+				ClosestPoint.Y = FMath::Clamp(ParticleSphere.Center.Y, MeshAABB.Min.Y, MeshAABB.Max.Y);
+				ClosestPoint.Z = FMath::Clamp(ParticleSphere.Center.Z, MeshAABB.Min.Z, MeshAABB.Max.Z);
+
+				float DistSq = FVector::DistSquared(ParticleSphere.Center, ClosestPoint);
+				bCollided = (DistSq < ParticleSphere.Radius * ParticleSphere.Radius);
+
+				if (bCollided)
 				{
-					FVector SphereCenter = ShapeTransform.Translation;
-					float SphereRadius = Shape.Sphere.SphereRadius * Collision::UniformScaleMax(ShapeTransform.Scale3D);
-					float Dist = FVector::Distance(ParticleSphere.Center, SphereCenter);
-					bCollided = (Dist < (ParticleSphere.Radius + SphereRadius));
-					if (bCollided)
+					// AABB 표면 법선 계산
+					HitNormal = ParticleSphere.Center - ClosestPoint;
+					if (HitNormal.SizeSquared() > KINDA_SMALL_NUMBER)
 					{
-						HitNormal = (ParticleSphere.Center - SphereCenter);
 						HitNormal.Normalize();
 					}
-				}
-				break;
-
-			case EShapeKind::Capsule:
-				{
-					// 캡슐 충돌 검사 (단순화 - 구체로 취급)
-					FVector P0, P1;
-					float CapsuleRadius;
-					Collision::BuildCapsule(Shape, ShapeTransform, P0, P1, CapsuleRadius);
-
-					// 파티클 위치에서 캡슐 중심선까지의 최단 거리
-					FVector CapsuleDir = P1 - P0;
-					float CapsuleLen = CapsuleDir.Size();
-					if (CapsuleLen > KINDA_SMALL_NUMBER)
+					else
 					{
-						CapsuleDir /= CapsuleLen;
-					}
-
-					FVector ToParticle = ParticleSphere.Center - P0;
-					float Projection = FMath::Clamp(FVector::Dot(ToParticle, CapsuleDir), 0.0f, CapsuleLen);
-					FVector ClosestPoint = P0 + CapsuleDir * Projection;
-
-					float Dist = FVector::Distance(ParticleSphere.Center, ClosestPoint);
-					bCollided = (Dist < (ParticleSphere.Radius + CapsuleRadius));
-					if (bCollided)
-					{
-						HitNormal = (ParticleSphere.Center - ClosestPoint);
-						HitNormal.Normalize();
+						// 파티클이 AABB 내부에 있는 경우 - 위쪽으로 밀어냄
+						HitNormal = FVector(0.0f, 0.0f, 1.0f);
 					}
 				}
-				break;
 			}
 
 			if (bCollided)
@@ -208,8 +235,8 @@ void UParticleModuleCollision::Update(FModuleUpdateContext& Context)
 					Event.Position = Particle.Location;
 					Event.Velocity = Particle.Velocity;
 					Event.Normal = HitNormal;
-					Event.HitComponent = ShapeComp;
-					Event.HitActor = ShapeComp->GetOwner();
+					Event.HitComponent = PrimComp;
+					Event.HitActor = PrimComp->GetOwner();
 					Event.EmitterTime = Context.Owner.EmitterTime;
 
 					PSC->AddCollisionEvent(Event);

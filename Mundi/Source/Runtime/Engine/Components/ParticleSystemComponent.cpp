@@ -19,6 +19,11 @@
 #include "Modules/ParticleModuleRotation.h"
 #include "Modules/ParticleModuleRotationRate.h"
 #include "Modules/ParticleModuleLocation.h"
+#include "Modules/ParticleModuleEventReceiver.h"
+#include "Modules/ParticleModuleAcceleration.h"
+#include "Modules/ParticleModuleCollision.h"
+#include "World.h"
+#include "ParticleEventManager.h"
 
 // Quad 버텍스 구조체 (UV만 포함)
 struct FSpriteQuadVertex
@@ -220,18 +225,18 @@ void UParticleSystemComponent::CreateDebugMeshParticleSystem()
 
 	// 스폰 모듈 생성 - Modules 배열에 추가
 	UParticleModuleSpawn* SpawnModule = NewObject<UParticleModuleSpawn>();
-	SpawnModule->SpawnRate = FDistributionFloat(10000.0f);   // 초당 100개 파티클 (메시는 무거우므로 줄임)
-	SpawnModule->BurstCount = FDistributionFloat(100.0f);     // 시작 시 100개 버스트
+	SpawnModule->SpawnRate = FDistributionFloat(50.0f);       // 초당 50개 파티클 (충돌 테스트용으로 적당히)
+	SpawnModule->BurstCount = FDistributionFloat(20.0f);      // 시작 시 20개 버스트
 	LODLevel->Modules.Add(SpawnModule);
 
 	// 라이프타임 모듈 생성 (파티클 수명 설정)
 	UParticleModuleLifetime* LifetimeModule = NewObject<UParticleModuleLifetime>();
-	LifetimeModule->Lifetime = FDistributionFloat(1.0f, 1.5f);  // 1.0 ~ 1.5초 랜덤
+	LifetimeModule->Lifetime = FDistributionFloat(5.0f, 8.0f);  // 5.0 ~ 8.0초 (충돌 후 바운스 관찰용)
 	LODLevel->Modules.Add(LifetimeModule);
 
-	// 속도 모듈 생성 (테스트용: 위쪽으로 퍼지는 랜덤 속도)
+	// 속도 모듈 생성 (위쪽으로 발사되어 중력에 의해 떨어지도록)
 	UParticleModuleVelocity* VelocityModule = NewObject<UParticleModuleVelocity>();
-	VelocityModule->StartVelocity = FDistributionVector(FVector(-3.0f, -3.0f, 7.0f), FVector(3.0f, 3.0f, 13.0f));  // 랜덤 범위
+	VelocityModule->StartVelocity = FDistributionVector(FVector(-5.0f, -5.0f, 15.0f), FVector(5.0f, 5.0f, 25.0f));  // 위쪽으로 발사
 	LODLevel->Modules.Add(VelocityModule);
 
 	// 메시 회전 모듈 생성 (3축 회전 테스트)
@@ -249,6 +254,22 @@ void UParticleSystemComponent::CreateDebugMeshParticleSystem()
 	// 크기 모듈 생성
 	UParticleModuleSize* SizeModule = NewObject<UParticleModuleSize>();
 	LODLevel->Modules.Add(SizeModule);
+
+	// === 충돌 테스트용 모듈 추가 ===
+	// 가속도 모듈 (중력 적용)
+	UParticleModuleAcceleration* AccelModule = NewObject<UParticleModuleAcceleration>();
+	AccelModule->bApplyGravity = true;       // 중력 활성화
+	AccelModule->GravityScale = 1.0f;        // 기본 중력 (-9.8 m/s^2)
+	LODLevel->Modules.Add(AccelModule);
+
+	// 충돌 모듈 생성
+	UParticleModuleCollision* CollisionModule = NewObject<UParticleModuleCollision>();
+	CollisionModule->DampingFactor = FDistributionVector(FVector(0.8f, 0.8f, 0.6f));  // 탄성 계수
+	CollisionModule->MaxCollisions = 5;      // 5번까지 바운스
+	CollisionModule->CollisionCompletionOption = EParticleCollisionComplete::HaltCollisions;  // 5번 후 충돌 무시
+	CollisionModule->ParticleRadius = 0.5f;  // 파티클 충돌 반지름
+	CollisionModule->bGenerateCollisionEvents = true;  // 충돌 이벤트 생성
+	LODLevel->Modules.Add(CollisionModule);
 
 	// 모듈 캐싱
 	LODLevel->CacheModuleInfo();
@@ -466,6 +487,9 @@ void UParticleSystemComponent::TickComponent(float DeltaTime)
 {
 	USceneComponent::TickComponent(DeltaTime);
 
+	// 이벤트 클리어 (매 프레임 시작 시)
+	ClearEvents();
+
 	// 모든 이미터 인스턴스 틱
 	for (FParticleEmitterInstance* Instance : EmitterInstances)
 	{
@@ -477,6 +501,107 @@ void UParticleSystemComponent::TickComponent(float DeltaTime)
 
 	// 렌더 데이터 업데이트
 	UpdateRenderData();
+
+	// 내부 이벤트 디스패치 (같은 PSC 내의 다른 이미터들에게 이벤트 전달)
+	DispatchEventsToReceivers();
+
+	// 외부 이벤트 브로드캐스트 (ParticleEventManager를 통해 다른 PSC에도 전달)
+	if (UWorld* World = GetWorld())
+	{
+		if (AParticleEventManager* EventMgr = World->GetParticleEventManager())
+		{
+			for (const FParticleEventCollideData& Event : CollisionEvents)
+			{
+				EventMgr->BroadcastCollisionEvent(this, Event);
+			}
+			for (const FParticleEventData& Event : SpawnEvents)
+			{
+				EventMgr->BroadcastSpawnEvent(this, Event);
+			}
+			for (const FParticleEventData& Event : DeathEvents)
+			{
+				EventMgr->BroadcastDeathEvent(this, Event);
+			}
+		}
+	}
+}
+
+// === 파티클 이벤트 시스템 ===
+void UParticleSystemComponent::ClearEvents()
+{
+	CollisionEvents.Empty();
+	SpawnEvents.Empty();
+	DeathEvents.Empty();
+}
+
+void UParticleSystemComponent::AddCollisionEvent(const FParticleEventCollideData& Event)
+{
+	CollisionEvents.Add(Event);
+}
+
+void UParticleSystemComponent::AddSpawnEvent(const FParticleEventData& Event)
+{
+	SpawnEvents.Add(Event);
+}
+
+void UParticleSystemComponent::AddDeathEvent(const FParticleEventData& Event)
+{
+	DeathEvents.Add(Event);
+}
+
+void UParticleSystemComponent::DispatchEventsToReceivers()
+{
+	// 이벤트가 없으면 스킵
+	if (CollisionEvents.IsEmpty() && SpawnEvents.IsEmpty() && DeathEvents.IsEmpty())
+	{
+		return;
+	}
+
+	// 각 이미터 인스턴스의 EventReceiver 모듈에 이벤트 전달
+	for (FParticleEmitterInstance* Instance : EmitterInstances)
+	{
+		if (!Instance || !Instance->CurrentLODLevel)
+		{
+			continue;
+		}
+
+		// LODLevel의 모듈 중 EventReceiver 찾기
+		for (UParticleModule* Module : Instance->CurrentLODLevel->Modules)
+		{
+			UParticleModuleEventReceiverBase* Receiver = Cast<UParticleModuleEventReceiverBase>(Module);
+			if (!Receiver)
+			{
+				continue;
+			}
+
+			// 충돌 이벤트 전달
+			if (Receiver->EventType == EParticleEventType::Collision || Receiver->EventType == EParticleEventType::Any)
+			{
+				for (const FParticleEventCollideData& Event : CollisionEvents)
+				{
+					Receiver->HandleCollisionEvent(Instance, Event);
+				}
+			}
+
+			// 스폰 이벤트 전달
+			if (Receiver->EventType == EParticleEventType::Spawn || Receiver->EventType == EParticleEventType::Any)
+			{
+				for (const FParticleEventData& Event : SpawnEvents)
+				{
+					Receiver->HandleEvent(Instance, Event);
+				}
+			}
+
+			// 사망 이벤트 전달
+			if (Receiver->EventType == EParticleEventType::Death || Receiver->EventType == EParticleEventType::Any)
+			{
+				for (const FParticleEventData& Event : DeathEvents)
+				{
+					Receiver->HandleEvent(Instance, Event);
+				}
+			}
+		}
+	}
 }
 
 void UParticleSystemComponent::ActivateSystem()

@@ -1,6 +1,7 @@
 ﻿#include "pch.h"
 #include "WorldPartitionManager.h"
 #include "PrimitiveComponent.h"
+#include "ShapeComponent.h"  // ShapeComponent 필터링용 (Week09 방식)
 #include "Actor.h"
 #include "World.h"
 #include "Octree.h"
@@ -46,7 +47,8 @@ void UWorldPartitionManager::Clear()
 	ComponentDirtySet.Empty();
 }
 
-// 새로 만들어진 StaticMeshComponent를 등록하는 상황에서 맥락을 분명히 드러내기 위한 API입니다.
+// 새로 만들어진 PrimitiveComponent를 등록하는 상황에서 맥락을 분명히 드러내기 위한 API입니다.
+// ShapeComponent도 포함 (파티클 충돌용)
 void UWorldPartitionManager::Register(UPrimitiveComponent* Smc)
 {
 	MarkDirty(Smc);
@@ -110,11 +112,13 @@ void UWorldPartitionManager::MarkDirty(AActor* Actor)
 	}
 }
 
-// World Partition에서의 스태틱 메시 컴포넌트 상태 갱신 예약
+// World Partition에서의 PrimitiveComponent 상태 갱신 예약
 // (신규 등록에도 사용할 수 있지만 코드 가독성을 위해 Register API 사용 권장)
+// ShapeComponent도 포함 (파티클 충돌용)
 void UWorldPartitionManager::MarkDirty(UPrimitiveComponent* Smc)
 {
 	if (!Smc) return;
+
 	AActor* Owner = Smc->GetOwner();
 	if (!Owner) return;
 

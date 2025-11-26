@@ -1551,6 +1551,42 @@ void SViewportWindow::RenderShowFlagDropdownMenu()
 			ImGui::SetTooltip("BVH(Bounding Volume Hierarchy) 디버그 시각화를 표시합니다.");
 		}
 
+		// Collision
+		bool bCollision = RenderSettings.IsShowFlagEnabled(EEngineShowFlags::SF_Collision);
+		if (ImGui::Checkbox("##Collision", &bCollision))
+		{
+			RenderSettings.ToggleShowFlag(EEngineShowFlags::SF_Collision);
+		}
+		ImGui::SameLine();
+		if (IconCollision && IconCollision->GetShaderResourceView())
+		{
+			ImGui::Image((void*)IconCollision->GetShaderResourceView(), IconSize);
+			ImGui::SameLine(0, 4);
+		}
+		ImGui::Text(" 충돌 컴포넌트");
+		if (ImGui::IsItemHovered())
+		{
+			ImGui::SetTooltip("충돌 컴포넌트(Box, Sphere, Capsule)의 디버그 와이어프레임을 표시합니다.");
+		}
+
+		// Collision BVH
+		bool bCollisionBVH = RenderSettings.IsShowFlagEnabled(EEngineShowFlags::SF_CollisionBVH);
+		if (ImGui::Checkbox("##CollisionBVH", &bCollisionBVH))
+		{
+			RenderSettings.ToggleShowFlag(EEngineShowFlags::SF_CollisionBVH);
+		}
+		ImGui::SameLine();
+		if (IconBVH && IconBVH->GetShaderResourceView())
+		{
+			ImGui::Image((void*)IconBVH->GetShaderResourceView(), IconSize);
+			ImGui::SameLine(0, 4);
+		}
+		ImGui::Text(" 충돌 BVH");
+		if (ImGui::IsItemHovered())
+		{
+			ImGui::SetTooltip("충돌 시스템의 BVH(Bounding Volume Hierarchy) 디버그 시각화를 표시합니다.");
+		}
+
 		// Grid
 		bool bGrid = RenderSettings.IsShowFlagEnabled(EEngineShowFlags::SF_Grid);
 		if (ImGui::Checkbox("##Grid", &bGrid))

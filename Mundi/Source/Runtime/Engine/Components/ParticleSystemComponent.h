@@ -4,6 +4,7 @@
 #include "PrimitiveComponent.h"
 #include "Source/Runtime/Engine/Particles/ParticleSystem.h"
 #include "Source/Runtime/Engine/Particles/ParticleEmitterInstance.h"
+#include "Source/Runtime/Engine/Particles/ParticleEventTypes.h"
 #include "UParticleSystemComponent.generated.h"
 
 struct FMeshBatchElement;
@@ -45,6 +46,18 @@ public:
 	};
 
 	TArray<FParticleParameter> InstanceParameters;
+
+	// 파티클 이벤트 배열 (이번 프레임에 발생한 이벤트들)
+	TArray<FParticleEventCollideData> CollisionEvents;  // 충돌 이벤트
+	TArray<FParticleEventData> SpawnEvents;             // 스폰 이벤트
+	TArray<FParticleEventData> DeathEvents;             // 사망 이벤트
+
+	// 이벤트 관리 함수
+	void ClearEvents();
+	void AddCollisionEvent(const FParticleEventCollideData& Event);
+	void AddSpawnEvent(const FParticleEventData& Event);
+	void AddDeathEvent(const FParticleEventData& Event);
+	void DispatchEventsToReceivers();  // EventReceiver 모듈에 이벤트 전달
 
 	// Dynamic Instance Buffer (메시 파티클 인스턴싱용)
 	ID3D11Buffer* MeshInstanceBuffer = nullptr;

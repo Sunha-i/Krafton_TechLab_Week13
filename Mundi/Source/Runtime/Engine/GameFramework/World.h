@@ -27,6 +27,8 @@ class BVHierachy;
 class UStaticMesh;
 class FOcclusionCullingManagerCPU;
 class APlayerCameraManager;
+class AParticleEventManager;
+class UCollisionManager;
 
 struct FTransform;
 struct FSceneCompData;
@@ -126,6 +128,8 @@ public:
     AGizmoActor* GetGizmoActor() { return GizmoActor; }
     AGridActor* GetGridActor() { return GridActor; }
     UWorldPartitionManager* GetPartitionManager() { return Partition.get(); }
+    AParticleEventManager* GetParticleEventManager() { return ParticleEventManager; }
+    UCollisionManager* GetCollisionManager() { return CollisionManager.get(); }
 
     // PIE용 World 생성
     static UWorld* DuplicateWorldForPIE(UWorld* InEditorWorld);
@@ -147,6 +151,7 @@ private:
     AGridActor* GridActor = nullptr;
     AGizmoActor* GizmoActor = nullptr;
     APlayerCameraManager* PlayerCameraManager;
+    AParticleEventManager* ParticleEventManager = nullptr;
 
     /** === 레벨 컨테이너 === */
     std::unique_ptr<ULevel> Level;
@@ -167,6 +172,9 @@ private:
 
     //partition
     std::unique_ptr<UWorldPartitionManager> Partition = nullptr;
+
+    // Collision Manager (ShapeComponent용 BVH)
+    std::unique_ptr<UCollisionManager> CollisionManager;
 
     // Per-world selection manager
     std::unique_ptr<USelectionManager> SelectionMgr;

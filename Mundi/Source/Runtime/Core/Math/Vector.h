@@ -287,6 +287,11 @@ struct FVector
 	{
 		return (B - A).Size();
 	}
+	static float DistSquared(const FVector& A, const FVector& B)
+	{
+		FVector Diff = B - A;
+		return Diff.X * Diff.X + Diff.Y * Diff.Y + Diff.Z * Diff.Z;
+	}
 	static float AngleBetween(const FVector& A, const FVector& B) // radians
 	{
 		float D = Dot(A, B) / (std::sqrt(A.SizeSquared() * B.SizeSquared()) + KINDA_SMALL_NUMBER);

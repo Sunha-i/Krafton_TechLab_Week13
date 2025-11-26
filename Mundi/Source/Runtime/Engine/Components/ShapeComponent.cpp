@@ -6,6 +6,7 @@
 #include "WorldPartitionManager.h"
 #include "BVHierarchy.h"
 #include "GameObject.h"
+#include "CollisionManager.h"
 // IMPLEMENT_CLASS is now auto-generated in .generated.cpp
 UShapeComponent::UShapeComponent() : bShapeIsVisible(true), bShapeHiddenInGame(true)
 {
@@ -16,22 +17,75 @@ UShapeComponent::UShapeComponent() : bShapeIsVisible(true), bShapeHiddenInGame(t
 void UShapeComponent::BeginPlay()
 {
     Super::BeginPlay();
+
+    // World의 CollisionManager에 등록
+    if (UWorld* World = GetWorld())
+    {
+        if (UCollisionManager* Manager = World->GetCollisionManager())
+        {
+            Manager->RegisterComponent(this);
+        }
+    }
+}
+
+void UShapeComponent::EndPlay()
+{
+    // World의 CollisionManager에서 해제
+    if (UWorld* World = GetWorld())
+    {
+        if (UCollisionManager* Manager = World->GetCollisionManager())
+        {
+            Manager->UnregisterComponent(this);
+        }
+    }
+
+    Super::EndPlay();
 }
 
 void UShapeComponent::OnRegister(UWorld* InWorld)
 {
     Super::OnRegister(InWorld);
-    
+
     GetWorldAABB();
+
+    // World의 CollisionManager에 등록 (에디터에서도 충돌 BVH 표시용)
+    if (InWorld)
+    {
+        if (UCollisionManager* Manager = InWorld->GetCollisionManager())
+        {
+            Manager->RegisterComponent(this);
+        }
+    }
+}
+
+void UShapeComponent::OnUnregister()
+{
+    // World의 CollisionManager에서 해제
+    if (UWorld* World = GetWorld())
+    {
+        if (UCollisionManager* Manager = World->GetCollisionManager())
+        {
+            Manager->UnregisterComponent(this);
+        }
+    }
+
+    Super::OnUnregister();
 }
 
 void UShapeComponent::OnTransformUpdated()
 {
-    GetWorldAABB();
+    // Bounds 업데이트 (자식 클래스의 CachedBounds 갱신)
+    UpdateBounds();
 
-    // Keep BVH up-to-date for broad phase queries
     if (UWorld* World = GetWorld())
     {
+        // CollisionManager에 Dirty 마킹 (충돌 BVH용)
+        if (UCollisionManager* Manager = World->GetCollisionManager())
+        {
+            Manager->MarkComponentDirty(this);
+        }
+
+        // WorldPartitionManager에도 Dirty 마킹 (기본 BVH용 - 파티클 충돌)
         if (UWorldPartitionManager* Partition = World->GetPartitionManager())
         {
             Partition->MarkDirty(this);
@@ -56,6 +110,17 @@ void UShapeComponent::TickComponent(float DeltaSeconds)
 
     UWorld* World = GetWorld();
     if (!World) return;
+
+    // 매 프레임 Bounds 업데이트 및 BVH dirty 마킹 (에디터에서 속성 직접 수정 시 반영)
+    UpdateBounds();
+    if (UCollisionManager* Manager = World->GetCollisionManager())
+    {
+        Manager->MarkComponentDirty(this);
+    }
+    if (UWorldPartitionManager* Partition = World->GetPartitionManager())
+    {
+        Partition->MarkDirty(this);
+    }
 
     //Test용 O(N^2) 
     OverlapNow.clear();

@@ -3,6 +3,7 @@
 #include "Vector.h"
 
 // Forward declarations
+class UPrimitiveComponent;
 class UShapeComponent;
 class AActor;
 
@@ -41,7 +42,7 @@ struct FParticleEventData
 struct FParticleEventCollideData : public FParticleEventData
 {
 	FVector Normal = FVector(0.0f, 0.0f, 0.0f);     // 충돌 표면 법선
-	UShapeComponent* HitComponent = nullptr;  // 충돌한 ShapeComponent
+	UPrimitiveComponent* HitComponent = nullptr;  // 충돌한 컴포넌트 (ShapeComponent 또는 StaticMeshComponent)
 	AActor* HitActor = nullptr;               // 충돌한 Actor
 	float Time = 0.0f;                        // 충돌 시간 (0~1, 프레임 내 위치)
 
@@ -58,7 +59,7 @@ struct FParticleCollisionResult
 	FVector HitLocation = FVector(0.0f, 0.0f, 0.0f); // 충돌 위치
 	FVector HitNormal = FVector(0.0f, 0.0f, 0.0f);   // 충돌 법선
 	float Time = 0.0f;                         // 충돌 시간 (0~1)
-	UShapeComponent* HitComponent = nullptr;   // 충돌한 컴포넌트
+	UPrimitiveComponent* HitComponent = nullptr;   // 충돌한 컴포넌트
 };
 
 // 이벤트 생성 설정 (EventGenerator 모듈용)

@@ -1,105 +1,276 @@
-﻿#include "pch.h"
+// ────────────────────────────────────────────────────────────────────────────
+// BoxComponent.cpp
+// Box 형태의 충돌 컴포넌트 구현 (Week09 기반, Week12 적응)
+// ────────────────────────────────────────────────────────────────────────────
+#include "pch.h"
 #include "BoxComponent.h"
-// IMPLEMENT_CLASS is now auto-generated in .generated.cpp
-//BEGIN_PROPERTIES(UBoxComponent)
-//MARK_AS_COMPONENT("박스 충돌 컴포넌트", "박스 모양의 충돌체를 생성하는 컴포넌트입니다.")
-//	ADD_PROPERTY(FVector, BoxExtent, "BoxExtent", true, "박스 충돌체의 크기입니다.")
-//END_PROPERTIES()
+#include "SphereComponent.h"
+#include "Actor.h"
+#include "Sphere.h"
+#include "World.h"
+#include "CollisionManager.h"
+#include "WorldPartitionManager.h"
+
+// ────────────────────────────────────────────────────────────────────────────
+// 생성자 / 소멸자
+// ────────────────────────────────────────────────────────────────────────────
 
 UBoxComponent::UBoxComponent()
 {
-	///BoxExtent = WorldAABB.GetHalfExtent(); 
-
-	BoxExtent = FVector(0.5f, 0.5f, 0.5f); 
+	BoxExtent = FVector(0.5f, 0.5f, 0.5f);
+	UpdateBounds();
 }
 
-void UBoxComponent::OnRegister(UWorld* InWorld)
-{ 
-	Super::OnRegister(InWorld);
-
-	// Owner의 실제 바운드를 가져옴
-	if (AActor* Owner = GetOwner())
-	{
-		FAABB ActorBounds = Owner->GetBounds();
-		FVector WorldHalfExtent = ActorBounds.GetHalfExtent();
-
-		// World scale로 나눠서 local extent 계산
-		const FTransform WordTransform = GetWorldTransform();
-		const FVector S = FVector(
-			std::fabs(WordTransform.Scale3D.X),
-			std::fabs(WordTransform.Scale3D.Y),
-			std::fabs(WordTransform.Scale3D.Z)
-		);
-
-		constexpr float Eps = 1e-6f;
-		BoxExtent = FVector(
-			S.X > Eps ? WorldHalfExtent.X / S.X : WorldHalfExtent.X,
-			S.Y > Eps ? WorldHalfExtent.Y / S.Y : WorldHalfExtent.Y,
-			S.Z > Eps ? WorldHalfExtent.Z / S.Z : WorldHalfExtent.Z
-		);
-
-	}
+UBoxComponent::~UBoxComponent()
+{
 }
 
 void UBoxComponent::DuplicateSubObjects()
 {
 	Super::DuplicateSubObjects();
-} 
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Box 속성 함수
+// ────────────────────────────────────────────────────────────────────────────
+
+void UBoxComponent::SetBoxExtent(const FVector& InExtent, bool bUpdateBoundsNow)
+{
+	BoxExtent = InExtent;
+
+	if (bUpdateBoundsNow)
+	{
+		UpdateBounds();
+
+		// BVH 업데이트를 위해 dirty 마킹
+		if (UWorld* World = GetWorld())
+		{
+			if (UCollisionManager* Manager = World->GetCollisionManager())
+			{
+				Manager->MarkComponentDirty(this);
+			}
+			if (UWorldPartitionManager* Partition = World->GetPartitionManager())
+			{
+				Partition->MarkDirty(this);
+			}
+		}
+	}
+}
+
+FVector UBoxComponent::GetScaledBoxExtent() const
+{
+	FVector Scale = GetWorldScale();
+	return FVector(
+		BoxExtent.X * FMath::Abs(Scale.X),
+		BoxExtent.Y * FMath::Abs(Scale.Y),
+		BoxExtent.Z * FMath::Abs(Scale.Z)
+	);
+}
+
+FVector UBoxComponent::GetBoxCenter() const
+{
+	return GetWorldLocation();
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// UShapeComponent 인터페이스 구현
+// ────────────────────────────────────────────────────────────────────────────
+
+void UBoxComponent::OnRegister(UWorld* InWorld)
+{
+	Super::OnRegister(InWorld);
+	UpdateBounds();
+}
+
 void UBoxComponent::GetShape(FShape& Out) const
 {
 	Out.Kind = EShapeKind::Box;
 	Out.Box.BoxExtent = BoxExtent;
 }
 
+FAABB UBoxComponent::GetWorldAABB() const
+{
+	return CachedBounds.GetBox();
+}
+
+void UBoxComponent::UpdateBounds()
+{
+	FVector ScaledExtent = GetScaledBoxExtent();
+	FVector Center = GetBoxCenter();
+
+	// 회전을 고려한 AABB 계산
+	FQuat Rotation = GetWorldRotation();
+
+	// 회전이 없으면 기존 방식 사용
+	if (Rotation.IsIdentity())
+	{
+		CachedBounds = FBoxSphereBounds(Center, ScaledExtent);
+		return;
+	}
+
+	// 회전된 Box의 8개 꼭짓점을 계산하여 AABB 구하기
+	FVector Corners[8];
+	Corners[0] = FVector(-ScaledExtent.X, -ScaledExtent.Y, -ScaledExtent.Z);
+	Corners[1] = FVector(+ScaledExtent.X, -ScaledExtent.Y, -ScaledExtent.Z);
+	Corners[2] = FVector(+ScaledExtent.X, +ScaledExtent.Y, -ScaledExtent.Z);
+	Corners[3] = FVector(-ScaledExtent.X, +ScaledExtent.Y, -ScaledExtent.Z);
+	Corners[4] = FVector(-ScaledExtent.X, -ScaledExtent.Y, +ScaledExtent.Z);
+	Corners[5] = FVector(+ScaledExtent.X, -ScaledExtent.Y, +ScaledExtent.Z);
+	Corners[6] = FVector(+ScaledExtent.X, +ScaledExtent.Y, +ScaledExtent.Z);
+	Corners[7] = FVector(-ScaledExtent.X, +ScaledExtent.Y, +ScaledExtent.Z);
+
+	// 회전 적용
+	FVector Min = FVector(FLT_MAX, FLT_MAX, FLT_MAX);
+	FVector Max = FVector(-FLT_MAX, -FLT_MAX, -FLT_MAX);
+
+	for (int32 i = 0; i < 8; ++i)
+	{
+		FVector RotatedCorner = Rotation.RotateVector(Corners[i]) + Center;
+		Min.X = FMath::Min(Min.X, RotatedCorner.X);
+		Min.Y = FMath::Min(Min.Y, RotatedCorner.Y);
+		Min.Z = FMath::Min(Min.Z, RotatedCorner.Z);
+		Max.X = FMath::Max(Max.X, RotatedCorner.X);
+		Max.Y = FMath::Max(Max.Y, RotatedCorner.Y);
+		Max.Z = FMath::Max(Max.Z, RotatedCorner.Z);
+	}
+
+	// AABB의 중심과 Extent 계산
+	FVector AABBCenter = (Min + Max) * 0.5f;
+	FVector AABBExtent = (Max - Min) * 0.5f;
+
+	CachedBounds = FBoxSphereBounds(AABBCenter, AABBExtent);
+}
+
+FBoxSphereBounds UBoxComponent::GetScaledBounds() const
+{
+	return CachedBounds;
+}
+
 void UBoxComponent::RenderDebugVolume(URenderer* Renderer) const
 {
-	// visible = 에디터용
-	// hiddeningame = 파이용
+	if (!Renderer) return;
 	if (!GetOwner()) return;
-	if (!GetOwner()->GetWorld()->bPie)
+
+	UWorld* World = GetOwner()->GetWorld();
+	if (!World) return;
+
+	// Visibility 체크
+	if (!World->bPie)
 	{
 		if (!bShapeIsVisible)
 			return;
 	}
-	if (GetOwner()->GetWorld()->bPie)
+	if (World->bPie)
 	{
 		if (bShapeHiddenInGame)
 			return;
 	}
 
-	const FVector Extent = BoxExtent;
-	const FTransform WorldTransform = GetWorldTransform();
+	FVector Center = GetBoxCenter();
+	FVector Extent = GetScaledBoxExtent();
 
+	// Box의 8개 꼭짓점 계산
+	FVector Corners[8];
+	Corners[0] = Center + FVector(-Extent.X, -Extent.Y, -Extent.Z);
+	Corners[1] = Center + FVector(+Extent.X, -Extent.Y, -Extent.Z);
+	Corners[2] = Center + FVector(+Extent.X, +Extent.Y, -Extent.Z);
+	Corners[3] = Center + FVector(-Extent.X, +Extent.Y, -Extent.Z);
+	Corners[4] = Center + FVector(-Extent.X, -Extent.Y, +Extent.Z);
+	Corners[5] = Center + FVector(+Extent.X, -Extent.Y, +Extent.Z);
+	Corners[6] = Center + FVector(+Extent.X, +Extent.Y, +Extent.Z);
+	Corners[7] = Center + FVector(-Extent.X, +Extent.Y, +Extent.Z);
+
+	// 라인 데이터 준비
 	TArray<FVector> StartPoints;
 	TArray<FVector> EndPoints;
 	TArray<FVector4> Colors;
 
-	FVector local[8] = {
-		{-Extent.X, -Extent.Y, -Extent.Z}, {+Extent.X, -Extent.Y, -Extent.Z},
-		{-Extent.X, +Extent.Y, -Extent.Z}, {+Extent.X, +Extent.Y, -Extent.Z},
-		{-Extent.X, -Extent.Y, +Extent.Z}, {+Extent.X, -Extent.Y, +Extent.Z},
-		{-Extent.X, +Extent.Y, +Extent.Z}, {+Extent.X, +Extent.Y, +Extent.Z},
-	};
+	// 충돌 중이면 빨간색, 아니면 원래 색상 (Week09 방식)
+	const FVector4 LineColor = bIsOverlapping ?
+		FVector4(1.0f, 0.0f, 0.0f, 1.0f) :
+		FVector4(ShapeColor.X, ShapeColor.Y, ShapeColor.Z, 1.0f);
 
-	//월드 space로 변환
-	FVector WorldSpace[8]; 
-	for (int i = 0; i < 8; i++)
-	{ 
-		WorldSpace[i] = WorldTransform.TransformPosition(local[i]);
-	}
+	// 뒤쪽 면 (4개 선분)
+	StartPoints.push_back(Corners[0]); EndPoints.push_back(Corners[1]); Colors.push_back(LineColor);
+	StartPoints.push_back(Corners[1]); EndPoints.push_back(Corners[2]); Colors.push_back(LineColor);
+	StartPoints.push_back(Corners[2]); EndPoints.push_back(Corners[3]); Colors.push_back(LineColor);
+	StartPoints.push_back(Corners[3]); EndPoints.push_back(Corners[0]); Colors.push_back(LineColor);
 
-	static const int Edge[12][2] = {
-		{0,1},{1,3},{3,2},{2,0}, // bottom
-		{4,5},{5,7},{7,6},{6,4}, // top
-		{0,4},{1,5},{2,6},{3,7}  // verticals
-	};
-	for (int i = 0; i < 12; ++i)
-	{
-		StartPoints.Add(WorldSpace[Edge[i][0]]);
-		EndPoints.Add(WorldSpace[Edge[i][1]]);
-		Colors.Add(ShapeColor); // 동일 색으로 라인 렌더
-	}
+	// 앞쪽 면 (4개 선분)
+	StartPoints.push_back(Corners[4]); EndPoints.push_back(Corners[5]); Colors.push_back(LineColor);
+	StartPoints.push_back(Corners[5]); EndPoints.push_back(Corners[6]); Colors.push_back(LineColor);
+	StartPoints.push_back(Corners[6]); EndPoints.push_back(Corners[7]); Colors.push_back(LineColor);
+	StartPoints.push_back(Corners[7]); EndPoints.push_back(Corners[4]); Colors.push_back(LineColor);
+
+	// 앞뒤 연결 (4개 선분)
+	StartPoints.push_back(Corners[0]); EndPoints.push_back(Corners[4]); Colors.push_back(LineColor);
+	StartPoints.push_back(Corners[1]); EndPoints.push_back(Corners[5]); Colors.push_back(LineColor);
+	StartPoints.push_back(Corners[2]); EndPoints.push_back(Corners[6]); Colors.push_back(LineColor);
+	StartPoints.push_back(Corners[3]); EndPoints.push_back(Corners[7]); Colors.push_back(LineColor);
 
 	Renderer->AddLines(StartPoints, EndPoints, Colors);
 }
 
+// ────────────────────────────────────────────────────────────────────────────
+// Box 전용 충돌 감지 함수
+// ────────────────────────────────────────────────────────────────────────────
+
+bool UBoxComponent::IsOverlappingBox(const UBoxComponent* OtherBox) const
+{
+	if (!OtherBox)
+	{
+		return false;
+	}
+
+	// 두 Box의 중심과 크기를 가져옵니다
+	FVector MyCenter = GetBoxCenter();
+	FVector MyExtent = GetScaledBoxExtent();
+
+	FVector OtherCenter = OtherBox->GetBoxCenter();
+	FVector OtherExtent = OtherBox->GetScaledBoxExtent();
+
+	// AABB 교차 테스트 (SAT - Separating Axis Theorem)
+	bool bOverlapX = FMath::Abs(MyCenter.X - OtherCenter.X) <= (MyExtent.X + OtherExtent.X);
+	bool bOverlapY = FMath::Abs(MyCenter.Y - OtherCenter.Y) <= (MyExtent.Y + OtherExtent.Y);
+	bool bOverlapZ = FMath::Abs(MyCenter.Z - OtherCenter.Z) <= (MyExtent.Z + OtherExtent.Z);
+
+	return bOverlapX && bOverlapY && bOverlapZ;
+}
+
+bool UBoxComponent::IsOverlappingSphere(const USphereComponent* OtherSphere) const
+{
+	if (!OtherSphere)
+	{
+		return false;
+	}
+
+	// Box의 중심과 크기
+	FVector BoxCenter = GetBoxCenter();
+	FVector BoxExt = GetScaledBoxExtent();
+
+	// Sphere의 중심과 반지름
+	FVector SphereCenter = OtherSphere->GetSphereCenter();
+	float SphereRadius = OtherSphere->GetScaledSphereRadius();
+
+	// AABB를 생성합니다
+	FAABB Box(BoxCenter - BoxExt, BoxCenter + BoxExt);
+
+	// FSphere를 생성합니다
+	FSphere Sphere(SphereCenter, SphereRadius);
+
+	// Box와 Sphere 교차 테스트
+	return Sphere.IntersectsAABB(Box);
+}
+
+bool UBoxComponent::ContainsPoint(const FVector& Point) const
+{
+	FVector BoxCenter = GetBoxCenter();
+	FVector BoxExt = GetScaledBoxExtent();
+
+	// 각 축에서 점이 Box 범위 안에 있는지 확인
+	bool bInsideX = FMath::Abs(Point.X - BoxCenter.X) <= BoxExt.X;
+	bool bInsideY = FMath::Abs(Point.Y - BoxCenter.Y) <= BoxExt.Y;
+	bool bInsideZ = FMath::Abs(Point.Z - BoxCenter.Z) <= BoxExt.Z;
+
+	return bInsideX && bInsideY && bInsideZ;
+}

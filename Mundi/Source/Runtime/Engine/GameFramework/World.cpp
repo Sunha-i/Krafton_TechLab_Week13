@@ -28,9 +28,11 @@
 #include "Level.h"
 #include "LightManager.h"
 #include "LuaManager.h"
+#include "CollisionManager.h"
 #include "ShapeComponent.h"
 #include "PlayerCameraManager.h"
 #include "Hash.h"
+#include "ParticleEventManager.h"
 
 IMPLEMENT_CLASS(UWorld)
 
@@ -95,10 +97,20 @@ void UWorld::Initialize()
 	if (!IsPreviewWorld())
 	{
 		Partition = std::make_unique<UWorldPartitionManager>();
+
+		// Collision Manager 생성 (ShapeComponent용 BVH)
+		CollisionManager = std::make_unique<UCollisionManager>();
+		CollisionManager->SetWorld(this);
 	}
 
 	// 기본 씬을 생성합니다.
 	CreateLevel();
+
+	// 파티클 이벤트 매니저 생성 (Preview World 제외)
+	if (!IsPreviewWorld())
+	{
+		ParticleEventManager = SpawnActor<AParticleEventManager>();
+	}
 
 	// 에디터 전용 액터들을 초기화합니다.
 	InitializeGrid();
@@ -285,6 +297,12 @@ void UWorld::Tick(float DeltaSeconds)
 
 	// 지연 삭제 처리
 	ProcessPendingKillActors();
+
+	// 충돌 BVH 업데이트 (에디터/PIE 모두에서 호출 - Partition과 동일)
+	if (CollisionManager)
+	{
+		CollisionManager->UpdateCollisions(GetDeltaTime(EDeltaTime::Game));
+	}
 }
 
 UWorld* UWorld::DuplicateWorldForPIE(UWorld* InEditorWorld)
@@ -304,7 +322,15 @@ UWorld* UWorld::DuplicateWorldForPIE(UWorld* InEditorWorld)
 
 	FWorldContext PIEWorldContext = FWorldContext(PIEWorld, EWorldType::Game);
 	GEngine.AddWorldContext(PIEWorldContext);
-	
+
+	// PIE 월드에 Partition 및 CollisionManager 생성
+	PIEWorld->Partition = std::make_unique<UWorldPartitionManager>();
+	PIEWorld->CollisionManager = std::make_unique<UCollisionManager>();
+	PIEWorld->CollisionManager->SetWorld(PIEWorld);
+
+	// PIE 월드에 파티클 이벤트 매니저 생성
+	PIEWorld->ParticleEventManager = PIEWorld->SpawnActor<AParticleEventManager>();
+
 	const TArray<AActor*>& SourceActors = InEditorWorld->GetLevel()->GetActors();
 	for (AActor* SourceActor : SourceActors)
 	{
@@ -483,6 +509,7 @@ void UWorld::SetLevel(std::unique_ptr<ULevel> InLevel)
     if (SelectionMgr) SelectionMgr->ClearSelection();
 
 	PlayerCameraManager = nullptr;
+	ParticleEventManager = nullptr;  // 레벨 교체 시 리셋
 
     // Cleanup current
     if (Level)
@@ -528,6 +555,12 @@ void UWorld::SetLevel(std::unique_ptr<ULevel> InLevel)
 		AActor* NewPlayerCameraManager = SpawnActor(APlayerCameraManager::StaticClass());
 		this->PlayerCameraManager = Cast<APlayerCameraManager>(NewPlayerCameraManager);
 		UE_LOG("[info] 씬에서 APlayerCameraManager를 찾지 못해, 비어있는 인스턴스를 새로 생성합니다.");
+	}
+
+	// 파티클 이벤트 매니저 생성 (Preview World 제외)
+	if (!IsPreviewWorld() && ParticleEventManager == nullptr)
+	{
+		ParticleEventManager = SpawnActor<AParticleEventManager>();
 	}
 
     // Clean any dangling selection references just in case

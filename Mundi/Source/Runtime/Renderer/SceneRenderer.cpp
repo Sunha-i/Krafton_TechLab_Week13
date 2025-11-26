@@ -48,6 +48,8 @@
 #include "PlatformTime.h"
 #include "PostProcessing/VignettePass.h"
 #include "FbxLoader.h"
+#include "CollisionManager.h"
+#include "ShapeComponent.h"
 #include "SkinnedMeshComponent.h"
 #include "ParticleSystemComponent.h"
 #include "ParticleStats.h"
@@ -1475,6 +1477,32 @@ void FSceneRenderer::RenderDebugPass()
 		if (FBVHierarchy* BVH = World->GetPartitionManager()->GetBVH())
 		{
 			BVH->DebugDraw(OwnerRenderer); // DebugDraw가 LineBatcher를 직접 받도록 수정 필요
+		}
+	}
+
+	// Collision BVH Debug draw
+	if (World->GetRenderSettings().IsShowFlagEnabled(EEngineShowFlags::SF_CollisionBVH))
+	{
+		if (UCollisionManager* CollisionMgr = World->GetCollisionManager())
+		{
+			CollisionMgr->DebugDrawBVH(OwnerRenderer);
+		}
+	}
+
+	// Collision Components Debug draw
+	// SF_Collision 플래그가 켜져있거나, PIE 모드일 때 렌더링
+	if (World->GetRenderSettings().IsShowFlagEnabled(EEngineShowFlags::SF_Collision) || World->bPie)
+	{
+		if (UCollisionManager* CollisionMgr = World->GetCollisionManager())
+		{
+			const TArray<UShapeComponent*>& CollisionComponents = CollisionMgr->GetRegisteredComponents();
+			for (UShapeComponent* ShapeComp : CollisionComponents)
+			{
+				if (ShapeComp && !ShapeComp->IsPendingDestroy())
+				{
+					ShapeComp->RenderDebugVolume(OwnerRenderer);
+				}
+			}
 		}
 	}
 

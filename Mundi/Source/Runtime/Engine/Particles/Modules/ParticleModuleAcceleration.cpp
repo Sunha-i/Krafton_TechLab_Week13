@@ -34,7 +34,7 @@ void UParticleModuleAcceleration::Spawn(FParticleEmitterInstance* Owner, int32 O
 	);
 
 	// 중력 Z 성분 저장
-	Payload.GravityZ = bApplyGravity ? (-980.0f * GravityScale) : 0.0f;
+	Payload.GravityZ = bApplyGravity ? (-9.8f * GravityScale) : 0.0f;
 
 	// AccelerationOverLife 초기화
 	Payload.AccelerationMultiplierOverLife = AccelerationMultiplierAtStart;
