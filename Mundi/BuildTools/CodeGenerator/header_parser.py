@@ -108,8 +108,17 @@ class Property:
         if 'tarray' in type_lower:
             template_args = HeaderParser._extract_template_args(self.type)
             if template_args:
-                inner_type = template_args[0]
-                self.metadata['inner_type'] = self._get_property_type_enum(inner_type)
+                inner_type = template_args[0].strip()
+                inner_type_enum = self._get_property_type_enum(inner_type)
+                self.metadata['inner_type'] = inner_type_enum
+                # Struct 타입인 경우 (F로 시작하는 사용자 정의 구조체)
+                if inner_type_enum == 'EPropertyType::Struct' or (
+                    inner_type.startswith('F') and
+                    inner_type not in ['FString', 'FName', 'FVector', 'FVector2D', 'FLinearColor'] and
+                    '*' not in inner_type
+                ):
+                    self.metadata['struct_type'] = inner_type
+                    return 'ADD_PROPERTY_STRUCT_ARRAY'
             return 'ADD_PROPERTY_ARRAY'
 
         # 특수 타입 체크 (포인터보다 먼저)

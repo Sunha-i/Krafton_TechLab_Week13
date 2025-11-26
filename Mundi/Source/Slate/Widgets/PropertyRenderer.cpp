@@ -250,6 +250,10 @@ bool UPropertyRenderer::RenderProperty(const FProperty& Property, void* ObjectIn
 				}
 			}
 			break;
+		case EPropertyType::Struct:
+			// TArray<Struct> 렌더링 - 동적 배열 처리
+			bChanged = RenderStructArrayProperty(Property, ObjectInstance);
+			break;
 		default:
 			ImGui::Text("%s: [Unsupported Array Type]", Property.Name);
 			break;
@@ -819,6 +823,111 @@ bool UPropertyRenderer::RenderStructProperty(const FProperty& Prop, void* Instan
 		}
 
 		ImGui::Unindent();
+		ImGui::TreePop();
+	}
+
+	return bChanged;
+}
+
+bool UPropertyRenderer::RenderStructArrayProperty(const FProperty& Prop, void* Instance)
+{
+	// TypeName으로 UStruct 찾기 (배열의 내부 타입)
+	UStruct* StructType = UStruct::FindStruct(Prop.TypeName);
+	if (!StructType)
+	{
+		ImGui::Text("%s: [Unknown Struct Array: %s]", Prop.Name, Prop.TypeName ? Prop.TypeName : "null");
+		return false;
+	}
+
+	// 배열 조작 함수가 등록되어 있는지 확인
+	if (!StructType->ArrayAdd || !StructType->ArrayRemoveAt || !StructType->ArrayNum || !StructType->ArrayGetData)
+	{
+		ImGui::Text("%s: [Struct '%s' has no array helpers]", Prop.Name, Prop.TypeName);
+		return false;
+	}
+
+	bool bChanged = false;
+	size_t ElementSize = StructType->Size;
+
+	// 배열의 시작 주소 가져오기
+	void* ArrayPtr = (char*)Instance + Prop.Offset;
+
+	// 함수 포인터를 통해 배열 정보 얻기
+	int32 ArrayNum = StructType->ArrayNum(ArrayPtr);
+	void* ArrayData = StructType->ArrayGetData(ArrayPtr);
+
+	// TreeNode로 배열 접기
+	FString headerLabel = FString(Prop.Name) + " [" + std::to_string(ArrayNum) + "]";
+	if (ImGui::TreeNode(headerLabel.c_str()))
+	{
+		// Add 버튼
+		if (ImGui::Button("Add"))
+		{
+			StructType->ArrayAdd(ArrayPtr);
+			bChanged = true;
+		}
+
+		// 배열 정보 갱신 (Add 후 변경될 수 있음)
+		ArrayNum = StructType->ArrayNum(ArrayPtr);
+		ArrayData = StructType->ArrayGetData(ArrayPtr);
+
+		// 각 요소 렌더링
+		for (int32 i = 0; i < ArrayNum; ++i)
+		{
+			ImGui::PushID(i);
+
+			// 요소의 메모리 주소
+			void* ElementInstance = (char*)ArrayData + (ElementSize * i);
+
+			// TreeNode로 각 요소 표시
+			FString elementLabel = "[" + std::to_string(i) + "]";
+			bool bElementOpen = ImGui::TreeNode(elementLabel.c_str());
+
+			// 삭제 버튼을 같은 줄에 표시
+			ImGui::SameLine();
+			if (ImGui::Button("X"))
+			{
+				StructType->ArrayRemoveAt(ArrayPtr, i);
+				bChanged = true;
+
+				if (bElementOpen)
+				{
+					ImGui::TreePop();
+				}
+				ImGui::PopID();
+
+				// 배열 정보 갱신
+				ArrayNum = StructType->ArrayNum(ArrayPtr);
+				ArrayData = StructType->ArrayGetData(ArrayPtr);
+				--i;  // 인덱스 조정
+				continue;
+			}
+
+			if (bElementOpen)
+			{
+				ImGui::Indent();
+
+				// Struct의 모든 프로퍼티 순회
+				for (const FProperty& StructProp : StructType->GetAllProperties())
+				{
+					ImGui::PushID(&StructProp);
+
+					// 재귀적으로 프로퍼티 렌더링
+					if (RenderProperty(StructProp, ElementInstance))
+					{
+						bChanged = true;
+					}
+
+					ImGui::PopID();
+				}
+
+				ImGui::Unindent();
+				ImGui::TreePop();
+			}
+
+			ImGui::PopID();
+		}
+
 		ImGui::TreePop();
 	}
 

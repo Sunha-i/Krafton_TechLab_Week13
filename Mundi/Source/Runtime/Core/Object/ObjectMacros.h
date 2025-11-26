@@ -377,6 +377,26 @@ struct TPropertyTypeTraits<FDistributionColor>
 	Class->AddProperty(Prop); \
 }
 
+// TArray<UStruct> 프로퍼티 추가
+// 첫 번째 인자로 배열의 내부 Struct 타입을 받습니다.
+// 예: ADD_PROPERTY_STRUCT_ARRAY(FParticleBurst, BurstList, "Burst", true)
+#define ADD_PROPERTY_STRUCT_ARRAY(StructType, VarName, CategoryName, bEditAnywhere, ...) \
+{ \
+	static_assert(std::is_array_v<std::remove_reference_t<decltype(CategoryName)>>, \
+				  "CategoryName must be a string literal!"); \
+	FProperty Prop; \
+	Prop.Name = #VarName; \
+	Prop.Type = EPropertyType::Array; \
+	Prop.InnerType = EPropertyType::Struct; \
+	Prop.TypeName = #StructType; /* 내부 Struct 타입 이름 */ \
+	Prop.Offset = offsetof(ThisClass_t, VarName); \
+	Prop.Category = CategoryName; \
+	Prop.bIsEditAnywhere = bEditAnywhere; \
+	Prop.Tooltip = "" __VA_ARGS__; \
+	Prop.OwnerKind = CurrentOwnerKind; \
+	Class->AddProperty(Prop); \
+}
+
 // TMap<K, V> 프로퍼티 추가
 // 첫 번째 인자: Key 타입, 두 번째 인자: Value 타입
 #define ADD_PROPERTY_MAP(KeyPropertyType, ValuePropertyType, VarName, CategoryName, bEditAnywhere, ...) \

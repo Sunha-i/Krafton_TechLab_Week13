@@ -17,6 +17,8 @@ BEGIN_PROPERTIES({{ class_name }})
 {%- for prop in properties %}
     {%- if prop.get_property_type_macro() == 'ADD_PROPERTY_RANGE' %}
     ADD_PROPERTY_RANGE({{ prop.type }}, {{ prop.name }}, "{{ prop.category }}", {{ prop.min_value }}f, {{ prop.max_value }}f, {{ 'true' if prop.editable else 'false' }}{% if prop.tooltip %}, "{{ prop.tooltip }}"{% endif %})
+    {%- elif prop.get_property_type_macro() == 'ADD_PROPERTY_STRUCT_ARRAY' %}
+    ADD_PROPERTY_STRUCT_ARRAY({{ prop.metadata.get('struct_type', 'Unknown') }}, {{ prop.name }}, "{{ prop.category }}", {{ 'true' if prop.editable else 'false' }}{% if prop.tooltip %}, "{{ prop.tooltip }}"{% endif %})
     {%- elif prop.get_property_type_macro() == 'ADD_PROPERTY_ARRAY' %}
     ADD_PROPERTY_ARRAY({{ prop.metadata.get('inner_type', 'EPropertyType::ObjectPtr') }}, {{ prop.name }}, "{{ prop.category }}", {{ 'true' if prop.editable else 'false' }}{% if prop.tooltip %}, "{{ prop.tooltip }}"{% endif %})
     {%- elif prop.get_property_type_macro() == 'ADD_PROPERTY_MAP' %}
@@ -115,6 +117,8 @@ BEGIN_STRUCT_PROPERTIES({{ struct_name }})
 {%- for prop in properties %}
     {%- if prop.get_property_type_macro() == 'ADD_PROPERTY_RANGE' %}
     ADD_PROPERTY_RANGE({{ prop.type }}, {{ prop.name }}, "{{ prop.category }}", {{ prop.min_value }}f, {{ prop.max_value }}f, {{ 'true' if prop.editable else 'false' }}{% if prop.tooltip %}, "{{ prop.tooltip }}"{% endif %})
+    {%- elif prop.get_property_type_macro() == 'ADD_PROPERTY_STRUCT_ARRAY' %}
+    ADD_PROPERTY_STRUCT_ARRAY({{ prop.metadata.get('struct_type', 'Unknown') }}, {{ prop.name }}, "{{ prop.category }}", {{ 'true' if prop.editable else 'false' }}{% if prop.tooltip %}, "{{ prop.tooltip }}"{% endif %})
     {%- elif prop.get_property_type_macro() == 'ADD_PROPERTY_ARRAY' %}
     ADD_PROPERTY_ARRAY({{ prop.metadata.get('inner_type', 'EPropertyType::ObjectPtr') }}, {{ prop.name }}, "{{ prop.category }}", {{ 'true' if prop.editable else 'false' }}{% if prop.tooltip %}, "{{ prop.tooltip }}"{% endif %})
     {%- elif prop.get_property_type_macro() == 'ADD_PROPERTY_MAP' %}

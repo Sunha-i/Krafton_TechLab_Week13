@@ -28,6 +28,11 @@
 #include "Modules/ParticleModuleMeshRotation.h"
 #include "Modules/ParticleModuleRotationRate.h"
 #include "Modules/ParticleModuleSizeScaleBySpeed.h"
+#include "Modules/ParticleModuleCollision.h"
+#include "Modules/ParticleModuleEventGenerator.h"
+#include "Modules/ParticleModuleEventReceiver.h"
+#include "Modules/ParticleModuleEventReceiverKill.h"
+#include "Modules/ParticleModuleEventReceiverSpawn.h"
 #include "Material.h"
 #include "StaticMesh.h"
 #include "ResourceManager.h"
@@ -2100,7 +2105,15 @@ void SParticleEditorWindow::RenderEmitterColumn(int32 EmitterIndex, UParticleEmi
 			}
 			ImGui::EndMenu();
 		}
-
+		// 콜리전
+		if (ImGui::BeginMenu("콜리전"))
+		{
+			if (ImGui::MenuItem("콜리전"))
+			{
+				AddModuleToLOD<UParticleModuleCollision>(LOD, State);
+			}
+			ImGui::EndMenu();
+		}
 		// 컬러
 		if (ImGui::BeginMenu("컬러"))
 		{
@@ -2110,7 +2123,24 @@ void SParticleEditorWindow::RenderEmitterColumn(int32 EmitterIndex, UParticleEmi
 			}
 			ImGui::EndMenu();
 		}
+		// 이벤트
+		if (ImGui::BeginMenu("이벤트"))
+		{
+			if (ImGui::MenuItem("이벤트 제네레이터"))
+			{
+				AddModuleToLOD<UParticleModuleEventGenerator>(LOD, State);
+			}
+			if (ImGui::MenuItem("이벤트 리시버 킬"))
+			{
+				AddModuleToLOD<UParticleModuleEventReceiverKill>(LOD, State);
+			}
+			if (ImGui::MenuItem("이벤트 리시버 스폰"))
+			{
+				AddModuleToLOD<UParticleModuleEventReceiverSpawn>(LOD, State);
+			}
 
+			ImGui::EndMenu();
+		}
 		// 수명
 		if (ImGui::BeginMenu("수명"))
 		{
@@ -2229,7 +2259,11 @@ void SParticleEditorWindow::RenderModuleBlock(int32 EmitterIdx, int32 ModuleIdx,
 			{"Rotation", "초기 회전"},
 			{"MeshRotation", "메시 회전"},
 			{"RotationRate", "초기 회전 속도"},
-			{"SizeScaleBySpeed", "속도 기준 크기"}
+			{"SizeScaleBySpeed", "속도 기준 크기"},
+			{"Collision", "콜리전"},
+			{"EventGenerator", "이벤트 제네레이터"},
+			{"EventReceiverKill", "이벤트 리시버 킬"},
+			{"EventReceiverSpawn", "이벤트 리시버 스폰"}
 		};
 
 		auto it = ModuleNameMap.find(DisplayName);

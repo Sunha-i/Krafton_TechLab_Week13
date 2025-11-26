@@ -104,13 +104,8 @@ void UWorld::Initialize()
 	}
 
 	// 기본 씬을 생성합니다.
+	// (CreateLevel -> SetLevel 내부에서 ParticleEventManager도 생성됨)
 	CreateLevel();
-
-	// 파티클 이벤트 매니저 생성 (Preview World 제외)
-	if (!IsPreviewWorld())
-	{
-		ParticleEventManager = SpawnActor<AParticleEventManager>();
-	}
 
 	// 에디터 전용 액터들을 초기화합니다.
 	InitializeGrid();
@@ -340,6 +335,12 @@ UWorld* UWorld::DuplicateWorldForPIE(UWorld* InEditorWorld)
 			continue;
 		}
 
+		// ParticleEventManager는 이미 위에서 생성했으므로 복제 스킵
+		if (SourceActor == InEditorWorld->ParticleEventManager)
+		{
+			continue;
+		}
+
 		AActor* NewActor = SourceActor->Duplicate();
 
 		if (!NewActor)
@@ -509,7 +510,8 @@ void UWorld::SetLevel(std::unique_ptr<ULevel> InLevel)
     if (SelectionMgr) SelectionMgr->ClearSelection();
 
 	PlayerCameraManager = nullptr;
-	ParticleEventManager = nullptr;  // 레벨 교체 시 리셋
+	// ParticleEventManager는 Level의 액터로 등록되어 있으므로 아래 for문에서 삭제됨
+	ParticleEventManager = nullptr;
 
     // Cleanup current
     if (Level)
