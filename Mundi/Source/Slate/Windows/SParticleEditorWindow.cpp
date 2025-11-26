@@ -44,8 +44,8 @@ struct FModuleDragPayload
 SParticleEditorWindow::SParticleEditorWindow()
 {
 	CenterRect = FRect(0, 0, 0, 0);
-	LeftPanelRatio = 0.30f;  // 35% 왼쪽 (뷰포트 + 디테일)
-	RightPanelRatio = 0.6f;  // 60% 오른쪽 (이미터 패널)
+	LeftPanelRatio = 0.35f;  // 뷰포트 + 디테일
+	RightPanelRatio = 0.60f;  // 이미터 패널
 	bHasBottomPanel = true;
 }
 

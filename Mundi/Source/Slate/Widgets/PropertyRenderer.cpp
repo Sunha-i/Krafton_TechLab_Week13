@@ -2680,57 +2680,107 @@ bool UPropertyRenderer::RenderDistributionVectorModeCombo(const char* Label, EDi
 	return false;
 }
 
+// 보간 모드 콤보박스 렌더링
+static bool RenderInterpModeCombo(const char* Label, EInterpCurveMode& Mode)
+{
+	static const char* ModeNames[] = {
+		"Linear",
+		"Constant",
+		"Curve",
+		"Curve Auto",
+		"Curve Auto Clamped"
+	};
+
+	int CurrentMode = static_cast<int>(Mode);
+	if (ImGui::Combo(Label, &CurrentMode, ModeNames, IM_ARRAYSIZE(ModeNames)))
+	{
+		Mode = static_cast<EInterpCurveMode>(CurrentMode);
+		return true;
+	}
+	return false;
+}
+
 bool UPropertyRenderer::RenderInterpCurveFloat(const char* Label, FInterpCurveFloat& Curve)
 {
 	bool bChanged = false;
 
 	if (ImGui::TreeNode(Label))
 	{
-		// 키프레임 개수 표시
-		ImGui::Text("키프레임: %d", Curve.Points.Num());
-
-		// 키프레임 추가 버튼
-		if (ImGui::Button("키 추가"))
+		// 상수 커브 섹션
+		if (ImGui::TreeNode("상수 커브"))
 		{
-			float NewTime = Curve.Points.IsEmpty() ? 0.0f : Curve.Points.Last().InVal + 0.1f;
-			float NewValue = Curve.Points.IsEmpty() ? 0.0f : Curve.Points.Last().OutVal;
-			Curve.AddPoint(NewTime, NewValue);
-			bChanged = true;
-		}
-
-		// 각 키프레임 편집
-		for (int32 i = 0; i < Curve.Points.Num(); ++i)
-		{
-			ImGui::PushID(i);
-
-			FInterpCurvePointFloat& Point = Curve.Points[i];
-
-			ImGui::Text("[%d]", i);
+			// 포인트 배열 헤더
+			ImGui::Text("포인트");
+			ImGui::SameLine();
+			ImGui::TextDisabled("배열 엘리먼트: %d", Curve.Points.Num());
 			ImGui::SameLine();
 
-			// 시간 편집
-			ImGui::SetNextItemWidth(60.0f);
-			if (ImGui::DragFloat("T", &Point.InVal, 0.01f, 0.0f, 1.0f))
-				bChanged = true;
-			ImGui::SameLine();
-
-			// 값 편집
-			ImGui::SetNextItemWidth(80.0f);
-			if (ImGui::DragFloat("V", &Point.OutVal, 0.01f))
-				bChanged = true;
-			ImGui::SameLine();
-
-			// 삭제 버튼
-			if (ImGui::Button("X"))
+			// 포인트 추가 버튼
+			if (ImGui::SmallButton("+"))
 			{
-				Curve.Points.RemoveAt(i);
+				float NewTime = Curve.Points.IsEmpty() ? 0.0f : Curve.Points.Last().InVal + 0.1f;
+				float NewValue = Curve.Points.IsEmpty() ? 0.0f : Curve.Points.Last().OutVal;
+				Curve.AddPoint(NewTime, NewValue);
 				bChanged = true;
-				ImGui::PopID();
-				break;
+			}
+			ImGui::SameLine();
+
+			// 마지막 포인트 삭제 버튼
+			if (ImGui::SmallButton("-") && Curve.Points.Num() > 0)
+			{
+				Curve.Points.RemoveAt(Curve.Points.Num() - 1);
+				bChanged = true;
 			}
 
-			ImGui::PopID();
+			// 각 포인트 렌더링
+			for (int32 i = 0; i < Curve.Points.Num(); ++i)
+			{
+				ImGui::PushID(i);
+
+				FInterpCurvePointFloat& Point = Curve.Points[i];
+
+				char NodeLabel[32];
+				sprintf_s(NodeLabel, "인덱스 [%d]", i);
+
+				if (ImGui::TreeNode(NodeLabel))
+				{
+					ImGui::TextDisabled("멤버: 5");
+
+					// In 값
+					if (ImGui::DragFloat("In 값", &Point.InVal, 0.01f))
+						bChanged = true;
+
+					// Out Val
+					if (ImGui::DragFloat("Out Val", &Point.OutVal, 0.01f))
+						bChanged = true;
+
+					// 도착 탄젠트
+					if (ImGui::DragFloat("도착 탄젠트", &Point.ArriveTangent, 0.01f))
+						bChanged = true;
+
+					// 출발 탄젠트
+					if (ImGui::DragFloat("출발 탄젠트", &Point.LeaveTangent, 0.01f))
+						bChanged = true;
+
+					// 보간 모드
+					if (RenderInterpModeCombo("보간 모드", Point.InterpMode))
+						bChanged = true;
+
+					ImGui::TreePop();
+				}
+
+				ImGui::PopID();
+			}
+
+			ImGui::TreePop();
 		}
+
+		// 루프 옵션
+		if (ImGui::Checkbox("루프 여부", &Curve.bIsLooped))
+			bChanged = true;
+
+		if (ImGui::DragFloat("루프 키 오프셋", &Curve.LoopKeyOffset, 0.01f))
+			bChanged = true;
 
 		ImGui::TreePop();
 	}
@@ -2744,42 +2794,81 @@ bool UPropertyRenderer::RenderInterpCurveVector(const char* Label, FInterpCurveV
 
 	if (ImGui::TreeNode(Label))
 	{
-		ImGui::Text("키프레임: %d", Curve.Points.Num());
-
-		if (ImGui::Button("키 추가"))
+		// 상수 커브 섹션
+		if (ImGui::TreeNode("상수 커브"))
 		{
-			float NewTime = Curve.Points.IsEmpty() ? 0.0f : Curve.Points.Last().InVal + 0.1f;
-			FVector NewValue = Curve.Points.IsEmpty() ? FVector(0, 0, 0) : Curve.Points.Last().OutVal;
-			Curve.AddPoint(NewTime, NewValue);
-			bChanged = true;
-		}
-
-		for (int32 i = 0; i < Curve.Points.Num(); ++i)
-		{
-			ImGui::PushID(i);
-
-			FInterpCurvePointVector& Point = Curve.Points[i];
-
-			ImGui::Text("[%d]", i);
-
-			ImGui::SetNextItemWidth(60.0f);
-			if (ImGui::DragFloat("Time", &Point.InVal, 0.01f, 0.0f, 1.0f))
-				bChanged = true;
-
-			if (ImGui::DragFloat3("Value", &Point.OutVal.X, 0.01f))
-				bChanged = true;
-
+			// 포인트 배열 헤더
+			ImGui::Text("포인트");
 			ImGui::SameLine();
-			if (ImGui::Button("삭제"))
+			ImGui::TextDisabled("배열 엘리먼트: %d", Curve.Points.Num());
+			ImGui::SameLine();
+
+			// 포인트 추가 버튼
+			if (ImGui::SmallButton("+"))
 			{
-				Curve.Points.RemoveAt(i);
+				float NewTime = Curve.Points.IsEmpty() ? 0.0f : Curve.Points.Last().InVal + 0.1f;
+				FVector NewValue = Curve.Points.IsEmpty() ? FVector(0, 0, 0) : Curve.Points.Last().OutVal;
+				Curve.AddPoint(NewTime, NewValue);
 				bChanged = true;
-				ImGui::PopID();
-				break;
+			}
+			ImGui::SameLine();
+
+			// 마지막 포인트 삭제 버튼
+			if (ImGui::SmallButton("-") && Curve.Points.Num() > 0)
+			{
+				Curve.Points.RemoveAt(Curve.Points.Num() - 1);
+				bChanged = true;
 			}
 
-			ImGui::PopID();
+			// 각 포인트 렌더링
+			for (int32 i = 0; i < Curve.Points.Num(); ++i)
+			{
+				ImGui::PushID(i);
+
+				FInterpCurvePointVector& Point = Curve.Points[i];
+
+				char NodeLabel[32];
+				sprintf_s(NodeLabel, "인덱스 [%d]", i);
+
+				if (ImGui::TreeNode(NodeLabel))
+				{
+					ImGui::TextDisabled("멤버: 5");
+
+					// In 값
+					if (ImGui::DragFloat("In 값", &Point.InVal, 0.01f))
+						bChanged = true;
+
+					// Out Val (Vector3)
+					if (ImGui::DragFloat3("Out Val", &Point.OutVal.X, 0.01f))
+						bChanged = true;
+
+					// 도착 탄젠트 (Vector3)
+					if (ImGui::DragFloat3("도착 탄젠트", &Point.ArriveTangent.X, 0.01f))
+						bChanged = true;
+
+					// 출발 탄젠트 (Vector3)
+					if (ImGui::DragFloat3("출발 탄젠트", &Point.LeaveTangent.X, 0.01f))
+						bChanged = true;
+
+					// 보간 모드
+					if (RenderInterpModeCombo("보간 모드", Point.InterpMode))
+						bChanged = true;
+
+					ImGui::TreePop();
+				}
+
+				ImGui::PopID();
+			}
+
+			ImGui::TreePop();
 		}
+
+		// 루프 옵션
+		if (ImGui::Checkbox("루프 여부", &Curve.bIsLooped))
+			bChanged = true;
+
+		if (ImGui::DragFloat("루프 키 오프셋", &Curve.LoopKeyOffset, 0.01f))
+			bChanged = true;
 
 		ImGui::TreePop();
 	}
