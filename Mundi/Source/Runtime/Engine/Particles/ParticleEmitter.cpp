@@ -43,6 +43,97 @@ UParticleLODLevel* UParticleEmitter::GetLODLevel(int32 LODIndex) const
 	return nullptr;
 }
 
+UParticleLODLevel* UParticleEmitter::DuplicateLODLevel(int32 SourceLODIndex, float ScaleMultiplier)
+{
+	UParticleLODLevel* SourceLOD = GetLODLevel(SourceLODIndex);
+	if (!SourceLOD)
+	{
+		return nullptr;
+	}
+
+	// 코드 생성기가 자동 생성한 Duplicate() 사용
+	// 내부적으로 DuplicateSubObjects() -> PostDuplicate() 호출됨
+	UParticleLODLevel* NewLOD = SourceLOD->Duplicate();
+	if (!NewLOD)
+	{
+		return nullptr;
+	}
+
+	// ScaleMultiplier 적용 (1.0이 아닌 경우에만)
+	if (ScaleMultiplier != 1.0f)
+	{
+		for (UParticleModule* Module : NewLOD->Modules)
+		{
+			if (Module)
+			{
+				Module->ScaleForLOD(ScaleMultiplier);
+			}
+		}
+	}
+
+	return NewLOD;
+}
+
+bool UParticleEmitter::RemoveLODLevel(int32 LODIndex)
+{
+	// 최소 1개의 LOD는 유지해야 함
+	if (LODLevels.Num() <= 1)
+	{
+		return false;
+	}
+
+	if (LODIndex < 0 || LODIndex >= LODLevels.Num())
+	{
+		return false;
+	}
+
+	// LOD 삭제
+	UParticleLODLevel* ToDelete = LODLevels[LODIndex];
+	LODLevels.RemoveAt(LODIndex);
+
+	if (ToDelete)
+	{
+		DeleteObject(ToDelete);
+	}
+
+	// 남은 LOD들의 Level 인덱스 재정렬
+	for (int32 i = 0; i < LODLevels.Num(); ++i)
+	{
+		if (LODLevels[i])
+		{
+			LODLevels[i]->Level = i;
+		}
+	}
+
+	return true;
+}
+
+void UParticleEmitter::InsertLODLevel(int32 InsertIndex, UParticleLODLevel* NewLOD)
+{
+	if (!NewLOD)
+	{
+		return;
+	}
+
+	// 인덱스 클램프
+	InsertIndex = FMath::Clamp(InsertIndex, 0, LODLevels.Num());
+
+	// 삽입
+	LODLevels.Insert(NewLOD, InsertIndex);
+
+	// 모든 LOD의 Level 인덱스 재정렬
+	for (int32 i = 0; i < LODLevels.Num(); ++i)
+	{
+		if (LODLevels[i])
+		{
+			LODLevels[i]->Level = i;
+		}
+	}
+
+	// 캐시 갱신
+	CacheEmitterModuleInfo();
+}
+
 void UParticleEmitter::Serialize(const bool bInIsLoading, JSON& InOutHandle)
 {
 	// 기본 타입 UPROPERTY 자동 직렬화 (EmitterName 등)

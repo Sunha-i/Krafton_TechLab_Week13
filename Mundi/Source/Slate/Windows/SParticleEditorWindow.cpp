@@ -942,16 +942,29 @@ void SParticleEditorWindow::RenderToolbar()
 	ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
 	ImGui::SameLine();
 
+	UParticleSystem* System = State->EditingTemplate;
+
 	// LOD 앞에 추가 버튼
 	if (IconLODInsertBefore && IconLODInsertBefore->GetShaderResourceView())
 	{
 		if (ImGui::ImageButton("##LODInsertBefore", (void*)IconLODInsertBefore->GetShaderResourceView(), IconSizeVec))
 		{
-			// TODO: 현재 LOD 앞에 새 LOD 레벨 추가 로직
-			UE_LOG("Insert LOD before current level %d", State->CurrentLODLevel);
+			if (System)
+			{
+				for (UParticleEmitter* Emitter : System->Emitters)
+				{
+					if (Emitter && State->CurrentLODLevel < Emitter->LODLevels.Num())
+					{
+						if (UParticleLODLevel* NewLOD = Emitter->DuplicateLODLevel(State->CurrentLODLevel, 1.0f))
+							Emitter->InsertLODLevel(State->CurrentLODLevel, NewLOD);
+					}
+				}
+				State->bIsDirty = true;
+				if (State->PreviewComponent) State->PreviewComponent->RefreshEmitterInstances();
+			}
 		}
 		if (ImGui::IsItemHovered())
-			ImGui::SetTooltip("현재 LOD 앞에 새 LOD 추가");
+			ImGui::SetTooltip("현재 LOD 앞에 새 LOD 추가 (복제)");
 	}
 
 	ImGui::SameLine();
@@ -961,31 +974,66 @@ void SParticleEditorWindow::RenderToolbar()
 	{
 		if (ImGui::ImageButton("##LODInsertAfter", (void*)IconLODInsertAfter->GetShaderResourceView(), IconSizeVec))
 		{
-			// TODO: 현재 LOD 뒤에 새 LOD 레벨 추가 로직
-			UE_LOG("Insert LOD after current level %d", State->CurrentLODLevel);
+			if (System)
+			{
+				for (UParticleEmitter* Emitter : System->Emitters)
+				{
+					if (Emitter && State->CurrentLODLevel < Emitter->LODLevels.Num())
+					{
+						if (UParticleLODLevel* NewLOD = Emitter->DuplicateLODLevel(State->CurrentLODLevel, 0.75f))
+							Emitter->InsertLODLevel(State->CurrentLODLevel + 1, NewLOD);
+					}
+				}
+				State->CurrentLODLevel++;
+				State->bIsDirty = true;
+				if (State->PreviewComponent) State->PreviewComponent->RefreshEmitterInstances();
+			}
 		}
 		if (ImGui::IsItemHovered())
-			ImGui::SetTooltip("현재 LOD 뒤에 새 LOD 추가");
+			ImGui::SetTooltip("현재 LOD 뒤에 새 LOD 추가 (75%% 스케일)");
 	}
 
 	ImGui::SameLine();
 
-	// LOD 삭제 버튼 (맨 오른쪽으로 이동)
+	// LOD 삭제 버튼 (최소 1개 유지)
 	if (IconLODDelete && IconLODDelete->GetShaderResourceView())
 	{
-		if (ImGui::ImageButton("##LODDelete", (void*)IconLODDelete->GetShaderResourceView(), IconSizeVec))
+		bool bCanDelete = System != nullptr;
+		if (bCanDelete)
 		{
-			// TODO: 현재 LOD 레벨 삭제 로직
-			UE_LOG("Delete LOD level %d", State->CurrentLODLevel);
+			for (UParticleEmitter* Emitter : System->Emitters)
+			{
+				if (Emitter && Emitter->LODLevels.Num() <= 1) { bCanDelete = false; break; }
+			}
 		}
+
+		ImGui::BeginDisabled(!bCanDelete);
+		if (ImGui::ImageButton("##LODDelete", (void*)IconLODDelete->GetShaderResourceView(), IconSizeVec) && bCanDelete)
+		{
+			for (UParticleEmitter* Emitter : System->Emitters)
+			{
+				if (Emitter) Emitter->RemoveLODLevel(State->CurrentLODLevel);
+			}
+			int32 MaxLOD = System->Emitters.Num() > 0 ? System->Emitters[0]->LODLevels.Num() - 1 : 0;
+			if (State->CurrentLODLevel > MaxLOD) State->CurrentLODLevel = MaxLOD;
+			State->bIsDirty = true;
+			if (State->PreviewComponent) State->PreviewComponent->RefreshEmitterInstances();
+		}
+		ImGui::EndDisabled();
 		if (ImGui::IsItemHovered())
-			ImGui::SetTooltip("현재 LOD 삭제");
+			ImGui::SetTooltip(bCanDelete ? "현재 LOD 삭제" : "최소 1개의 LOD는 유지해야 합니다");
 	}
 
 	ImGui::PopStyleColor(3);
 	ImGui::PopStyleVar(2);
 
 	ImGui::EndChild();  // ToolbarArea 종료
+
+	// 프리뷰 컴포넌트에 현재 LOD 레벨 적용
+	if (State->PreviewComponent)
+	{
+		State->PreviewComponent->SetEditorLODLevel(State->CurrentLODLevel);
+	}
 
 	ImGui::Separator();
 }
@@ -1002,31 +1050,105 @@ void SParticleEditorWindow::RenderDetailsPanel(float PanelWidth)
 	ImGui::Text("디테일");
 	ImGui::Separator();
 
-	if (!State->SelectedModule)
+	// 모듈이 선택된 경우: 모듈 프로퍼티 표시
+	if (State->SelectedModule)
+	{
+		// 모듈 클래스 이름 표시
+		UClass* ModuleClass = State->SelectedModule->GetClass();
+		const char* DisplayName = ModuleClass->DisplayName;
+		ImGui::Text("모듈: %s", DisplayName ? DisplayName : ModuleClass->Name);
+		ImGui::Separator();
+
+		// 프로퍼티 렌더링
+		ImGui::PushItemWidth(PanelWidth * 0.55f);
+		bool bChanged = UPropertyRenderer::RenderAllPropertiesWithInheritance(State->SelectedModule);
+		ImGui::PopItemWidth();
+
+		// 변경 시 Dirty 플래그 및 프리뷰 갱신
+		if (bChanged)
+		{
+			State->bIsDirty = true;
+			if (State->PreviewComponent)
+			{
+				State->PreviewComponent->RefreshEmitterInstances();
+			}
+		}
+		return;
+	}
+
+	// 모듈이 선택되지 않은 경우: ParticleSystem LOD 설정 표시
+	UParticleSystem* System = State->EditingTemplate;
+	if (!System)
 	{
 		ImGui::TextDisabled("모듈을 선택하세요");
 		return;
 	}
 
-	// 모듈 클래스 이름 표시
-	UClass* ModuleClass = State->SelectedModule->GetClass();
-	const char* DisplayName = ModuleClass->DisplayName;
-	ImGui::Text("모듈: %s", DisplayName ? DisplayName : ModuleClass->Name);
+	ImGui::Text("파티클 시스템 설정");
 	ImGui::Separator();
 
-	// 프로퍼티 렌더링
-	ImGui::PushItemWidth(PanelWidth * 0.55f);
-	bool bChanged = UPropertyRenderer::RenderAllPropertiesWithInheritance(State->SelectedModule);
-	ImGui::PopItemWidth();
+	// LOD 설정 섹션
+	ImGui::Text("LOD 설정");
+	ImGui::Spacing();
 
-	// 변경 시 Dirty 플래그 및 프리뷰 갱신
-	if (bChanged)
+	// bUseLOD 체크박스
+	if (ImGui::Checkbox("LOD 사용", &System->bUseLOD))
 	{
 		State->bIsDirty = true;
-		if (State->PreviewComponent)
+	}
+
+	if (System->bUseLOD)
+	{
+		ImGui::Spacing();
+
+		// 최대 LOD 레벨 수 계산 (모든 이미터 중 최대)
+		int32 MaxLODLevels = 0;
+		for (UParticleEmitter* Emitter : System->Emitters)
 		{
-			State->PreviewComponent->RefreshEmitterInstances();
+			if (Emitter)
+			{
+				MaxLODLevels = FMath::Max(MaxLODLevels, Emitter->LODLevels.Num());
+			}
 		}
+
+		// LODDistances 배열 크기 자동 조정 (LOD 레벨 수 - 1)
+		int32 RequiredDistances = FMath::Max(0, MaxLODLevels - 1);
+		while (System->LODDistances.Num() < RequiredDistances)
+		{
+			// 이전 거리 기반으로 새 거리 계산 (이전 거리 + 500, 없으면 500)
+			float PrevDistance = System->LODDistances.Num() > 0
+				? System->LODDistances[System->LODDistances.Num() - 1]
+				: 0.0f;
+			float DefaultDistance = PrevDistance + 500.0f;
+			System->LODDistances.Add(DefaultDistance);
+			State->bIsDirty = true;
+		}
+		while (System->LODDistances.Num() > RequiredDistances)
+		{
+			System->LODDistances.RemoveAt(System->LODDistances.Num() - 1);
+			State->bIsDirty = true;
+		}
+
+		// LOD 거리 편집 UI
+		ImGui::Text("전환 거리 (LOD 레벨: %d개)", MaxLODLevels);
+		ImGui::PushItemWidth(PanelWidth * 0.5f);
+
+		for (int32 i = 0; i < System->LODDistances.Num(); i++)
+		{
+			char Label[64];
+			sprintf_s(Label, "LOD %d → %d##LODDist%d", i, i + 1, i);
+
+			// 최소/최대값 계산 (이전 거리 ~ 다음 거리 사이로 제한)
+			float MinValue = (i > 0) ? System->LODDistances[i - 1] : 0.0f;
+			float MaxValue = (i + 1 < System->LODDistances.Num()) ? System->LODDistances[i + 1] : 50000.0f;
+
+			if (ImGui::DragFloat(Label, &System->LODDistances[i], 10.0f, MinValue, MaxValue, "%.0f"))
+			{
+				State->bIsDirty = true;
+			}
+		}
+
+		ImGui::PopItemWidth();
 	}
 }
 

@@ -67,4 +67,8 @@ public:
 	// 에디터 표시 우선순위 (낮을수록 먼저 표시)
 	// TypeData: 0, Required: 1, Spawn: 2, 일반 모듈: 100
 	virtual int32 GetDisplayPriority() const { return 100; }
+
+	// LOD 스케일링: 하위 LOD 생성 시 값들을 Multiplier로 스케일
+	// 파생 클래스에서 오버라이드하여 SpawnRate, BurstCount 등을 조정
+	virtual void ScaleForLOD(float Multiplier) {}
 };

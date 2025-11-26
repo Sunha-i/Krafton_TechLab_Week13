@@ -94,6 +94,9 @@ public:
 	// 템플릿 내용 변경 시 EmitterInstances 재생성 (에디터용)
 	void RefreshEmitterInstances();
 
+	// 에디터용: 모든 이미터의 LOD 레벨 설정
+	void SetEditorLODLevel(int32 LODLevel);
+
 	// 언리얼 엔진 호환: 인스턴스 파라미터 제어
 	void SetFloatParameter(const FString& ParameterName, float Value);
 	void SetVectorParameter(const FString& ParameterName, const FVector& Value);

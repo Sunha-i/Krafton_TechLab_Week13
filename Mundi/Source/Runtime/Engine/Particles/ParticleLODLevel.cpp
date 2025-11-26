@@ -166,13 +166,14 @@ void UParticleLODLevel::DuplicateSubObjects()
 {
 	UObject::DuplicateSubObjects();
 
-	// Modules 배열만 복제 (단일 소유권)
+	// Modules 배열 복제 (각 모듈의 Duplicate() 가상 함수 호출로 타입 유지)
 	TArray<UParticleModule*> NewModules;
 	for (UParticleModule* Module : Modules)
 	{
 		if (Module)
 		{
-			UParticleModule* NewModule = ObjectFactory::DuplicateObject<UParticleModule>(Module);
+			// 각 모듈의 코드 생성기가 만든 Duplicate() 호출 → 타입 유지됨
+			UParticleModule* NewModule = Module->Duplicate();
 			NewModules.Add(NewModule);
 		}
 	}

@@ -631,6 +631,17 @@ void UParticleSystemComponent::SetTemplate(UParticleSystem* NewTemplate)
 	}
 }
 
+void UParticleSystemComponent::SetEditorLODLevel(int32 LODLevel)
+{
+	for (FParticleEmitterInstance* Instance : EmitterInstances)
+	{
+		if (Instance)
+		{
+			Instance->SetLODLevel(LODLevel);
+		}
+	}
+}
+
 void UParticleSystemComponent::RefreshEmitterInstances()
 {
 	// 동일한 템플릿의 내용이 변경되었을 때 EmitterInstances 재생성

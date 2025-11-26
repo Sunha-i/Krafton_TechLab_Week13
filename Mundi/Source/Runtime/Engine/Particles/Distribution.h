@@ -347,6 +347,29 @@ struct FDistributionFloat
 
 	// 직렬화
 	void Serialize(bool bIsLoading, JSON& InOutHandle);
+
+	// LOD 스케일링: 모든 값을 Multiplier로 곱함
+	void ScaleValues(float Multiplier)
+	{
+		ConstantValue *= Multiplier;
+		MinValue *= Multiplier;
+		MaxValue *= Multiplier;
+		ParameterDefaultValue *= Multiplier;
+
+		// 커브의 모든 키프레임 값도 스케일
+		for (FInterpCurvePointFloat& Point : ConstantCurve.Points)
+		{
+			Point.OutVal *= Multiplier;
+		}
+		for (FInterpCurvePointFloat& Point : MinCurve.Points)
+		{
+			Point.OutVal *= Multiplier;
+		}
+		for (FInterpCurvePointFloat& Point : MaxCurve.Points)
+		{
+			Point.OutVal *= Multiplier;
+		}
+	}
 };
 
 // ============================================================

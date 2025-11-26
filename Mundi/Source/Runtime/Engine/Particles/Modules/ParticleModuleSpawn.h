@@ -58,4 +58,23 @@ public:
 
 	// Spawn은 세 번째로 표시 (우선순위 2)
 	virtual int32 GetDisplayPriority() const override { return 2; }
+
+	// LOD 스케일링: SpawnRate와 BurstCount를 Multiplier로 스케일
+	virtual void ScaleForLOD(float Multiplier) override
+	{
+		// SpawnRate 스케일링
+		SpawnRate.ScaleValues(Multiplier);
+
+		// BurstList의 Count 스케일링 (최소 1 보장)
+		for (FParticleBurst& Burst : BurstList)
+		{
+			int32 ScaledCount = static_cast<int32>(Burst.Count * Multiplier + 0.5f);
+			Burst.Count = (ScaledCount < 1) ? 1 : ScaledCount;
+			if (Burst.CountLow >= 0)
+			{
+				int32 ScaledCountLow = static_cast<int32>(Burst.CountLow * Multiplier + 0.5f);
+				Burst.CountLow = (ScaledCountLow < 1) ? 1 : ScaledCountLow;
+			}
+		}
+	}
 };

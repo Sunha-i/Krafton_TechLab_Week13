@@ -14,6 +14,22 @@ public:
 	UPROPERTY(EditAnywhere, Category="Particle System")
 	TArray<UParticleEmitter*> Emitters;
 
+	//=============================================================================
+	// LOD 설정 (언리얼 엔진 호환)
+	// 모든 이미터가 동일한 거리에서 LOD 전환
+	//=============================================================================
+
+	// LOD 사용 여부
+	UPROPERTY(EditAnywhere, Category = "LOD")
+	bool bUseLOD = false;
+
+	// 각 LOD 레벨의 전환 거리
+	// LODDistances[0] = LOD 0->1 전환 거리
+	// LODDistances[1] = LOD 1->2 전환 거리
+	// 예: [500, 1000] → 0~500: LOD0, 500~1000: LOD1, 1000+: LOD2
+	UPROPERTY(EditAnywhere, Category = "LOD")
+	TArray<float> LODDistances;
+
 	UParticleSystem() = default;
 	virtual ~UParticleSystem();
 
