@@ -184,6 +184,77 @@ struct FInterpCurveFloat
 		Points.Add(FInterpCurvePointFloat(Time, Value, Mode));
 	}
 
+	// CurveAuto/CurveAutoClamped 모드용 탄젠트 자동 계산
+	void AutoCalculateTangents()
+	{
+		const int32 NumPoints = Points.Num();
+		if (NumPoints < 2) return;
+
+		for (int32 i = 0; i < NumPoints; ++i)
+		{
+			FInterpCurvePointFloat& Point = Points[i];
+
+			// CurveAuto 또는 CurveAutoClamped 모드만 처리
+			if (Point.InterpMode != EInterpCurveMode::CurveAuto &&
+				Point.InterpMode != EInterpCurveMode::CurveAutoClamped)
+			{
+				continue;
+			}
+
+			float Tangent = 0.0f;
+
+			if (i == 0)
+			{
+				// 첫 번째 키: 다음 키로의 기울기
+				float dt = Points[1].InVal - Point.InVal;
+				if (dt > 0.0001f)
+				{
+					Tangent = (Points[1].OutVal - Point.OutVal) / dt;
+				}
+			}
+			else if (i == NumPoints - 1)
+			{
+				// 마지막 키: 이전 키로부터의 기울기
+				float dt = Point.InVal - Points[i - 1].InVal;
+				if (dt > 0.0001f)
+				{
+					Tangent = (Point.OutVal - Points[i - 1].OutVal) / dt;
+				}
+			}
+			else
+			{
+				// 중간 키: Catmull-Rom 스타일 (이전~다음 키의 기울기)
+				float dt = Points[i + 1].InVal - Points[i - 1].InVal;
+				if (dt > 0.0001f)
+				{
+					Tangent = (Points[i + 1].OutVal - Points[i - 1].OutVal) / dt;
+				}
+			}
+
+			// CurveAutoClamped: 오버슈트 방지
+			if (Point.InterpMode == EInterpCurveMode::CurveAutoClamped)
+			{
+				// 로컬 최대/최소값이면 탄젠트를 0으로
+				if (i > 0 && i < NumPoints - 1)
+				{
+					float PrevVal = Points[i - 1].OutVal;
+					float NextVal = Points[i + 1].OutVal;
+					float CurrVal = Point.OutVal;
+
+					// 로컬 최대 또는 최소
+					if ((CurrVal >= PrevVal && CurrVal >= NextVal) ||
+						(CurrVal <= PrevVal && CurrVal <= NextVal))
+					{
+						Tangent = 0.0f;
+					}
+				}
+			}
+
+			Point.ArriveTangent = Tangent;
+			Point.LeaveTangent = Tangent;
+		}
+	}
+
 	// 직렬화
 	void Serialize(bool bIsLoading, JSON& InOutHandle);
 };
@@ -288,6 +359,96 @@ struct FInterpCurveVector
 	void AddPoint(float Time, const FVector& Value, EInterpCurveMode Mode = EInterpCurveMode::Linear)
 	{
 		Points.Add(FInterpCurvePointVector(Time, Value, Mode));
+	}
+
+	// CurveAuto/CurveAutoClamped 모드용 탄젠트 자동 계산
+	void AutoCalculateTangents()
+	{
+		const int32 NumPoints = Points.Num();
+		if (NumPoints < 2) return;
+
+		for (int32 i = 0; i < NumPoints; ++i)
+		{
+			FInterpCurvePointVector& Point = Points[i];
+
+			// CurveAuto 또는 CurveAutoClamped 모드만 처리
+			if (Point.InterpMode != EInterpCurveMode::CurveAuto &&
+				Point.InterpMode != EInterpCurveMode::CurveAutoClamped)
+			{
+				continue;
+			}
+
+			FVector Tangent(0.0f, 0.0f, 0.0f);
+
+			if (i == 0)
+			{
+				// 첫 번째 키: 다음 키로의 기울기
+				float dt = Points[1].InVal - Point.InVal;
+				if (dt > 0.0001f)
+				{
+					Tangent.X = (Points[1].OutVal.X - Point.OutVal.X) / dt;
+					Tangent.Y = (Points[1].OutVal.Y - Point.OutVal.Y) / dt;
+					Tangent.Z = (Points[1].OutVal.Z - Point.OutVal.Z) / dt;
+				}
+			}
+			else if (i == NumPoints - 1)
+			{
+				// 마지막 키: 이전 키로부터의 기울기
+				float dt = Point.InVal - Points[i - 1].InVal;
+				if (dt > 0.0001f)
+				{
+					Tangent.X = (Point.OutVal.X - Points[i - 1].OutVal.X) / dt;
+					Tangent.Y = (Point.OutVal.Y - Points[i - 1].OutVal.Y) / dt;
+					Tangent.Z = (Point.OutVal.Z - Points[i - 1].OutVal.Z) / dt;
+				}
+			}
+			else
+			{
+				// 중간 키: Catmull-Rom 스타일 (이전~다음 키의 기울기)
+				float dt = Points[i + 1].InVal - Points[i - 1].InVal;
+				if (dt > 0.0001f)
+				{
+					Tangent.X = (Points[i + 1].OutVal.X - Points[i - 1].OutVal.X) / dt;
+					Tangent.Y = (Points[i + 1].OutVal.Y - Points[i - 1].OutVal.Y) / dt;
+					Tangent.Z = (Points[i + 1].OutVal.Z - Points[i - 1].OutVal.Z) / dt;
+				}
+			}
+
+			// CurveAutoClamped: 오버슈트 방지 (각 축별로 처리)
+			if (Point.InterpMode == EInterpCurveMode::CurveAutoClamped)
+			{
+				if (i > 0 && i < NumPoints - 1)
+				{
+					const FVector& PrevVal = Points[i - 1].OutVal;
+					const FVector& NextVal = Points[i + 1].OutVal;
+					const FVector& CurrVal = Point.OutVal;
+
+					// X 축: 로컬 최대/최소이면 탄젠트를 0으로
+					if ((CurrVal.X >= PrevVal.X && CurrVal.X >= NextVal.X) ||
+						(CurrVal.X <= PrevVal.X && CurrVal.X <= NextVal.X))
+					{
+						Tangent.X = 0.0f;
+					}
+
+					// Y 축
+					if ((CurrVal.Y >= PrevVal.Y && CurrVal.Y >= NextVal.Y) ||
+						(CurrVal.Y <= PrevVal.Y && CurrVal.Y <= NextVal.Y))
+					{
+						Tangent.Y = 0.0f;
+					}
+
+					// Z 축
+					if ((CurrVal.Z >= PrevVal.Z && CurrVal.Z >= NextVal.Z) ||
+						(CurrVal.Z <= PrevVal.Z && CurrVal.Z <= NextVal.Z))
+					{
+						Tangent.Z = 0.0f;
+					}
+				}
+			}
+
+			Point.ArriveTangent = Tangent;
+			Point.LeaveTangent = Tangent;
+		}
 	}
 
 	// 직렬화
