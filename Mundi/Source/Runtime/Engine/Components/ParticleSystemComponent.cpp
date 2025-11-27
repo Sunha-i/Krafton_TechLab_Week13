@@ -275,10 +275,9 @@ void UParticleSystemComponent::CreateDebugMeshParticleSystem()
 
 	// 스폰 모듈 생성 - Modules 배열에 추가
 	UParticleModuleSpawn* SpawnModule = NewObject<UParticleModuleSpawn>();
-	SpawnModule->SpawnRate = FDistributionFloat(10000.0f);   // 초당 100개 파티클 (메시는 무거우므로 줄임)
-	SpawnModule->BurstList.Add(FParticleBurst(100, 0.0f));   // 시작 시 100개 버스트
+	SpawnModule->BurstList.Add(FParticleBurst(10, 0.0f));   // 시작 시 100개 버스트
 	SpawnModule->SpawnRate = FDistributionFloat(50.0f);       // 초당 50개 파티클 (충돌 테스트용으로 적당히)
-	SpawnModule->BurstScale = FDistributionFloat(20.0f);      // 시작 시 20개 버스트
+	SpawnModule->BurstScale = FDistributionFloat(5.0f);      // 시작 시 20개 버스트
 	LODLevel->Modules.Add(SpawnModule);
 
 	// 라이프타임 모듈 생성 (파티클 수명 설정)
