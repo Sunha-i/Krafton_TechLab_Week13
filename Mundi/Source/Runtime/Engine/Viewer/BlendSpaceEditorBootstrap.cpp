@@ -1,8 +1,9 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "BlendSpaceEditorBootstrap.h"
+#include "CameraActor.h"
 #include "FViewport.h"
-#include "Source/Runtime/Engine/Viewer/ViewerState.h"
-#include "Source/Runtime/Renderer/BlendSpaceEditorViewportClient.h"
+#include "ViewerState.h"
+#include "FViewportClient.h"
 #include "Source/Runtime/Engine/GameFramework/SkeletalMeshActor.h"
 
 ViewerState* BlendSpaceEditorBootstrap::CreateViewerState(const char* Name, UWorld* InWorld, ID3D11Device* InDevice)
@@ -24,10 +25,20 @@ ViewerState* BlendSpaceEditorBootstrap::CreateViewerState(const char* Name, UWor
     State->Viewport->SetUseRenderTarget(true);  // Use ImGui::Image method for viewer
 
     // Client
-    auto* Client = new FBlendSpaceEditorViewportClient();
+    auto* Client = new FViewportClient();
     Client->SetWorld(State->World);
+    
+    // Start with defaults suitable for character preview
     Client->SetViewportType(EViewportType::Perspective);
     Client->SetViewMode(EViewMode::VMI_Lit_Phong);
+
+    // Place camera at a reasonable spot
+    ACameraActor* Camera = Client->GetCamera();
+    Camera->SetActorLocation(FVector(3.0f, 0.0f, 2.0f));
+    Camera->SetActorRotation(FVector(0.0f, 10.0f, 180.0f));
+    Camera->SetCameraPitch(10.0f);
+    Camera->SetCameraYaw(180.0f);
+
     State->Client = Client;
     State->Viewport->SetViewportClient(Client);
     State->World->SetEditorCameraActor(Client->GetCamera());

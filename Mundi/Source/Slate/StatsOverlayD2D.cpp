@@ -201,7 +201,7 @@ void UStatsOverlayD2D::Draw()
 	const float PanelWidth = 200.0f;
 	const float SkinningPanelWidth = 340.0f;  // 스키닝 통계용 넓은 패널
 	const float PanelHeight = 48.0f;
-	float NextY = 70.0f;
+	float NextY = 100.0f;
 
 	if (bShowFPS)
 	{

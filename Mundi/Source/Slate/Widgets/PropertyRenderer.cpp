@@ -1850,6 +1850,15 @@ bool UPropertyRenderer::RenderSkeletalMeshProperty(const FProperty& Prop, void* 
 		// Request USlateManager to open the viewer
 		USlateManager::GetInstance().OpenAssetViewer(Context);
 	}
+	ImGui::SameLine();
+	if (ImGui::Button("Physics Asset Editor"))
+	{
+		UEditorAssetPreviewContext* Context = NewObject<UEditorAssetPreviewContext>();
+		Context->ViewerType = EViewerType::PhysicsAsset;
+		Context->AssetPath = CurrentPath;
+
+		USlateManager::GetInstance().OpenAssetViewer(Context);
+	}
 
 	ImGui::SetNextItemWidth(240);
 	if (ImGui::Combo(Prop.Name, &SelectedIdx, &ItemsGetter, (void*)&CachedSkeletalMeshItems, static_cast<int>(CachedSkeletalMeshItems.size())))

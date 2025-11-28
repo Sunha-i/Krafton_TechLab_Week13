@@ -554,15 +554,6 @@
     <ClCompile Include="Source\Runtime\AssetManagement\TextureConverter.cpp">
       <Filter>Source\Runtime\AssetManagement</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Runtime\Renderer\AnimationViewerViewportClient.cpp">
-      <Filter>Source\Runtime\Renderer</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\Runtime\Renderer\BlendSpaceEditorViewportClient.cpp">
-      <Filter>Source\Runtime\Renderer</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\Runtime\Renderer\SkeletalViewerViewportClient.cpp">
-      <Filter>Source\Runtime\Renderer</Filter>
-    </ClCompile>
     <ClCompile Include="Source\Runtime\Renderer\LightManager.cpp">
       <Filter>Source\Runtime\Renderer</Filter>
     </ClCompile>
@@ -1109,6 +1100,12 @@
     <ClCompile Include="Source\Runtime\Engine\Particles\ParticleStats.cpp">
       <Filter>Source\Runtime\Engine\Particles</Filter>
     </ClCompile>
+    <ClCompile Include="Source\Runtime\Engine\Viewer\PhysicsAssetEditorBootstrap.cpp">
+      <Filter>Source\Runtime\Engine\Viewer</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Slate\Windows\SPhysicsAssetEditorWindow.cpp">
+      <Filter>Source\Slate\Windows</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Generated\UParticleModuleSizeScaleBySpeed.generated.h">
@@ -1648,15 +1645,6 @@
     </ClInclude>
     <ClInclude Include="Source\Runtime\AssetManagement\Triangle.h">
       <Filter>Source\Runtime\AssetManagement</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\Runtime\Renderer\AnimationViewerViewportClient.h">
-      <Filter>Source\Runtime\Renderer</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\Runtime\Renderer\BlendSpaceEditorViewportClient.h">
-      <Filter>Source\Runtime\Renderer</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\Runtime\Renderer\SkeletalViewerViewportClient.h">
-      <Filter>Source\Runtime\Renderer</Filter>
     </ClInclude>
     <ClInclude Include="Source\Runtime\Renderer\LightManager.h">
       <Filter>Source\Runtime\Renderer</Filter>
@@ -2338,6 +2326,12 @@
     </ClInclude>
     <ClInclude Include="Source\Runtime\Engine\Particles\ParticleEventGeneratorTypes.h">
       <Filter>Source\Runtime\Engine\Particles</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Runtime\Engine\Viewer\PhysicsAssetEditorBootstrap.h">
+      <Filter>Source\Runtime\Engine\Viewer</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Slate\Windows\SPhysicsAssetEditorWindow.h">
+      <Filter>Source\Slate\Windows</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

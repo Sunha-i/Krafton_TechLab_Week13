@@ -3,7 +3,7 @@
 #include "CameraActor.h"
 #include "Source/Runtime/Engine/Viewer/ViewerState.h"
 #include "FViewport.h"
-#include "AnimationViewerViewportClient.h"
+#include "FViewportClient.h"
 #include "Source/Runtime/Engine/GameFramework/SkeletalMeshActor.h"
 #include "Source/Editor/FBXLoader.h"
 #include "Source/Runtime/Engine/Animation/AnimSequence.h"
@@ -31,11 +31,21 @@ ViewerState* AnimationViewerBootstrap::CreateViewerState(const char* Name, UWorl
     // ImGui::Image 방식으로 렌더링 (뷰어용)
     State->Viewport->SetUseRenderTarget(true);
 
-    auto* Client = new FAnimationViewerViewportClient();
+    auto* Client = new FViewportClient();
     Client->SetWorld(State->World);
     Client->SetViewportType(EViewportType::Perspective);
     Client->SetViewMode(EViewMode::VMI_Lit_Phong);
-    Client->GetCamera()->SetActorLocation(FVector(3, 0, 2));
+
+    // Set initial camera position to front view
+    // Looking at origin (0,0,0) from front, slightly elevated
+    ACameraActor* Camera = Client->GetCamera();
+    Camera->SetActorLocation(FVector(3, 0, 2));  // Front view, slightly elevated
+    Camera->SetActorRotation(FVector(0.0f, 10.0f, 180.0f)); // Front view, slightly looking down
+
+    // Initialize camera rotation state to match the initial rotation
+    // This prevents the camera from snapping when first clicked
+    Camera->SetCameraPitch(10.0f);   // Pitch: 0 degrees (level)
+    Camera->SetCameraYaw(180.0f);   // Yaw: 180 degrees (facing +X direction from -X position)
 
     State->Client = Client;
     State->Viewport->SetViewportClient(Client);
