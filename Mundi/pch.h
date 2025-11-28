@@ -62,6 +62,7 @@
 #include "D3D11RHI.h"
 #include "World.h"
 #include "ConstantBufferType.h"
+#include "Macros.h"
 // d3dtk
 #include "SimpleMath.h"
 

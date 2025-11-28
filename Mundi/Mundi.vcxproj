@@ -826,6 +826,7 @@ xcopy /y /d "$(ProjectDir)ThirdParty\lib\Lua\lua54.dll" "$(OutDir)"</Command>
     <ClInclude Include="Source\Runtime\Core\Misc\DebugUtils.h" />
     <ClInclude Include="Source\Runtime\Core\Misc\Delegates.h" />
     <ClInclude Include="Source\Runtime\Core\Misc\Hash.h" />
+    <ClInclude Include="Source\Runtime\Core\Misc\Macros.h" />
     <ClInclude Include="Source\Runtime\Core\Misc\PathUtils.h" />
     <ClInclude Include="Source\Runtime\Core\Object\FireballActor.h" />
     <ClInclude Include="Source\Runtime\Core\Object\ObjectMacros.h" />
@@ -899,6 +900,12 @@ xcopy /y /d "$(ProjectDir)ThirdParty\lib\Lua\lua54.dll" "$(OutDir)"</Command>
     <ClInclude Include="Source\Runtime\Engine\Particles\ParticleEventTypes.h" />
     <ClInclude Include="Source\Runtime\Engine\Particles\ParticleRandomStream.h" />
     <ClInclude Include="Source\Runtime\Engine\Particles\ParticleStats.h" />
+    <ClInclude Include="Source\Runtime\Engine\Physics\PhysicsUserData.h" />
+    <ClInclude Include="Source\Runtime\Engine\Physics\Shape\BoxElem.h" />
+    <ClInclude Include="Source\Runtime\Engine\Physics\Shape\ConvexElem.h" />
+    <ClInclude Include="Source\Runtime\Engine\Physics\Shape\ShapeElem.h" />
+    <ClInclude Include="Source\Runtime\Engine\Physics\Shape\SphereElem.h" />
+    <ClInclude Include="Source\Runtime\Engine\Physics\Shape\SphylElem.h" />
     <ClInclude Include="Source\Runtime\Engine\Scripting\GameObject.h" />
     <ClInclude Include="Source\Runtime\Engine\Scripting\LuaArrayProxy.h" />
     <ClInclude Include="Source\Runtime\Engine\Scripting\LuaBindHelpers.h" />
