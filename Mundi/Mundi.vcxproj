@@ -420,9 +420,6 @@ xcopy /y /d "$(ProjectDir)ThirdParty\lib\Lua\lua54.dll" "$(OutDir)"</Command>
     <ClCompile Include="Source\Runtime\Engine\Viewer\ParticleEditorBootstrap.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Viewer\SkeletalViewerBootstrap.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Viewer\ViewerState.cpp" />
-    <ClCompile Include="Source\Runtime\Renderer\AnimationViewerViewportClient.cpp" />
-    <ClCompile Include="Source\Runtime\Renderer\BlendSpaceEditorViewportClient.cpp" />
-    <ClCompile Include="Source\Runtime\Renderer\SkeletalViewerViewportClient.cpp" />
     <ClCompile Include="Source\Runtime\Renderer\LightManager.cpp" />
     <ClCompile Include="Source\Runtime\Renderer\PostProcessing\GammaPass.cpp" />
     <ClCompile Include="Source\Runtime\Renderer\PostProcessing\HeightFogPass.cpp" />
@@ -915,9 +912,6 @@ xcopy /y /d "$(ProjectDir)ThirdParty\lib\Lua\lua54.dll" "$(OutDir)"</Command>
     <ClInclude Include="Source\Runtime\Engine\Viewer\ParticleEditorBootstrap.h" />
     <ClInclude Include="Source\Runtime\Engine\Viewer\SkeletalViewerBootstrap.h" />
     <ClInclude Include="Source\Runtime\Engine\Viewer\ViewerState.h" />
-    <ClInclude Include="Source\Runtime\Renderer\AnimationViewerViewportClient.h" />
-    <ClInclude Include="Source\Runtime\Renderer\BlendSpaceEditorViewportClient.h" />
-    <ClInclude Include="Source\Runtime\Renderer\SkeletalViewerViewportClient.h" />
     <ClInclude Include="Source\Runtime\Renderer\LightManager.h" />
     <ClInclude Include="Source\Runtime\Engine\Components\AmbientLightComponent.h" />
     <ClInclude Include="Source\Runtime\Engine\Components\DirectionalLightComponent.h" />
