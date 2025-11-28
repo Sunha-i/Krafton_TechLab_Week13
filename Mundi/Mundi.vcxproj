@@ -887,7 +887,6 @@ xcopy /y /d "$(ProjectDir)ThirdParty\lib\Lua\lua54.dll" "$(OutDir)"</Command>
     <ClInclude Include="Source\Runtime\Engine\GameFramework\SkeletalMeshActor.h" />
     <ClInclude Include="Source\Runtime\Engine\GameFramework\SpotLightActor.h" />
     <ClInclude Include="Source\Runtime\Engine\Particles\Distribution.h" />
-    <ClInclude Include="Source\Runtime\Engine\Particles\Modules\ParticleEventGeneratorInfo.h" />
     <ClInclude Include="Source\Runtime\Engine\Particles\Modules\ParticleModuleEventReceiverBase.h" />
     <ClInclude Include="Source\Runtime\Engine\Particles\Modules\ParticleModuleEventReceiverKill.h" />
     <ClInclude Include="Source\Runtime\Engine\Particles\Modules\ParticleModuleEventReceiverSpawn.h" />
