@@ -578,16 +578,11 @@ void SViewerWindow::RenderTabsAndToolbar(EViewerType CurrentViewerType)
     }
 
     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
-    if (ImGui::ImageButton("##SaveBtn",
-        (void*)IconSave->GetShaderResourceView(), IconSizeVec))
+    if (ImGui::ImageButton("##SaveBtn", (void*)IconSave->GetShaderResourceView(), IconSizeVec))
     {
         if (ActiveState)
         {
-            UE_LOG("Save button clicked for asset: %s", ActiveState->LoadedMeshPath.c_str());
-            // TODO: This should call a virtual OnSave() function
-            // Actual saving will happen in SAnimationViewerWindow::OnSave()
-            // For now, just resetting the dirty flag
-            ActiveState->bIsDirty = false;
+            OnSave();
         }
     }
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("Save Changes");
@@ -596,7 +591,7 @@ void SViewerWindow::RenderTabsAndToolbar(EViewerType CurrentViewerType)
     {
         ImGui::EndDisabled();
     }
-    
+
     ImGui::PopStyleColor();
     ImGui::SameLine();
 
