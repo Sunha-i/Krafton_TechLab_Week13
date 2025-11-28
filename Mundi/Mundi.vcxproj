@@ -830,6 +830,7 @@ xcopy /y /d "$(ProjectDir)ThirdParty\lib\Lua\lua54.dll" "$(OutDir)"</Command>
     <ClInclude Include="Source\Runtime\Core\Object\FireballActor.h" />
     <ClInclude Include="Source\Runtime\Core\Object\ObjectMacros.h" />
     <ClInclude Include="Source\Runtime\Core\Object\Property.h" />
+    <ClInclude Include="Source\Runtime\Engine\Physics\PhysicsTypes.h" />
     <ClInclude Include="Source\Runtime\Engine\Animation\AnimationAsset.h" />
     <ClInclude Include="Source\Runtime\Engine\Animation\AnimBlendMath.h" />
     <ClInclude Include="Source\Runtime\Engine\Animation\AnimBlendSpace2D.h" />
