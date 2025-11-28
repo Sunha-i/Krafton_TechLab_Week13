@@ -1,4 +1,8 @@
 ﻿#include "pch.h"
+
+// PhysX 연결 테스트용 (나중에 제거)
+#include <PxPhysicsAPI.h>
+
 #include "SelectionManager.h"
 #include "Picking.h"
 #include "CameraActor.h"
@@ -92,6 +96,39 @@ UWorld::~UWorld()
 
 void UWorld::Initialize()
 {
+	// ========== PhysX 연결 테스트 (시작) ==========
+	{
+		using namespace physx;
+
+		static PxDefaultAllocator gAllocator;
+		static PxDefaultErrorCallback gErrorCallback;
+
+		PxFoundation* foundation = PxCreateFoundation(PX_PHYSICS_VERSION, gAllocator, gErrorCallback);
+		if (foundation)
+		{
+			UE_LOG("[PhysX] Foundation created successfully! PhysX version: %d.%d.%d",
+				PX_PHYSICS_VERSION_MAJOR, PX_PHYSICS_VERSION_MINOR, PX_PHYSICS_VERSION_BUGFIX);
+
+			PxPhysics* physics = PxCreatePhysics(PX_PHYSICS_VERSION, *foundation, PxTolerancesScale());
+			if (physics)
+			{
+				UE_LOG("[PhysX] Physics created successfully!");
+				physics->release();
+			}
+			else
+			{
+				UE_LOG("[PhysX] Failed to create Physics!");
+			}
+
+			foundation->release();
+		}
+		else
+		{
+			UE_LOG("[PhysX] Failed to create Foundation!");
+		}
+	}
+	// ========== PhysX 연결 테스트 (끝) ==========
+
 	// Create partition manager first, before CreateLevel() calls SetLevel()
 	// Skip for preview worlds to save ~190 MB
 	if (!IsPreviewWorld())
