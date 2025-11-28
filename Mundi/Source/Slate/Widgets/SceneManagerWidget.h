@@ -93,6 +93,9 @@ private:
     void HandleActorRename(AActor* Actor);
     void HandleActorDelete(AActor* Actor);
     void HandleActorDuplicate(AActor* Actor);
+    bool IsActorNameUnique(const FString& NewName, const AActor* IgnoredActor) const;
+    void CommitActorRename(AActor* Actor);
+    void CancelActorRename();
 
     // Icon loading
     void LoadIcons();
@@ -135,4 +138,9 @@ private:
     UTexture* IconVisible = nullptr;
     UTexture* IconHidden = nullptr;
     float IconSize = 16.0f;
+
+    // Inline rename state
+    AActor* RenamingActor = nullptr;
+    char RenameBuffer[128]{};
+    bool bRenameFocusRequested = false;
 };

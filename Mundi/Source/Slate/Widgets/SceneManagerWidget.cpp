@@ -14,6 +14,8 @@
 #include "Texture.h"
 #include <algorithm>
 #include <string>
+#include <cstring>
+#include <cstdio>
 #include <EditorEngine.h>
 #include "DirectionalLightComponent.h"
 //// UE_LOG 대체 매크로
@@ -46,6 +48,12 @@ void USceneManagerWidget::LoadIcons()
 
 void USceneManagerWidget::Update()
 {
+	// 안전성: 삭제된 액터를 rename 타깃으로 유지하지 않음
+	if (RenamingActor && (!GWorld || RenamingActor->IsPendingDestroy()))
+	{
+		CancelActorRename();
+	}
+
 	// 지연된 새로고침 처리 (렌더링 중 iterator invalidation 방지)
 	if (bNeedRefreshNextFrame)
 	{
@@ -307,8 +315,11 @@ void USceneManagerWidget::RenderActorNode(FActorTreeNode* Node, int32 Depth)
 
 	ImGui::SameLine(0, 1.0f);
 
+	const bool bIsRenaming = (RenamingActor == Actor);
+	FString NodeLabel = bIsRenaming ? FString("##ActorNode") : Actor->GetName();
+
 	// Actor name and tree node
-	bool bNodeOpen = ImGui::TreeNodeEx(Actor->GetName().c_str(), NodeFlags);
+	bool bNodeOpen = ImGui::TreeNodeEx(NodeLabel.c_str(), NodeFlags);
 
 	// Handle selection
 	if (ImGui::IsItemClicked())
@@ -359,6 +370,28 @@ void USceneManagerWidget::RenderActorNode(FActorTreeNode* Node, int32 Depth)
 			}
 		}
 		ImGui::EndDragDropTarget();
+	}
+
+	// Inline rename input
+	if (bIsRenaming)
+	{
+		ImGui::SameLine(0, 1.0f);
+		if (bRenameFocusRequested)
+		{
+			ImGui::SetKeyboardFocusHere();
+			bRenameFocusRequested = false;
+		}
+
+		ImGuiInputTextFlags RenameFlags = ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AutoSelectAll;
+		if (ImGui::InputText("##RenameInput", RenameBuffer, sizeof(RenameBuffer), RenameFlags))
+		{
+			CommitActorRename(Actor);
+		}
+
+		if (ImGui::IsItemActive() && ImGui::IsKeyPressed(ImGuiKey_Escape))
+		{
+			CancelActorRename();
+		}
 	}
 
 	// Render children if node is open
@@ -429,10 +462,76 @@ void USceneManagerWidget::HandleActorVisibilityToggle(AActor* Actor)
 	}
 }
 
+bool USceneManagerWidget::IsActorNameUnique(const FString& NewName, const AActor* IgnoredActor) const
+{
+	if (NewName.empty())
+	{
+		return false;
+	}
+
+	if (UWorld* World = GWorld)
+	{
+		for (AActor* Other : World->GetActors())
+		{
+			if (!Other || Other == IgnoredActor || Other->IsPendingDestroy())
+			{
+				continue;
+			}
+
+			if (Other->GetName() == NewName)
+			{
+				return false;
+			}
+		}
+	}
+
+	return true;
+}
+
 void USceneManagerWidget::HandleActorRename(AActor* Actor)
 {
-	// TODO: Implement inline renaming
-	UE_LOG("SceneManager: Rename not implemented yet");
+	if (!Actor)
+	{
+		return;
+	}
+
+	RenamingActor = Actor;
+	std::snprintf(RenameBuffer, sizeof(RenameBuffer), "%s", Actor->GetName().c_str());
+	bRenameFocusRequested = true;
+}
+
+void USceneManagerWidget::CommitActorRename(AActor* Actor)
+{
+	if (!Actor || Actor != RenamingActor)
+	{
+		CancelActorRename();
+		return;
+	}
+
+	FString NewName = RenameBuffer;
+	if (NewName.empty())
+	{
+		CancelActorRename();
+		return;
+	}
+
+	if (!IsActorNameUnique(NewName, Actor))
+	{
+		UE_LOG("이름이 중복된 액터가 있습니다.");
+		return;
+	}
+
+	Actor->ObjectName = FName(NewName);
+	UE_LOG("SceneManager: Renamed actor to %s", NewName.c_str());
+	CancelActorRename();
+	RequestDelayedRefresh();
+}
+
+void USceneManagerWidget::CancelActorRename()
+{
+	RenamingActor = nullptr;
+	RenameBuffer[0] = '\0';
+	bRenameFocusRequested = false;
 }
 
 void USceneManagerWidget::HandleActorDelete(AActor* Actor)
