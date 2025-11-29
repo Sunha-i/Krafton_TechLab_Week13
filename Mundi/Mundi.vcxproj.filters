@@ -224,6 +224,9 @@
     <ClCompile Include="Source\Runtime\Engine\Viewer\ViewerState.cpp">
       <Filter>Source\Runtime\Engine\Viewer</Filter>
     </ClCompile>
+    <ClCompile Include="Source\Runtime\Engine\Physics\PhysicsManager.cpp">
+      <Filter>Source\Runtime\Engine\Physics</Filter>
+    </ClCompile>
     <ClCompile Include="Source\Runtime\Engine\Animation\AnimationRuntime.cpp">
       <Filter>Source\Runtime\Engine\Animation</Filter>
     </ClCompile>
@@ -1300,6 +1303,12 @@
     </ClInclude>
     <ClInclude Include="Source\Runtime\Engine\Viewer\ViewerState.h">
       <Filter>Source\Runtime\Engine\Viewer</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Runtime\Engine\Physics\PhysicsTypes.h">
+      <Filter>Source\Runtime\Engine\Physics</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Runtime\Engine\Physics\PhysicsManager.h">
+      <Filter>Source\Runtime\Engine\Physics</Filter>
     </ClInclude>
     <ClInclude Include="Source\Runtime\Engine\Animation\AnimationAsset.h">
       <Filter>Source\Runtime\Engine\Animation</Filter>
@@ -2387,6 +2396,9 @@
     </Filter>
     <Filter Include="Source\Runtime\Engine\Animation">
       <UniqueIdentifier>{b503772a-2bd2-4ddd-8790-e0554bd83984}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source\Runtime\Engine\Physics">
+      <UniqueIdentifier>{a8c7f3e1-5d9b-4e8f-9a1c-2b3d4e5f6789}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source\Runtime\Engine\Components">
       <UniqueIdentifier>{fbee7315-fe14-4a97-b39f-7c9edc6a2756}</UniqueIdentifier>
