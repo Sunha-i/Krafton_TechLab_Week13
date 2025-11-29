@@ -129,7 +129,14 @@ void ASkeletalMeshActor::RebuildBoneLines(int32 SelectedBoneIndex)
     // Update selection highlight only when changed
     if (CachedSelected != SelectedBoneIndex)
     {
-        UpdateBoneSelectionHighlight(SelectedBoneIndex);
+        if (SelectedBoneIndex >= 0)
+        {
+            UpdateBoneSelectionHighlight(SelectedBoneIndex);
+        }
+        else
+        {
+            RestoreOriginalBoneColors();
+        }
         CachedSelected = SelectedBoneIndex;
     }
 
@@ -230,13 +237,13 @@ void ASkeletalMeshActor::BuildBoneLinesCache()
     {
         return;
     }
-    
+
     USkeletalMesh* SkeletalMesh = SkeletalMeshComponent->GetSkeletalMesh();
     if (!SkeletalMesh)
     {
         return;
     }
-    
+
     const FSkeletalMeshData* Data = SkeletalMesh->GetSkeletalMeshData();
     if (!Data)
     {
@@ -260,6 +267,22 @@ void ASkeletalMeshActor::BuildBoneLinesCache()
         }
     }
 
+    // JointOwner: determines which bone's color each joint will use
+    JointOwner.assign(BoneCount, -1);
+
+    for (int32 i = 0; i < BoneCount; ++i)
+    {
+        int32 parent = Bones[i].ParentIndex;
+
+        // The child joint always uses its own bone's color
+        JointOwner[i] = i;
+
+        // Assign the parent joint to use this bone's color as well
+        // (will be refined later with child-count rules)
+        if (parent >= 0)
+            JointOwner[parent] = i;
+    }
+
     // Initial centers from current bone transforms (object space)
     // Use GetBoneWorldTransform to properly accumulate parent transforms
     const FMatrix WorldInv = GetWorldMatrix().InverseAffine();
@@ -273,14 +296,17 @@ void ASkeletalMeshActor::BuildBoneLinesCache()
         JointPos[i] = FVector(O.M[3][0], O.M[3][1], O.M[3][2]);
     }
 
-    const int NumSegments = CachedSegments;
-    
+    // Generate Bone Shape / Cone / Joint Rings
     for (int32 i = 0; i < BoneCount; ++i)
     {
         FBoneDebugLines& BL = BoneLinesCache[i];
         const FVector Center = JointPos[i];
         const int32 parent = Bones[i].ParentIndex;
-        
+
+        // Bone i uses its own color for the cone and main shape
+        FVector4 BoneColor = GetBoneColor(i);
+
+        // Cone (parent → child)
         if (parent >= 0)
         {
             const FVector ParentPos = JointPos[parent];
@@ -303,47 +329,87 @@ void ASkeletalMeshActor::BuildBoneLinesCache()
             const float Radius = std::min(BoneBaseRadius, BoneLength * 0.15f);
 
             // Create cone geometry
-            BL.ConeEdges.reserve(NumSegments);
-            BL.ConeBase.reserve(NumSegments);
+            BL.ConeEdges.reserve(ConeSegments);
+            BL.ConeBase.reserve(ConeSegments);
 
-            for (int k = 0; k < NumSegments; ++k)
+            for (int k = 0; k < ConeSegments; ++k)
             {
-                const float angle0 = (static_cast<float>(k) / NumSegments) * TWO_PI;
-                const float angle1 = (static_cast<float>((k + 1) % NumSegments) / NumSegments) * TWO_PI;
+                const float angle0 = (static_cast<float>(k) / ConeSegments) * TWO_PI;
+                const float angle1 = (static_cast<float>((k + 1) % ConeSegments) / ConeSegments) * TWO_PI;
 
                 // Base circle vertices at parent
                 const FVector BaseVertex0 = ParentPos + Right * (Radius * std::cos(angle0)) + Forward * (Radius * std::sin(angle0));
                 const FVector BaseVertex1 = ParentPos + Right * (Radius * std::cos(angle1)) + Forward * (Radius * std::sin(angle1));
 
                 // Cone edge from base vertex to tip (child)
-                BL.ConeEdges.Add(BoneLineComponent->AddLine(BaseVertex0, ChildPos, FVector4(1, 1, 1, 1)));
+                BL.ConeEdges.Add(BoneLineComponent->AddLine(BaseVertex0, ChildPos, BoneColor));
 
                 // Base circle edge
-                BL.ConeBase.Add(BoneLineComponent->AddLine(BaseVertex0, BaseVertex1, FVector4(1, 1, 1, 1)));
+                BL.ConeBase.Add(BoneLineComponent->AddLine(BaseVertex0, BaseVertex1, BoneColor));
             }
         }
 
         // Joint sphere visualization (3 orthogonal rings)
-        BL.Rings.reserve(NumSegments*3);
+        // : uses JointOwner color
+        BL.Rings.reserve(JointSegments * 3);
 
-        for (int k = 0; k < NumSegments; ++k)
+        int32 owner = JointOwner[i];
+        FVector4 JointColor = GetBoneColor(owner);
+
+        for (int k = 0; k < JointSegments; ++k)
         {
-            const float a0 = (static_cast<float>(k) / NumSegments) * TWO_PI;
-            const float a1 = (static_cast<float>((k + 1) % NumSegments) / NumSegments) * TWO_PI;
+            const float a0 = (static_cast<float>(k) / JointSegments) * TWO_PI;
+            const float a1 = (static_cast<float>((k + 1) % JointSegments) / JointSegments) * TWO_PI;
+
+            // XY ring
             BL.Rings.Add(BoneLineComponent->AddLine(
                 Center + FVector(BoneJointRadius * std::cos(a0), BoneJointRadius * std::sin(a0), 0.0f),
                 Center + FVector(BoneJointRadius * std::cos(a1), BoneJointRadius * std::sin(a1), 0.0f),
-                FVector4(0.8f,0.8f,0.8f,1.0f)));
+                JointColor));
+
+            // XZ ring
             BL.Rings.Add(BoneLineComponent->AddLine(
                 Center + FVector(BoneJointRadius * std::cos(a0), 0.0f, BoneJointRadius * std::sin(a0)),
                 Center + FVector(BoneJointRadius * std::cos(a1), 0.0f, BoneJointRadius * std::sin(a1)),
-                FVector4(0.8f,0.8f,0.8f,1.0f)));
+                JointColor));
+
+            // YZ ring
             BL.Rings.Add(BoneLineComponent->AddLine(
                 Center + FVector(0.0f, BoneJointRadius * std::cos(a0), BoneJointRadius * std::sin(a0)),
                 Center + FVector(0.0f, BoneJointRadius * std::cos(a1), BoneJointRadius * std::sin(a1)),
-                FVector4(0.8f,0.8f,0.8f,1.0f)));
+                JointColor));
         }
     }
+}
+
+FVector4 ASkeletalMeshActor::GetBoneColor(int32 BoneIndex)
+{
+    const float GoldenAngle = 0.618033988749895f;
+
+    float Hue = fmodf(BoneIndex * GoldenAngle, 1.0f);
+    float Saturation = 0.65f;
+    float Value = 0.95f;
+
+    return HSVtoRGB(Hue, Saturation, Value);
+}
+
+FVector4 ASkeletalMeshActor::HSVtoRGB(float H, float S, float V)
+{
+    float C = V * S;
+    float X = C * (1.0f - fabsf(fmodf(H * 6.0f, 2.0f) - 1.0f));
+    float m = V - C;
+
+    float r, g, b;
+    float h6 = H * 6.0f;
+
+    if (h6 < 1.0f) { r = C; g = X; b = 0; }
+    else if (h6 < 2.0f) { r = X; g = C; b = 0; }
+    else if (h6 < 3.0f) { r = 0; g = C; b = X; }
+    else if (h6 < 4.0f) { r = 0; g = X; b = C; }
+    else if (h6 < 5.0f) { r = X; g = 0; b = C; }
+    else { r = C; g = 0; b = X; }
+
+    return FVector4(r + m, g + m, b + m, 1.0f);
 }
 
 void ASkeletalMeshActor::UpdateBoneSelectionHighlight(int32 SelectedBoneIndex)
@@ -414,6 +480,30 @@ void ASkeletalMeshActor::UpdateBoneSelectionHighlight(int32 SelectedBoneIndex)
     }
 }
 
+void ASkeletalMeshActor::RestoreOriginalBoneColors()
+{
+    USkeletalMesh* SkeletalMesh = SkeletalMeshComponent->GetSkeletalMesh();
+    const FSkeletalMeshData* Data = SkeletalMesh->GetSkeletalMeshData();
+    const auto& Bones = Data->Skeleton.Bones;
+    const int32 BoneCount = (int32)Bones.size();
+
+    for (int32 i = 0; i < BoneCount; ++i)
+    {
+        FVector4 ConeColor = GetBoneColor(i);
+        FVector4 JointColor = GetBoneColor(JointOwner[i]);
+
+        for (ULine* L : BoneLinesCache[i].ConeEdges)
+            if (L) L->SetColor(ConeColor);
+
+        for (ULine* L : BoneLinesCache[i].ConeBase)
+            if (L) L->SetColor(ConeColor);
+
+        // Restore to Joint Owner color
+        for (ULine* L : BoneLinesCache[i].Rings)
+            if (L) L->SetColor(JointColor);
+    }
+}
+
 void ASkeletalMeshActor::UpdateBoneSubtreeTransforms(int32 BoneIndex)
 {
     if (!SkeletalMeshComponent)
@@ -459,8 +549,6 @@ void ASkeletalMeshActor::UpdateBoneSubtreeTransforms(int32 BoneIndex)
         Centers[b] = FVector(O.M[3][0], O.M[3][1], O.M[3][2]);
     }
 
-    const int NumSegments = CachedSegments;
-
     for (int32 b : ToUpdate)
     {
         FBoneDebugLines& BL = BoneLinesCache[b];
@@ -491,10 +579,10 @@ void ASkeletalMeshActor::UpdateBoneSubtreeTransforms(int32 BoneIndex)
             const float Radius = std::min(BoneBaseRadius, BoneLength * 0.15f);
 
             // Update cone lines
-            for (int k = 0; k < NumSegments && k < BL.ConeEdges.Num(); ++k)
+            for (int k = 0; k < ConeSegments && k < BL.ConeEdges.Num(); ++k)
             {
-                const float angle0 = (static_cast<float>(k) / NumSegments) * TWO_PI;
-                const float angle1 = (static_cast<float>((k + 1) % NumSegments) / NumSegments) * TWO_PI;
+                const float angle0 = (static_cast<float>(k) / ConeSegments) * TWO_PI;
+                const float angle1 = (static_cast<float>((k + 1) % ConeSegments) / ConeSegments) * TWO_PI;
 
                 const FVector BaseVertex0 = ParentPos + Right * (Radius * std::cos(angle0)) + Forward * (Radius * std::sin(angle0));
                 const FVector BaseVertex1 = ParentPos + Right * (Radius * std::cos(angle1)) + Forward * (Radius * std::sin(angle1));
@@ -516,10 +604,10 @@ void ASkeletalMeshActor::UpdateBoneSubtreeTransforms(int32 BoneIndex)
         // Update joint rings
         const FVector Center = Centers[b];
 
-        for (int k = 0; k < NumSegments; ++k)
+        for (int k = 0; k < JointSegments; ++k)
         {
-            const float a0 = (static_cast<float>(k) / NumSegments) * TWO_PI;
-            const float a1 = (static_cast<float>((k + 1) % NumSegments) / NumSegments) * TWO_PI;
+            const float a0 = (static_cast<float>(k) / JointSegments) * TWO_PI;
+            const float a1 = (static_cast<float>((k + 1) % JointSegments) / JointSegments) * TWO_PI;
             const int base = k * 3;
             if (BL.Rings.IsEmpty() || base + 2 >= BL.Rings.Num()) break;
             BL.Rings[base+0]->SetLine(
