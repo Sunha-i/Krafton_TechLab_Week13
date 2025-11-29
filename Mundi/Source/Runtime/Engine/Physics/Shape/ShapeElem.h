@@ -57,11 +57,14 @@ public:
           UserData(this)
     {}
     
-    virtual ~FShapeElem() = default;
+    virtual ~FShapeElem();
 
-    const FShapeElem& operator=(const FShapeElem& Other)
+    FShapeElem& operator=(const FShapeElem& Other)
     {
-        CloneElem(Other);
+        if (this != &Other)
+        {
+            CloneElem(Other);
+        }
         return *this;
     }
 
@@ -86,7 +89,7 @@ public:
     }
 
     // RTTI용 static 변수
-    inline static EAggCollisionShape StaticShapeType = EAggCollisionShape::Unknown;
+    static EAggCollisionShape StaticShapeType;
 
     // 충돌 판정 여유 거리, 0보다 크게 한다
     // 물체가 떨리는 jitter 방지

@@ -23,8 +23,7 @@ struct FSphylElem : public FShapeElem
           Length(InLength)
     {}
 
-    // FAggreagateGeom.cpp에서 default 지정
-    virtual ~FSphylElem() override = default;
+    virtual ~FSphylElem() override;
     
     friend bool operator==(const FSphylElem& LHS, const FSphylElem& RHS)
     {
@@ -34,11 +33,12 @@ struct FSphylElem : public FShapeElem
                 (LHS.Length == RHS.Length);
     }
 
+    FAABB CalcAABB(const FTransform& ParentTransform);
+
     FVector Center;
     FQuat Rotation;
     float Radius;
     float Length;
 
-    // FAggreagateGeom.cpp에서 값 대입
-    inline static EAggCollisionShape StaticShapeType = EAggCollisionShape::Sphyl;
+    static EAggCollisionShape StaticShapeType;
 };

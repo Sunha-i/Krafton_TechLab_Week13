@@ -15,7 +15,7 @@ struct FSphereElem : public FShapeElem
           Radius(InRadius)
     {}
 
-    virtual ~FSphereElem() override = default;
+    virtual ~FSphereElem() override;
 
     friend bool operator==(const FSphereElem& LHS, const FSphereElem& RHS)
     {
@@ -23,9 +23,11 @@ struct FSphereElem : public FShapeElem
                 (LHS.Radius == RHS.Radius);
     }
 
+    FAABB CalcAABB(const FTransform& ParentTransform);
 
+    // 부모의 원점에서 얼마나 떨어져 있는지를 나타내는 local offset
     FVector Center;
     float Radius;
 
-    inline static EAggCollisionShape StaticShapeType = EAggCollisionShape::Sphere;
+    static EAggCollisionShape StaticShapeType;
 };

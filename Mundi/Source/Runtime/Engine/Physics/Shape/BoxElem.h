@@ -24,7 +24,7 @@ struct FBoxElem : public FShapeElem
           X(InX), Y(InY), Z(InZ)
     {}
     
-    virtual ~FBoxElem() override = default;
+    virtual ~FBoxElem() override;
 
     friend bool operator==(const FBoxElem& LHS, const  FBoxElem& RHS)
     {
@@ -32,6 +32,8 @@ struct FBoxElem : public FShapeElem
                 (LHS.Rotation == RHS.Rotation) &&
                 (LHS.X == RHS.X) && (LHS.Y == RHS.Y) && (LHS.Z == RHS.Z);
     }
+
+    FAABB CalcAABB(const FTransform& ParentTransform);
     
     FVector Center;
     FQuat Rotation;
@@ -40,5 +42,5 @@ struct FBoxElem : public FShapeElem
     // 언리얼 방식대로 전체 길이 저장
     float X, Y, Z;
 
-    inline static EAggCollisionShape StaticShapeType = EAggCollisionShape::Box;
+    static EAggCollisionShape StaticShapeType;
 };
