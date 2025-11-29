@@ -10,6 +10,7 @@
 #include "World.h"
 #include "CollisionManager.h"
 #include "WorldPartitionManager.h"
+#include "BodySetup.h"
 
 // ────────────────────────────────────────────────────────────────────────────
 // 생성자 / 소멸자
@@ -20,6 +21,10 @@ UCapsuleComponent::UCapsuleComponent()
 	CapsuleRadius = 50.0f;
 	CapsuleHalfHeight = 100.0f;
 	UpdateBounds();
+
+	// BodySetup 생성 및 초기화
+	ShapeBodySetup = ObjectFactory::NewObject<UBodySetup>();
+	UpdateBodySetup();
 }
 
 UCapsuleComponent::~UCapsuleComponent()
@@ -43,6 +48,7 @@ void UCapsuleComponent::SetCapsuleSize(float InRadius, float InHalfHeight, bool 
 	if (bUpdateBoundsNow)
 	{
 		UpdateBounds();
+		UpdateBodySetup();
 
 		// BVH 업데이트를 위해 dirty 마킹
 		if (UWorld* World = GetWorld())
@@ -55,6 +61,13 @@ void UCapsuleComponent::SetCapsuleSize(float InRadius, float InHalfHeight, bool 
 			{
 				Partition->MarkDirty(this);
 			}
+		}
+
+		// 물리 상태가 이미 있으면 재생성
+		if (HasValidPhysicsState())
+		{
+			DestroyPhysicsState();
+			CreatePhysicsState();
 		}
 	}
 }
@@ -452,4 +465,18 @@ bool UCapsuleComponent::ContainsPoint(const FVector& Point) const
 
 	// 거리가 반지름보다 작거나 같으면 포함
 	return DistanceSquared <= (Radius * Radius);
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// 물리 BodySetup 업데이트
+// ────────────────────────────────────────────────────────────────────────────
+
+void UCapsuleComponent::UpdateBodySetup()
+{
+	if (ShapeBodySetup)
+	{
+		ShapeBodySetup->BodyType = EBodySetupType::Capsule;
+		ShapeBodySetup->SphereRadius = CapsuleRadius;
+		ShapeBodySetup->CapsuleHalfHeight = CapsuleHalfHeight;
+	}
 }

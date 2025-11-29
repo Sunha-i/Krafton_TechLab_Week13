@@ -10,6 +10,7 @@
 #include "World.h"
 #include "CollisionManager.h"
 #include "WorldPartitionManager.h"
+#include "BodySetup.h"
 
 // ────────────────────────────────────────────────────────────────────────────
 // 생성자 / 소멸자
@@ -19,6 +20,10 @@ UBoxComponent::UBoxComponent()
 {
 	BoxExtent = FVector(0.5f, 0.5f, 0.5f);
 	UpdateBounds();
+
+	// BodySetup 생성 및 초기화
+	ShapeBodySetup = ObjectFactory::NewObject<UBodySetup>();
+	UpdateBodySetup();
 }
 
 UBoxComponent::~UBoxComponent()
@@ -41,6 +46,7 @@ void UBoxComponent::SetBoxExtent(const FVector& InExtent, bool bUpdateBoundsNow)
 	if (bUpdateBoundsNow)
 	{
 		UpdateBounds();
+		UpdateBodySetup();
 
 		// BVH 업데이트를 위해 dirty 마킹
 		if (UWorld* World = GetWorld())
@@ -53,6 +59,13 @@ void UBoxComponent::SetBoxExtent(const FVector& InExtent, bool bUpdateBoundsNow)
 			{
 				Partition->MarkDirty(this);
 			}
+		}
+
+		// 물리 상태가 이미 있으면 재생성
+		if (HasValidPhysicsState())
+		{
+			DestroyPhysicsState();
+			CreatePhysicsState();
 		}
 	}
 }
@@ -273,4 +286,17 @@ bool UBoxComponent::ContainsPoint(const FVector& Point) const
 	bool bInsideZ = FMath::Abs(Point.Z - BoxCenter.Z) <= BoxExt.Z;
 
 	return bInsideX && bInsideY && bInsideZ;
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// 물리 BodySetup 업데이트
+// ────────────────────────────────────────────────────────────────────────────
+
+void UBoxComponent::UpdateBodySetup()
+{
+	if (ShapeBodySetup)
+	{
+		ShapeBodySetup->BodyType = EBodySetupType::Box;
+		ShapeBodySetup->BoxExtent = BoxExtent;
+	}
 }

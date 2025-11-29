@@ -7,6 +7,7 @@
 #include "BVHierarchy.h"
 #include "GameObject.h"
 #include "CollisionManager.h"
+#include "BodySetup.h"
 // IMPLEMENT_CLASS is now auto-generated in .generated.cpp
 UShapeComponent::UShapeComponent() : bShapeIsVisible(true), bShapeHiddenInGame(true)
 {
