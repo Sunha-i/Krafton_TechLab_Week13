@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PhysSceneImpl.h
@@ -67,14 +67,6 @@ public:
 
 private:
     bool CreateScene(UWorld* InOwningWorld);
-    void CreateTestActors();  // 좌표계 변환 검증용 테스트 함수
-
-    // 헬퍼 함수: 동적 박스 생성
-    physx::PxRigidDynamic* CreateDynamicBox(
-        physx::PxPhysics* Physics,
-        const physx::PxTransform& Pose,
-        float HalfExtent,
-        const char* DebugName = nullptr);
 
     // PhysX 객체
     physx::PxScene* PScene = nullptr;
