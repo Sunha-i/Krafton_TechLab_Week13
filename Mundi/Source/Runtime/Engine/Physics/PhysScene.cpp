@@ -277,20 +277,48 @@ void FPhysSceneImpl::Simulate(float DeltaSeconds)
     if (!PScene)
         return;
 
-    // 시간 제한
-    DeltaSeconds = FMath::Clamp(DeltaSeconds, 1.0f / 240.0f, 1.0f / 30.0f);
+    // ═══════════════════════════════════════════════════════════════════════
+    // Fixed Timestep 물리 시뮬레이션
+    // ═══════════════════════════════════════════════════════════════════════
+    // 프레임레이트와 무관하게 일정한 물리 시뮬레이션 속도를 보장합니다.
+    // Debug(저FPS)와 Release(고FPS) 빌드에서 동일한 물리 결과를 얻습니다.
 
-    bIsSimulating = true;
-    PScene->simulate(DeltaSeconds);
+    // 비정상적으로 큰 DeltaTime 제한 (예: 디버거 일시정지 후)
+    DeltaSeconds = FMath::Min(DeltaSeconds, MaxSubsteps * FixedTimestep);
+
+    // 시간 누적
+    AccumulatedTime += DeltaSeconds;
+
+    // 누적 시간이 FixedTimestep에 도달할 때마다 물리 스텝 실행
+    int32 NumSteps = 0;
+    while (AccumulatedTime >= FixedTimestep && NumSteps < MaxSubsteps)
+    {
+        bIsSimulating = true;
+        PScene->simulate(FixedTimestep);
+        PScene->fetchResults(true);
+        bIsSimulating = false;
+
+        AccumulatedTime -= FixedTimestep;
+        NumSteps++;
+    }
+
+    // 마지막 스텝 이후 Active Actors Transform 동기화
+    if (NumSteps > 0)
+    {
+        SyncActiveActorsToComponents();
+    }
 }
 
 void FPhysSceneImpl::FetchResults()
 {
-    if (!PScene || !bIsSimulating)
-        return;
+    // TODO: 비동기 물리 시뮬레이션 전환 시 이 함수에서 결과 수집 및 동기화 수행
+    // 현재는 Fixed Timestep 동기 방식으로 Simulate() 내부에서 모든 처리 완료
+}
 
-    PScene->fetchResults(true);
-    bIsSimulating = false;
+void FPhysSceneImpl::SyncActiveActorsToComponents()
+{
+    if (!PScene)
+        return;
 
     // Active Actors Transform 동기화
     PxU32 NumActiveActors = 0;
