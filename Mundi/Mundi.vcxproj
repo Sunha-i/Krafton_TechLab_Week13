@@ -254,6 +254,7 @@ xcopy /y /d "$(ProjectDir)ThirdParty\lib\Lua\lua54.dll" "$(OutDir)"</Command>
     <ClCompile Include="Generated\URotatingMovementComponent.generated.cpp" />
     <ClCompile Include="Generated\USceneComponent.generated.cpp" />
     <ClCompile Include="Generated\UShapeComponent.generated.cpp" />
+    <ClCompile Include="Generated\USimpleWheeledVehicleMovementComponent.generated.cpp" />
     <ClCompile Include="Generated\USphereComponent.generated.cpp" />
     <ClCompile Include="Generated\USpotLightComponent.generated.cpp" />
     <ClCompile Include="Generated\UStaticMeshComponent.generated.cpp" />
@@ -292,6 +293,7 @@ xcopy /y /d "$(ProjectDir)ThirdParty\lib\Lua\lua54.dll" "$(OutDir)"</Command>
     <ClCompile Include="Source\Runtime\Engine\Components\CharacterMovementComponent.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Components\InputComponent.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Components\PropertyTestComponent.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\Components\SimpleWheeledVehicleMovementComponent.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Components\SkeletalMeshComponent.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Components\SkinnedMeshComponent.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Components\SpringArmComponent.cpp" />
@@ -820,6 +822,7 @@ xcopy /y /d "$(ProjectDir)ThirdParty\lib\Lua\lua54.dll" "$(OutDir)"</Command>
     <ClInclude Include="Generated\URotatingMovementComponent.generated.h" />
     <ClInclude Include="Generated\USceneComponent.generated.h" />
     <ClInclude Include="Generated\UShapeComponent.generated.h" />
+    <ClInclude Include="Generated\USimpleWheeledVehicleMovementComponent.generated.h" />
     <ClInclude Include="Generated\USphereComponent.generated.h" />
     <ClInclude Include="Generated\USpotLightComponent.generated.h" />
     <ClInclude Include="Generated\UStaticMeshComponent.generated.h" />
@@ -875,6 +878,7 @@ xcopy /y /d "$(ProjectDir)ThirdParty\lib\Lua\lua54.dll" "$(OutDir)"</Command>
     <ClInclude Include="Source\Runtime\Engine\Components\BoxComponent.h" />
     <ClInclude Include="Source\Runtime\Engine\Components\BoneAnchorComponent.h" />
     <ClInclude Include="Source\Runtime\Engine\Components\ShapeComponent.h" />
+    <ClInclude Include="Source\Runtime\Engine\Components\SimpleWheeledVehicleMovementComponent.h" />
     <ClInclude Include="Source\Runtime\Engine\Components\SkeletalMeshComponent.h" />
     <ClInclude Include="Source\Runtime\Engine\Components\SkinnedMeshComponent.h" />
     <ClInclude Include="Source\Runtime\Engine\Components\SphereComponent.h" />
