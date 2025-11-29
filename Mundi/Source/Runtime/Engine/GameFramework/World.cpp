@@ -1,8 +1,5 @@
 ﻿#include "pch.h"
-
-// PhysX 연결 테스트용 (나중에 제거)
-#include <PxPhysicsAPI.h>
-
+#include "PhysScene.h"
 #include "SelectionManager.h"
 #include "Picking.h"
 #include "CameraActor.h"
@@ -96,39 +93,6 @@ UWorld::~UWorld()
 
 void UWorld::Initialize()
 {
-	// ========== PhysX 연결 테스트 (시작) ==========
-	{
-		using namespace physx;
-
-		static PxDefaultAllocator gAllocator;
-		static PxDefaultErrorCallback gErrorCallback;
-
-		PxFoundation* foundation = PxCreateFoundation(PX_PHYSICS_VERSION, gAllocator, gErrorCallback);
-		if (foundation)
-		{
-			UE_LOG("[PhysX] Foundation created successfully! PhysX version: %d.%d.%d",
-				PX_PHYSICS_VERSION_MAJOR, PX_PHYSICS_VERSION_MINOR, PX_PHYSICS_VERSION_BUGFIX);
-
-			PxPhysics* physics = PxCreatePhysics(PX_PHYSICS_VERSION, *foundation, PxTolerancesScale());
-			if (physics)
-			{
-				UE_LOG("[PhysX] Physics created successfully!");
-				physics->release();
-			}
-			else
-			{
-				UE_LOG("[PhysX] Failed to create Physics!");
-			}
-
-			foundation->release();
-		}
-		else
-		{
-			UE_LOG("[PhysX] Failed to create Foundation!");
-		}
-	}
-	// ========== PhysX 연결 테스트 (끝) ==========
-
 	// Create partition manager first, before CreateLevel() calls SetLevel()
 	// Skip for preview worlds to save ~190 MB
 	if (!IsPreviewWorld())
@@ -138,6 +102,10 @@ void UWorld::Initialize()
 		// Collision Manager 생성 (ShapeComponent용 BVH)
 		CollisionManager = std::make_unique<UCollisionManager>();
 		CollisionManager->SetWorld(this);
+
+		// Physics Scene 생성 (PhysX 물리 시뮬레이션)
+		PhysScene = std::make_unique<FPhysScene>();
+		PhysScene->InitPhysScene(this);
 	}
 
 	// 기본 씬을 생성합니다.
@@ -293,6 +261,14 @@ void UWorld::Tick(float DeltaSeconds)
         Partition->Update(DeltaSeconds, /*budget*/256);
     }
 
+	// 물리 시뮬레이션 (Actor Tick 전에 실행)
+	if (PhysScene && PhysScene->IsInitialized())
+	{
+		PhysScene->StartFrame();
+		PhysScene->Tick(GetDeltaTime(EDeltaTime::Game));
+		PhysScene->EndFrame();
+	}
+
 	if (Level)
 	{
 		// Tick 중에 새로운 actor가 추가될 수도 있어서 복사 후 호출
@@ -359,6 +335,10 @@ UWorld* UWorld::DuplicateWorldForPIE(UWorld* InEditorWorld)
 	PIEWorld->Partition = std::make_unique<UWorldPartitionManager>();
 	PIEWorld->CollisionManager = std::make_unique<UCollisionManager>();
 	PIEWorld->CollisionManager->SetWorld(PIEWorld);
+
+	// PIE 월드에 PhysScene 생성
+	PIEWorld->PhysScene = std::make_unique<FPhysScene>();
+	PIEWorld->PhysScene->InitPhysScene(PIEWorld);
 
 	// PIE 월드에 파티클 이벤트 매니저 생성
 	PIEWorld->ParticleEventManager = PIEWorld->SpawnActor<AParticleEventManager>();
