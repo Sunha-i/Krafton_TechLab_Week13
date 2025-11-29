@@ -227,6 +227,9 @@
     <ClCompile Include="Source\Runtime\Engine\Physics\PhysicsCore.cpp">
       <Filter>Source\Runtime\Engine\Physics</Filter>
     </ClCompile>
+    <ClCompile Include="Source\Runtime\Engine\Physics\PhysicsEventCallback.cpp">
+      <Filter>Source\Runtime\Engine\Physics</Filter>
+    </ClCompile>
     <ClCompile Include="Source\Runtime\Engine\Physics\PhysScene.cpp">
       <Filter>Source\Runtime\Engine\Physics</Filter>
     </ClCompile>
@@ -1311,6 +1314,12 @@
       <Filter>Source\Runtime\Engine\Physics</Filter>
     </ClInclude>
     <ClInclude Include="Source\Runtime\Engine\Physics\PhysicsCore.h">
+      <Filter>Source\Runtime\Engine\Physics</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Runtime\Engine\Physics\PhysicsEventCallback.h">
+      <Filter>Source\Runtime\Engine\Physics</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Runtime\Engine\Physics\HitResult.h">
       <Filter>Source\Runtime\Engine\Physics</Filter>
     </ClInclude>
     <ClInclude Include="Source\Runtime\Engine\Physics\PhysScene.h">

@@ -13,6 +13,8 @@
 #include "UEContainer.h"
 
 class UWorld;
+class FPhysScene;
+class FPhysicsEventCallback;
 
 /**
  * @brief FPhysScene의 PhysX 구현부
@@ -30,7 +32,7 @@ public:
     // 초기화/종료
     // ═══════════════════════════════════════════════════════════════════════
 
-    bool Initialize(UWorld* InOwningWorld);
+    bool Initialize(FPhysScene* InOwnerScene, UWorld* InOwningWorld);
     void Terminate();
     bool IsInitialized() const { return bInitialized; }
 
@@ -65,11 +67,23 @@ public:
 
 private:
     bool CreateScene(UWorld* InOwningWorld);
+    void CreateTestActors();  // 좌표계 변환 검증용 테스트 함수
+
+    // 헬퍼 함수: 동적 박스 생성
+    physx::PxRigidDynamic* CreateDynamicBox(
+        physx::PxPhysics* Physics,
+        const physx::PxTransform& Pose,
+        float HalfExtent,
+        const char* DebugName = nullptr);
 
     // PhysX 객체
     physx::PxScene* PScene = nullptr;
     physx::PxDefaultCpuDispatcher* CpuDispatcher = nullptr;
     physx::PxMaterial* DefaultMaterial = nullptr;
+    FPhysicsEventCallback* EventCallback = nullptr;
+
+    // 소유자
+    FPhysScene* OwnerScene = nullptr;
 
     // 상태
     bool bInitialized = false;
