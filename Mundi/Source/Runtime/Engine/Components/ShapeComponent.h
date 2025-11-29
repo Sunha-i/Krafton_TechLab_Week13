@@ -65,9 +65,22 @@ public:
 	// Duplication
 	virtual void DuplicateSubObjects() override;
 
-	// ㅡㅡㅡㅡㅡㅡㅡㅡㅡ디버깅용ㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡ
- 
+	// ═══════════════════════════════════════════════════════════════════════
+	// BodySetup (Shape별로 내부에서 관리)
+	// ═══════════════════════════════════════════════════════════════════════
+
+	/** 이 Shape의 BodySetup 반환 */
+	virtual UBodySetup* GetBodySetup() const override { return ShapeBodySetup; }
+
 protected:
+	/** Shape용 BodySetup (각 파생 클래스에서 초기화) */
+	UBodySetup* ShapeBodySetup = nullptr;
+
+	/** BodySetup 생성/업데이트 (Shape 크기 변경 시 호출) */
+	virtual void UpdateBodySetup() {}
+
+	// ㅡㅡㅡㅡㅡㅡㅡㅡㅡ디버깅용ㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡ
+
 	mutable FAABB WorldAABB; //브로드 페이즈 용
 	TSet<UShapeComponent*> OverlapNow; // 이번 프레임에서 overlap 된 Shap Comps
 	TSet<UShapeComponent*> OverlapPrev; // 지난 프레임에서 overlap 됐으면 Cache

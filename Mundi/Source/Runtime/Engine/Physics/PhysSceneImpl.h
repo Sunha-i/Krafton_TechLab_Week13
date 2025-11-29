@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PhysSceneImpl.h
@@ -45,6 +45,9 @@ public:
     void FetchResults();
     bool IsSimulating() const { return bIsSimulating; }
 
+    /** Active Actors의 Transform을 Component에 동기화 */
+    void SyncActiveActorsToComponents();
+
     // ═══════════════════════════════════════════════════════════════════════
     // 중력 설정
     // ═══════════════════════════════════════════════════════════════════════
@@ -67,14 +70,6 @@ public:
 
 private:
     bool CreateScene(UWorld* InOwningWorld);
-    void CreateTestActors();  // 좌표계 변환 검증용 테스트 함수
-
-    // 헬퍼 함수: 동적 박스 생성
-    physx::PxRigidDynamic* CreateDynamicBox(
-        physx::PxPhysics* Physics,
-        const physx::PxTransform& Pose,
-        float HalfExtent,
-        const char* DebugName = nullptr);
 
     // PhysX 객체
     physx::PxScene* PScene = nullptr;
@@ -94,4 +89,17 @@ private:
     static constexpr float DefaultStaticFriction = 0.5f;
     static constexpr float DefaultDynamicFriction = 0.5f;
     static constexpr float DefaultRestitution = 0.6f;
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Fixed Timestep 설정
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /** 물리 시뮬레이션 고정 시간 간격 (1/60초 = 약 16.67ms) */
+    static constexpr float FixedTimestep = 1.0f / 60.0f;
+
+    /** 한 프레임에서 최대 허용 서브스텝 수 (무한 루프 방지) */
+    static constexpr int32 MaxSubsteps = 8;
+
+    /** 누적된 시간 (Fixed Timestep에 도달할 때까지 누적) */
+    float AccumulatedTime = 0.0f;
 };

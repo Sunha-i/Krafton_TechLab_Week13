@@ -2,6 +2,7 @@
 
 #include "SceneComponent.h"
 #include "Material.h"
+#include "BodyInstance.h"
 #include "UPrimitiveComponent.generated.h"
 
 // 전방 선언
@@ -10,6 +11,8 @@ struct FSceneCompData;
 class URenderer;
 struct FMeshBatchElement;
 class FSceneView;
+class UBodySetup;
+class FPhysScene;
 
 struct FOverlapInfo
 {
@@ -84,9 +87,45 @@ public:
     // ───── 직렬화 ────────────────────────────
     void Serialize(const bool bInIsLoading, JSON& InOutHandle) override;
 
+    // ═══════════════════════════════════════════════════════════════════════
+    // 물리 시스템 (언리얼 스타일)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /** 물리 바디 인스턴스 */
+    FBodyInstance BodyInstance;
+
+    /**
+     * @brief BodySetup 반환 (파생 클래스에서 오버라이드)
+     *
+     * ShapeComponent: 내부 BodySetup 반환
+     * StaticMeshComponent: UStaticMesh의 BodySetup 반환
+     */
+    virtual UBodySetup* GetBodySetup() const { return nullptr; }
+
+    /** 물리 상태 생성 (BeginPlay에서 호출) */
+    virtual void CreatePhysicsState();
+
+    /** 물리 상태 파괴 (EndPlay에서 호출) */
+    virtual void DestroyPhysicsState();
+
+    /** 물리 시뮬레이션 활성화/비활성화 */
+    void SetSimulatePhysics(bool bSimulate);
+
+    /** 트리거 설정 */
+    void SetIsTrigger(bool bTrigger);
+
+    /** 물리 상태가 생성되었는지 */
+    bool HasValidPhysicsState() const { return BodyInstance.IsInitialized(); }
+
 protected:
+    /** BeginPlay 오버라이드 */
+    virtual void BeginPlay() override;
+
+    /** EndPlay 오버라이드 */
+    virtual void EndPlay() override;
+
     bool bIsCulled = false;
-     
+
     // ───── 충돌 관련 ────────────────────────────
 
 };
