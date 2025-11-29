@@ -9,14 +9,14 @@
 // ┌─────────────┬─────────────────────────┬─────────────────────────┐
 // │    항목     │      Mundi 엔진         │        PhysX            │
 // ├─────────────┼─────────────────────────┼─────────────────────────┤
-// │   Up 축     │          Z              │          Y              │
-// │  Forward 축 │          X              │          Z              │
-// │  Right 축   │          Y              │          X              │
+// │   Up 축     │         +Z              │         +Y              │
+// │  Forward 축 │         +X              │         -Z              │
+// │  Right 축   │         +Y              │         +X              │
 // │ Handedness  │     Left-Handed         │     Right-Handed        │
 // └─────────────┴─────────────────────────┴─────────────────────────┘
 //
 // 변환 규칙:
-// - 위치: Mundi(X,Y,Z) → PhysX(Y,Z,X)
+// - 위치: Mundi(X,Y,Z) → PhysX(Y, Z, -X)
 // - 회전: 축 재배치 + Handedness 반전 (허수부 부호 반전)
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -27,30 +27,37 @@ namespace PhysicsConversion
 {
     // ═══════════════════════════════════════════════════════════════════════════
     // 위치 변환 (FVector ↔ PxVec3)
-    // 축 재배치: Mundi(X,Y,Z) → PhysX(Y,Z,X)
+    // 축 재배치: Mundi(X,Y,Z) → PhysX(Y, Z, -X)
     // ═══════════════════════════════════════════════════════════════════════════
 
     /**
      * @brief FVector를 PxVec3로 변환
      * @param V Mundi 좌표계의 벡터 (X=Forward, Y=Right, Z=Up)
-     * @return PhysX 좌표계의 벡터 (X=Right, Y=Up, Z=Forward)
+     * @return PhysX 좌표계의 벡터 (X=Right, Y=Up, Z=Back)
+     *
+     * @note PhysX는 Right-Handed이므로 Forward = -Z
      */
     inline physx::PxVec3 ToPxVec3(const FVector& V)
     {
         // Mundi: X=Forward, Y=Right, Z=Up
-        // PhysX: X=Right,   Y=Up,    Z=Forward
-        return physx::PxVec3(V.Y, V.Z, V.X);
+        // PhysX: X=Right,   Y=Up,    Z=Back (Forward = -Z)
+        // 변환: (Mundi.Y, Mundi.Z, -Mundi.X)
+        return physx::PxVec3(V.Y, V.Z, -V.X);
     }
 
     /**
      * @brief PxVec3를 FVector로 변환
-     * @param V PhysX 좌표계의 벡터 (X=Right, Y=Up, Z=Forward)
+     * @param V PhysX 좌표계의 벡터 (X=Right, Y=Up, Z=Back)
      * @return Mundi 좌표계의 벡터 (X=Forward, Y=Right, Z=Up)
+     *
+     * @note PhysX는 Right-Handed이므로 Forward = -Z
      */
     inline FVector ToFVector(const physx::PxVec3& V)
     {
-        // PhysX(x,y,z) → Mundi(z,x,y)
-        return FVector(V.z, V.x, V.y);
+        // PhysX: X=Right, Y=Up, Z=Back
+        // Mundi: X=Forward, Y=Right, Z=Up
+        // 변환: (-PhysX.z, PhysX.x, PhysX.y)
+        return FVector(-V.z, V.x, V.y);
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -64,12 +71,16 @@ namespace PhysicsConversion
      * @return PhysX 좌표계의 쿼터니언
      *
      * @note 변환 과정:
-     *       1. 축 재배치: (Qx,Qy,Qz) → (Qy,Qz,Qx)
+     *       1. 축 재배치: (Qx,Qy,Qz) → (Qy, Qz, -Qx)
      *       2. Handedness 반전: 허수부 부호 반전
+     *       최종: (-Qy, -Qz, Qx, Qw)
      */
     inline physx::PxQuat ToPxQuat(const FQuat& Q)
     {
-        return physx::PxQuat(-Q.Y, -Q.Z, -Q.X, Q.W);
+        // 축 재배치: (Qx,Qy,Qz) → (Qy,Qz,-Qx)
+        // Handedness 반전: 허수부 부호 반전
+        // 최종: (-Qy, -Qz, Qx, Qw)
+        return physx::PxQuat(-Q.Y, -Q.Z, Q.X, Q.W);
     }
 
     /**
@@ -79,11 +90,14 @@ namespace PhysicsConversion
      *
      * @note 변환 과정:
      *       1. Handedness 반전: 허수부 부호 반전
-     *       2. 축 재배치: (x,y,z) → (z,x,y)
+     *       2. 축 재배치: (x,y,z) → (-z,x,y)
+     *       최종: (Qz, -Qx, -Qy, Qw)
      */
     inline FQuat ToFQuat(const physx::PxQuat& Q)
     {
-        return FQuat(-Q.z, -Q.x, -Q.y, Q.w);
+        // 역변환: 축 재배치 + Handedness 반전
+        // PhysX(x,y,z,w) → Mundi(z, -x, -y, w)
+        return FQuat(Q.z, -Q.x, -Q.y, Q.w);
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -130,19 +144,19 @@ namespace PhysicsConversion
      * @return Mundi의 4x4 행렬 (Row-major)
      *
      * @note 축 재배치 행렬 (PhysX → Mundi):
-     *       | 0 0 1 0 |   (PhysX Z → Mundi X)
-     *       | 1 0 0 0 |   (PhysX X → Mundi Y)
-     *       | 0 1 0 0 |   (PhysX Y → Mundi Z)
-     *       | 0 0 0 1 |
+     *       | 0  0 -1 0 |   (PhysX -Z → Mundi X, Forward)
+     *       | 1  0  0 0 |   (PhysX X → Mundi Y, Right)
+     *       | 0  1  0 0 |   (PhysX Y → Mundi Z, Up)
+     *       | 0  0  0 1 |
      */
     inline FMatrix ToFMatrix(const physx::PxMat44& M)
     {
         FMatrix Result;
 
-        // Row 0 (Mundi X축 = PhysX Z축)
-        Result.M[0][0] = M.column2.z;
-        Result.M[0][1] = M.column2.x;
-        Result.M[0][2] = M.column2.y;
+        // Row 0 (Mundi X축 = PhysX -Z축)
+        Result.M[0][0] = -M.column2.z;
+        Result.M[0][1] = -M.column2.x;
+        Result.M[0][2] = -M.column2.y;
         Result.M[0][3] = 0;
 
         // Row 1 (Mundi Y축 = PhysX X축)
@@ -157,8 +171,8 @@ namespace PhysicsConversion
         Result.M[2][2] = M.column1.y;
         Result.M[2][3] = 0;
 
-        // Row 3 (Translation)
-        Result.M[3][0] = M.column3.z;
+        // Row 3 (Translation: -Z로 인한 부호 변경)
+        Result.M[3][0] = -M.column3.z;
         Result.M[3][1] = M.column3.x;
         Result.M[3][2] = M.column3.y;
         Result.M[3][3] = 1;
