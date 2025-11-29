@@ -1,4 +1,4 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "PhysScene.h"
 #include "PhysSceneImpl.h"
 #include "PhysicsCore.h"
@@ -182,7 +182,7 @@ bool FPhysSceneImpl::Initialize(FPhysScene* InOwnerScene, UWorld* InOwningWorld)
         DefaultStaticFriction, DefaultDynamicFriction, DefaultRestitution);
 
     // 테스트용 Actor 생성 (PVD 확인용)
-    CreateTestActors();
+    // CreateTestActors();
 
     bInitialized = true;
     return true;

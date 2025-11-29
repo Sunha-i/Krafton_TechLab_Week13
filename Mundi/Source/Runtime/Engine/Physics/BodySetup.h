@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 // ─────────────────────────────────────────────────────────────────────────────
 // BodySetup.h
@@ -11,6 +11,7 @@
 
 #include "Object.h"
 #include "Vector.h"
+#include "UBodySetup.generated.h"
 
 // 전방 선언 (PhysX 의존성 숨김)
 namespace physx
@@ -38,10 +39,11 @@ enum class EBodySetupType : uint8
  * 언리얼 엔진의 UBodySetup과 유사.
  * 여러 FBodyInstance가 동일한 UBodySetup을 공유하여 메모리 효율성 확보.
  */
+UCLASS(DisplayName = "충돌 기하 데이터", Description = "공유 가능한 충돌 기하 데이터 입니다")
 class UBodySetup : public UObject
 {
 public:
-    DECLARE_CLASS(UBodySetup, UObject)
+    GENERATED_REFLECTION_BODY()
 
     UBodySetup();
     virtual ~UBodySetup() = default;

@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version='1.0' encoding='utf-8'?>
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="4.0">
   <ItemGroup>
     <FxCompile Include="Shaders\Materials\Fireball.hlsl">
@@ -1114,6 +1114,15 @@
     </ClCompile>
     <ClCompile Include="Source\Slate\Windows\SPhysicsAssetEditorWindow.cpp">
       <Filter>Source\Slate\Windows</Filter>
+    </ClCompile>
+    <ClCompile Include="Generated\APhysBoxActor.generated.cpp">
+      <Filter>Generated</Filter>
+    </ClCompile>
+    <ClCompile Include="Generated\APhysGroundActor.generated.cpp">
+      <Filter>Generated</Filter>
+    </ClCompile>
+    <ClCompile Include="Generated\UBodySetup.generated.cpp">
+      <Filter>Generated</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -2359,6 +2368,15 @@
     </ClInclude>
     <ClInclude Include="Source\Slate\Windows\SPhysicsAssetEditorWindow.h">
       <Filter>Source\Slate\Windows</Filter>
+    </ClInclude>
+    <ClInclude Include="Generated\APhysBoxActor.generated.h">
+      <Filter>Generated</Filter>
+    </ClInclude>
+    <ClInclude Include="Generated\APhysGroundActor.generated.h">
+      <Filter>Generated</Filter>
+    </ClInclude>
+    <ClInclude Include="Generated\UBodySetup.generated.h">
+      <Filter>Generated</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

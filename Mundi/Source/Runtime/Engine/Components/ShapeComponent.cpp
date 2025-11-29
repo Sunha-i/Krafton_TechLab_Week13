@@ -7,6 +7,7 @@
 #include "BVHierarchy.h"
 #include "GameObject.h"
 #include "CollisionManager.h"
+#include "BodySetup.h"
 // IMPLEMENT_CLASS is now auto-generated in .generated.cpp
 UShapeComponent::UShapeComponent() : bShapeIsVisible(true), bShapeHiddenInGame(true)
 {
@@ -248,6 +249,14 @@ FAABB UShapeComponent::GetWorldAABB() const
 void UShapeComponent::DuplicateSubObjects()
 {
     Super::DuplicateSubObjects();
+
+    //// ShapeBodySetup 깊은 복사 - PIE 복제 시 필요
+    //// 얕은 복사 후 원본 포인터를 그대로 가지면 PhysX Actor 생성 실패
+    //if (ShapeBodySetup)
+    //{
+    //    ShapeBodySetup = ObjectFactory::NewObject<UBodySetup>();
+    //    UpdateBodySetup();  // virtual - 자식 클래스(Box/Sphere/Capsule)의 구현 호출
+    //}
 }
 
 
