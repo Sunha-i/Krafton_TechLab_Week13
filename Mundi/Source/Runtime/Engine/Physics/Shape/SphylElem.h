@@ -23,19 +23,22 @@ struct FSphylElem : public FShapeElem
           Length(InLength)
     {}
 
-    bool operator==(const FSphylElem& RHS) const
+    // FAggreagateGeom.cpp에서 default 지정
+    virtual ~FSphylElem() override = default;
+    
+    friend bool operator==(const FSphylElem& LHS, const FSphylElem& RHS)
     {
-        return (this->Center == RHS.Center) &&
-                (this->Rotation == RHS.Rotation) &&
-                (this->Radius == RHS.Radius) &&
-                (this->Length == RHS.Length);
+        return (LHS.Center == RHS.Center) &&
+                (LHS.Rotation == RHS.Rotation) &&
+                (LHS.Radius == RHS.Radius) &&
+                (LHS.Length == RHS.Length);
     }
 
-    virtual ~FSphylElem() override = default;
     FVector Center;
     FQuat Rotation;
     float Radius;
     float Length;
 
+    // FAggreagateGeom.cpp에서 값 대입
     inline static EAggCollisionShape StaticShapeType = EAggCollisionShape::Sphyl;
 };

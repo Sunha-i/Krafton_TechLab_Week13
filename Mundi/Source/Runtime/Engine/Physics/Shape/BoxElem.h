@@ -1,8 +1,44 @@
 #pragma once
 #include "ShapeElem.h"
 
-class FBoxElem : public FShapeElem
+struct FBoxElem : public FShapeElem
 {
+    FBoxElem()
+        : FShapeElem(EAggCollisionShape::Box),
+          Center(FVector::Zero()),
+          Rotation(FQuat::Identity()),
+          X(1.0f), Y(1.0f), Z(1.0f)
+    {}
+
+    FBoxElem(float Size)
+        : FShapeElem(EAggCollisionShape::Box),
+          Center(FVector::Zero()),
+          Rotation(FQuat::Identity()),
+          X(Size), Y(Size), Z(Size)
+    {}
+
+    FBoxElem(float InX, float InY, float InZ)
+        : FShapeElem(EAggCollisionShape::Box),
+          Center(FVector::Zero()),
+          Rotation(FQuat::Identity()),
+          X(InX), Y(InY), Z(InZ)
+    {}
+    
+    virtual ~FBoxElem() override = default;
+
+    friend bool operator==(const FBoxElem& LHS, const  FBoxElem& RHS)
+    {
+        return (LHS.Center == RHS.Center) &&
+                (LHS.Rotation == RHS.Rotation) &&
+                (LHS.X == RHS.X) && (LHS.Y == RHS.Y) && (LHS.Z == RHS.Z);
+    }
+    
+    FVector Center;
+    FQuat Rotation;
+
+    // 언리얼에서는 box의 전체 길이를 저장하고 Chaos로 넘길 때 반으로 나눠서 Extent로 변환
+    // 언리얼 방식대로 전체 길이 저장
+    float X, Y, Z;
 
     inline static EAggCollisionShape StaticShapeType = EAggCollisionShape::Box;
 };
