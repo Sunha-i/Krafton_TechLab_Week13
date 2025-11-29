@@ -107,7 +107,7 @@
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories);ThirdParty\lib\Lua\;ThirdParty\lib\DirectXTex\$(Configuration)\;ThirdParty\lib\FBXSDK\$(Configuration)\;ThirdParty\lib\DirectXTK\$(Configuration)\;ThirdParty\lib\PhysX\$(Configuration)\</AdditionalLibraryDirectories>
-      <AdditionalDependencies>DirectXTK.lib;DirectXTex.lib;%(AdditionalDependencies);lua54.lib;libfbxsdk-md.lib;alembic-md.lib;libxml2-md.lib;zlib-md.lib;PhysX_static_64.lib;PhysXCommon_static_64.lib;PhysXFoundation_static_64.lib;PhysXExtensions_static_64.lib;PhysXPvdSDK_static_64.lib;PhysXCooking_static_64.lib</AdditionalDependencies>
+      <AdditionalDependencies>DirectXTK.lib;DirectXTex.lib;%(AdditionalDependencies);lua54.lib;libfbxsdk-md.lib;alembic-md.lib;libxml2-md.lib;zlib-md.lib;PhysX_static_64.lib;PhysXCommon_static_64.lib;PhysXFoundation_static_64.lib;PhysXExtensions_static_64.lib;PhysXPvdSDK_static_64.lib;PhysXCooking_static_64.lib;PhysXVehicle_static_64.lib</AdditionalDependencies>
       <AdditionalOptions>/IGNORE:4099 %(AdditionalOptions)</AdditionalOptions>
     </Link>
     <PreBuildEvent>
@@ -137,7 +137,7 @@ xcopy /y /d "$(ProjectDir)ThirdParty\lib\Lua\lua54.dll" "$(OutDir)"</Command>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories);ThirdParty\lib\Lua\;ThirdParty\lib\DirectXTex\Debug\;ThirdParty\lib\DirectXTK\Debug\;ThirdParty\lib\FBXSDK\Debug\;ThirdParty\lib\PhysX\Debug\</AdditionalLibraryDirectories>
-      <AdditionalDependencies>DirectXTK.lib;DirectXTex.lib;%(AdditionalDependencies);lua54.lib;libfbxsdk-md.lib;alembic-md.lib;libxml2-md.lib;zlib-md.lib;PhysX_static_64.lib;PhysXCommon_static_64.lib;PhysXFoundation_static_64.lib;PhysXExtensions_static_64.lib;PhysXPvdSDK_static_64.lib;PhysXCooking_static_64.lib</AdditionalDependencies>
+      <AdditionalDependencies>DirectXTK.lib;DirectXTex.lib;%(AdditionalDependencies);lua54.lib;libfbxsdk-md.lib;alembic-md.lib;libxml2-md.lib;zlib-md.lib;PhysX_static_64.lib;PhysXCommon_static_64.lib;PhysXFoundation_static_64.lib;PhysXExtensions_static_64.lib;PhysXPvdSDK_static_64.lib;PhysXCooking_static_64.lib;PhysXVehicle_static_64.lib</AdditionalDependencies>
       <AdditionalOptions>/IGNORE:4099 %(AdditionalOptions)</AdditionalOptions>
     </Link>
     <PreBuildEvent>
@@ -171,7 +171,7 @@ xcopy /y /d "$(ProjectDir)ThirdParty\lib\Lua\lua54.dll" "$(OutDir)"</Command>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories);ThirdParty\lib\Lua\;ThirdParty\lib\DirectXTex\$(Configuration)\;ThirdParty\lib\FBXSDK\$(Configuration)\;ThirdParty\lib\DirectXTK\$(Configuration)\;ThirdParty\lib\PhysX\$(Configuration)\</AdditionalLibraryDirectories>
-      <AdditionalDependencies>DirectXTK.lib;DirectXTex.lib;%(AdditionalDependencies);lua54.lib;libfbxsdk-md.lib;alembic-md.lib;libxml2-md.lib;zlib-md.lib;PhysX_static_64.lib;PhysXCommon_static_64.lib;PhysXFoundation_static_64.lib;PhysXExtensions_static_64.lib;PhysXPvdSDK_static_64.lib;PhysXCooking_static_64.lib</AdditionalDependencies>
+      <AdditionalDependencies>DirectXTK.lib;DirectXTex.lib;%(AdditionalDependencies);lua54.lib;libfbxsdk-md.lib;alembic-md.lib;libxml2-md.lib;zlib-md.lib;PhysX_static_64.lib;PhysXCommon_static_64.lib;PhysXFoundation_static_64.lib;PhysXExtensions_static_64.lib;PhysXPvdSDK_static_64.lib;PhysXCooking_static_64.lib;PhysXVehicle_static_64.lib</AdditionalDependencies>
       <AdditionalOptions>/IGNORE:4099 %(AdditionalOptions)</AdditionalOptions>
     </Link>
     <PreBuildEvent>
@@ -205,7 +205,7 @@ xcopy /y /d "$(ProjectDir)ThirdParty\lib\Lua\lua54.dll" "$(OutDir)"</Command>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories);ThirdParty\lib\Lua\;ThirdParty\lib\DirectXTex\Release\;ThirdParty\lib\FBXSDK\Release\;ThirdParty\lib\DirectXTK\Release\;ThirdParty\lib\PhysX\Release\</AdditionalLibraryDirectories>
-      <AdditionalDependencies>DirectXTK.lib;DirectXTex.lib;%(AdditionalDependencies);lua54.lib;libfbxsdk-md.lib;alembic-md.lib;libxml2-md.lib;zlib-md.lib;PhysX_static_64.lib;PhysXCommon_static_64.lib;PhysXFoundation_static_64.lib;PhysXExtensions_static_64.lib;PhysXPvdSDK_static_64.lib;PhysXCooking_static_64.lib</AdditionalDependencies>
+      <AdditionalDependencies>DirectXTK.lib;DirectXTex.lib;%(AdditionalDependencies);lua54.lib;libfbxsdk-md.lib;alembic-md.lib;libxml2-md.lib;zlib-md.lib;PhysX_static_64.lib;PhysXCommon_static_64.lib;PhysXFoundation_static_64.lib;PhysXExtensions_static_64.lib;PhysXPvdSDK_static_64.lib;PhysXCooking_static_64.lib;PhysXVehicle_static_64.lib</AdditionalDependencies>
       <AdditionalOptions>/IGNORE:4099 %(AdditionalOptions)</AdditionalOptions>
     </Link>
     <PreBuildEvent>
