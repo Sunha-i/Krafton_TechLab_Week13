@@ -1115,6 +1115,12 @@
     <ClCompile Include="Source\Slate\Windows\SPhysicsAssetEditorWindow.cpp">
       <Filter>Source\Slate\Windows</Filter>
     </ClCompile>
+    <ClCompile Include="Source\Runtime\Engine\Components\SimpleWheeledVehicleMovementComponent.cpp">
+      <Filter>Source\Runtime\Engine\Components</Filter>
+    </ClCompile>
+    <ClCompile Include="Generated\USimpleWheeledVehicleMovementComponent.generated.cpp">
+      <Filter>Generated</Filter>
+    </ClCompile>
     <ClCompile Include="Generated\APhysBoxActor.generated.cpp">
       <Filter>Generated</Filter>
     </ClCompile>
@@ -2362,6 +2368,12 @@
     </ClInclude>
     <ClInclude Include="Source\Runtime\Engine\Particles\ParticleEventGeneratorTypes.h">
       <Filter>Source\Runtime\Engine\Particles</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Runtime\Engine\Components\SimpleWheeledVehicleMovementComponent.h">
+      <Filter>Source\Runtime\Engine\Components</Filter>
+    </ClInclude>
+    <ClInclude Include="Generated\USimpleWheeledVehicleMovementComponent.generated.h">
+      <Filter>Generated</Filter>
     </ClInclude>
     <ClInclude Include="Source\Runtime\Engine\Viewer\PhysicsAssetEditorBootstrap.h">
       <Filter>Source\Runtime\Engine\Viewer</Filter>
