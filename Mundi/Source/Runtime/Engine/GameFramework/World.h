@@ -29,7 +29,7 @@ class FOcclusionCullingManagerCPU;
 class APlayerCameraManager;
 class AParticleEventManager;
 class UCollisionManager;
-class UPhysicsManager;
+class FPhysScene;
 
 struct FTransform;
 struct FSceneCompData;
@@ -131,7 +131,7 @@ public:
     UWorldPartitionManager* GetPartitionManager() { return Partition.get(); }
     AParticleEventManager* GetParticleEventManager() { return ParticleEventManager; }
     UCollisionManager* GetCollisionManager() { return CollisionManager.get(); }
-    UPhysicsManager* GetPhysicsManager() { return PhysicsManager.get(); }
+    FPhysScene* GetPhysScene() { return PhysScene.get(); }
 
     // PIE용 World 생성
     static UWorld* DuplicateWorldForPIE(UWorld* InEditorWorld);
@@ -178,8 +178,8 @@ private:
     // Collision Manager (ShapeComponent용 BVH)
     std::unique_ptr<UCollisionManager> CollisionManager;
 
-    // Physics Manager (PhysX 물리 시뮬레이션)
-    std::unique_ptr<UPhysicsManager> PhysicsManager;
+    // Physics Scene (PhysX 물리 시뮬레이션)
+    std::unique_ptr<FPhysScene> PhysScene;
 
     // Per-world selection manager
     std::unique_ptr<USelectionManager> SelectionMgr;

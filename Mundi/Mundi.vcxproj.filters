@@ -224,7 +224,10 @@
     <ClCompile Include="Source\Runtime\Engine\Viewer\ViewerState.cpp">
       <Filter>Source\Runtime\Engine\Viewer</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Runtime\Engine\Physics\PhysicsManager.cpp">
+    <ClCompile Include="Source\Runtime\Engine\Physics\PhysicsCore.cpp">
+      <Filter>Source\Runtime\Engine\Physics</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Runtime\Engine\Physics\PhysScene.cpp">
       <Filter>Source\Runtime\Engine\Physics</Filter>
     </ClCompile>
     <ClCompile Include="Source\Runtime\Engine\Animation\AnimationRuntime.cpp">
@@ -1307,7 +1310,13 @@
     <ClInclude Include="Source\Runtime\Engine\Physics\PhysicsTypes.h">
       <Filter>Source\Runtime\Engine\Physics</Filter>
     </ClInclude>
-    <ClInclude Include="Source\Runtime\Engine\Physics\PhysicsManager.h">
+    <ClInclude Include="Source\Runtime\Engine\Physics\PhysicsCore.h">
+      <Filter>Source\Runtime\Engine\Physics</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Runtime\Engine\Physics\PhysScene.h">
+      <Filter>Source\Runtime\Engine\Physics</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Runtime\Engine\Physics\PhysSceneImpl.h">
       <Filter>Source\Runtime\Engine\Physics</Filter>
     </ClInclude>
     <ClInclude Include="Source\Runtime\Engine\Animation\AnimationAsset.h">

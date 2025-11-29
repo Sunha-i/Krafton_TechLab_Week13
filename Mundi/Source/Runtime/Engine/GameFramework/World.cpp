@@ -1,6 +1,5 @@
 ﻿#include "pch.h"
-
-#include "PhysicsManager.h"
+#include "PhysScene.h"
 #include "SelectionManager.h"
 #include "Picking.h"
 #include "CameraActor.h"
@@ -104,9 +103,9 @@ void UWorld::Initialize()
 		CollisionManager = std::make_unique<UCollisionManager>();
 		CollisionManager->SetWorld(this);
 
-		// Physics Manager 생성 (PhysX 물리 시뮬레이션)
-		PhysicsManager = std::make_unique<UPhysicsManager>();
-		PhysicsManager->Initialize(this);
+		// Physics Scene 생성 (PhysX 물리 시뮬레이션)
+		PhysScene = std::make_unique<FPhysScene>();
+		PhysScene->InitPhysScene(this);
 	}
 
 	// 기본 씬을 생성합니다.
@@ -263,10 +262,11 @@ void UWorld::Tick(float DeltaSeconds)
     }
 
 	// 물리 시뮬레이션 (Actor Tick 전에 실행)
-	if (PhysicsManager && PhysicsManager->IsInitialized())
+	if (PhysScene && PhysScene->IsInitialized())
 	{
-		PhysicsManager->Simulate(GetDeltaTime(EDeltaTime::Game));
-		PhysicsManager->FetchResults(true);
+		PhysScene->StartFrame();
+		PhysScene->Tick(GetDeltaTime(EDeltaTime::Game));
+		PhysScene->EndFrame();
 	}
 
 	if (Level)
@@ -336,9 +336,9 @@ UWorld* UWorld::DuplicateWorldForPIE(UWorld* InEditorWorld)
 	PIEWorld->CollisionManager = std::make_unique<UCollisionManager>();
 	PIEWorld->CollisionManager->SetWorld(PIEWorld);
 
-	// PIE 월드에 PhysicsManager 생성
-	PIEWorld->PhysicsManager = std::make_unique<UPhysicsManager>();
-	PIEWorld->PhysicsManager->Initialize(PIEWorld);
+	// PIE 월드에 PhysScene 생성
+	PIEWorld->PhysScene = std::make_unique<FPhysScene>();
+	PIEWorld->PhysScene->InitPhysScene(PIEWorld);
 
 	// PIE 월드에 파티클 이벤트 매니저 생성
 	PIEWorld->ParticleEventManager = PIEWorld->SpawnActor<AParticleEventManager>();

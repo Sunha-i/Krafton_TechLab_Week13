@@ -271,7 +271,8 @@ xcopy /y /d "$(ProjectDir)ThirdParty\lib\Lua\lua54.dll" "$(OutDir)"</Command>
     <ClCompile Include="Source\Runtime\AssetManagement\SkeletalMesh.cpp" />
     <ClCompile Include="Source\Runtime\Core\Misc\DebugUtils.cpp" />
     <ClCompile Include="Source\Runtime\Core\Misc\VertexData.cpp" />
-    <ClCompile Include="Source\Runtime\Engine\Physics\PhysicsManager.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\Physics\PhysicsCore.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\Physics\PhysScene.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Animation\AnimationRuntime.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Animation\AnimBlendMath.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Animation\AnimBlendSpace2D.cpp" />
@@ -831,7 +832,9 @@ xcopy /y /d "$(ProjectDir)ThirdParty\lib\Lua\lua54.dll" "$(OutDir)"</Command>
     <ClInclude Include="Source\Runtime\Core\Object\ObjectMacros.h" />
     <ClInclude Include="Source\Runtime\Core\Object\Property.h" />
     <ClInclude Include="Source\Runtime\Engine\Physics\PhysicsTypes.h" />
-    <ClInclude Include="Source\Runtime\Engine\Physics\PhysicsManager.h" />
+    <ClInclude Include="Source\Runtime\Engine\Physics\PhysicsCore.h" />
+    <ClInclude Include="Source\Runtime\Engine\Physics\PhysScene.h" />
+    <ClInclude Include="Source\Runtime\Engine\Physics\PhysSceneImpl.h" />
     <ClInclude Include="Source\Runtime\Engine\Animation\AnimationAsset.h" />
     <ClInclude Include="Source\Runtime\Engine\Animation\AnimBlendMath.h" />
     <ClInclude Include="Source\Runtime\Engine\Animation\AnimBlendSpace2D.h" />
