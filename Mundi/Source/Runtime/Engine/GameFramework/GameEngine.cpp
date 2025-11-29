@@ -7,6 +7,7 @@
 #include <ObjManager.h>
 #include "FAudioDevice.h"
 #include <sol/sol.hpp>
+#include "PhysicsCore.h"
 
 float UGameEngine::ClientWidth = 1024.0f;
 float UGameEngine::ClientHeight = 1024.0f;
@@ -199,6 +200,9 @@ bool UGameEngine::Startup(HINSTANCE hInstance)
     // Preload audio assets
     FAudioDevice::Preload();
 
+    // PhysX 전역 초기화 (World 생성 전에 호출해야 함)
+    FPhysicsCore::Get().Init();
+
     ///////////////////////////////////
     WorldContexts.Add(FWorldContext(NewObject<UWorld>(), EWorldType::Game));
     GWorld = WorldContexts[0].World;
@@ -347,6 +351,9 @@ void UGameEngine::Shutdown()
 
     // Shutdown audio device
     FAudioDevice::Shutdown();
+
+    // PhysX 전역 종료 (World 삭제 후 호출)
+    FPhysicsCore::Get().Shutdown();
 
     // Explicitly release D3D11RHI resources before global destruction
     RHIDevice.Release();

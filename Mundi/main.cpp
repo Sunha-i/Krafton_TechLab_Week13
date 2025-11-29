@@ -14,7 +14,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 {
     // 심볼 서버 자동 설정 (가장 먼저 호출)
     // 별도 설정 없이 덤프 파일 분석 가능
-    FDebugUtils::InitializeSymbolServer();
+    // FDebugUtils::InitializeSymbolServer();
 
     // 크래시 핸들러 초기화 (모든 예외를 캐치하여 MiniDump 생성)
     FPlatformCrashHandler::InitializeCrashHandler();

@@ -6,6 +6,7 @@
 #include "FbxLoader.h"
 #include "PlatformCrashHandler.h"
 #include <ObjManager.h>
+#include "PhysicsCore.h"
 
 float UEditorEngine::ClientWidth = 1024.0f;
 float UEditorEngine::ClientHeight = 1024.0f;
@@ -192,10 +193,13 @@ bool UEditorEngine::Startup(HINSTANCE hInstance)
     UI.Initialize(HWnd, RHIDevice.GetDevice(), RHIDevice.GetDeviceContext());
     INPUT.Initialize(HWnd);
 
-    FObjManager::Preload(); 
+    FObjManager::Preload();
     UFbxLoader::PreLoad();
 
     FAudioDevice::Preload();
+
+    // PhysX 전역 초기화 (World 생성 전에 호출해야 함)
+    FPhysicsCore::Get().Init();
 
     ///////////////////////////////////
     WorldContexts.Add(FWorldContext(NewObject<UWorld>(), EWorldType::Editor));
@@ -352,7 +356,10 @@ void UEditorEngine::Shutdown()
 
     // AudioDevice 종료
     FAudioDevice::Shutdown();
-     
+
+    // PhysX 전역 종료 (World 삭제 후 호출)
+    FPhysicsCore::Get().Shutdown();
+
     // IMPORTANT: Explicitly release Renderer before RHIDevice destructor runs
     // Renderer may hold references to D3D resources
     Renderer.reset();

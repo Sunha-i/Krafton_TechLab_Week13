@@ -9,8 +9,11 @@
 #include "Windows/ControlPanelWindow.h"
 #include "Windows/SViewportWindow.h"
 #include "Windows/SViewerWindow.h"
-#include "Windows/SBlendSpaceEditorWindow.h"
 #include "Windows/SSkeletalMeshViewerWindow.h"
+#include "Windows/SAnimationViewerWindow.h"
+#include "Windows/SBlendSpaceEditorWindow.h"
+#include "Windows/SParticleEditorWindow.h"
+#include "Windows/SPhysicsAssetEditorWindow.h"
 #include "Windows/ConsoleWindow.h"
 #include "Windows/ContentBrowserWindow.h"
 #include "Widgets/MainToolbarWidget.h"
@@ -211,6 +214,11 @@ void USlateManager::OpenAssetViewer(UEditorAssetPreviewContext* Context)
             TargetWindow = static_cast<SViewerWindow*>(Window);
             break;
         }
+        if (ViewerType == EViewerType::PhysicsAsset && dynamic_cast<SPhysicsAssetEditorWindow*>(Window))
+        {
+            TargetWindow = static_cast<SViewerWindow*>(Window);
+            break;
+        }
     }
 
     // 2. If a window of the target type already exists, tell it to open or focus a tab.
@@ -237,6 +245,9 @@ void USlateManager::OpenAssetViewer(UEditorAssetPreviewContext* Context)
             break;
         case EViewerType::Particle:
             NewViewer = new SParticleEditorWindow();
+            break;
+        case EViewerType::PhysicsAsset:
+            NewViewer = new SPhysicsAssetEditorWindow();
             break;
         default:
             UE_LOG("ERROR: Unsupported asset type for viewer.");

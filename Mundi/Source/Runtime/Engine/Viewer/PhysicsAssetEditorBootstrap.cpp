@@ -1,12 +1,11 @@
 ﻿#include "pch.h"
-#include "SkeletalViewerBootstrap.h"
-#include "CameraActor.h"
-#include "Source/Runtime/Engine/Viewer/ViewerState.h"
+#include "PhysicsAssetEditorBootstrap.h"
 #include "FViewport.h"
 #include "FViewportClient.h"
+#include "CameraActor.h"
 #include "Source/Runtime/Engine/GameFramework/SkeletalMeshActor.h"
 
-ViewerState* SkeletalViewerBootstrap::CreateViewerState(const char* Name, UWorld* InWorld, ID3D11Device* InDevice)
+ViewerState* PhysicsAssetEditorBootstrap::CreateViewerState(const char* Name, UWorld* InWorld, ID3D11Device* InDevice)
 {
     if (!InDevice) return nullptr;
 
@@ -20,7 +19,7 @@ ViewerState* SkeletalViewerBootstrap::CreateViewerState(const char* Name, UWorld
     State->World->GetRenderSettings().DisableShowFlag(EEngineShowFlags::SF_EditorIcon);
 
     State->World->GetGizmoActor()->SetSpace(EGizmoSpace::Local);
-    
+
     // Viewport + client per tab
     State->Viewport = new FViewport();
     // 프레임 마다 initial size가 바꿜 것이다
@@ -59,7 +58,7 @@ ViewerState* SkeletalViewerBootstrap::CreateViewerState(const char* Name, UWorld
     return State;
 }
 
-void SkeletalViewerBootstrap::DestroyViewerState(ViewerState*& State)
+void PhysicsAssetEditorBootstrap::DestroyViewerState(ViewerState*& State)
 {
     if (!State) return;
     if (State->Viewport) { delete State->Viewport; State->Viewport = nullptr; }
