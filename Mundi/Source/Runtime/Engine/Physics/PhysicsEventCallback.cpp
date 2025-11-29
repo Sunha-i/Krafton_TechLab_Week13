@@ -3,6 +3,9 @@
 #include "PhysScene.h"
 #include "HitResult.h"
 #include "PhysicsTypes.h"
+#include "BodyInstance.h"
+#include "PrimitiveComponent.h"
+#include "Actor.h"
 #include "GlobalConsole.h"
 
 using namespace physx;
@@ -33,40 +36,82 @@ void FPhysicsEventCallback::onContact(
         return;
     }
 
+    // userData에서 FBodyInstance 추출
+    FBodyInstance* BodyInst0 = static_cast<FBodyInstance*>(PairHeader.actors[0]->userData);
+    FBodyInstance* BodyInst1 = static_cast<FBodyInstance*>(PairHeader.actors[1]->userData);
+
+    // 테스트용 Actor는 userData가 없음
+    if (!BodyInst0 || !BodyInst1)
+    {
+        // Phase 1 로그 출력 (기존 코드 유지)
+        for (PxU32 i = 0; i < NbPairs; ++i)
+        {
+            const PxContactPair& ContactPair = Pairs[i];
+            bool bNewContact = (ContactPair.events & PxPairFlag::eNOTIFY_TOUCH_FOUND);
+            if (bNewContact)
+            {
+                ++TotalContactEvents;
+
+                // 충돌 정보 추출
+                FHitResult HitResult;
+                ExtractHitResult(ContactPair, PairHeader, true, HitResult);
+
+                UE_LOG("===========================================================");
+                UE_LOG("[Contact] #%u - Collision (no BodyInstance)", TotalContactEvents);
+                UE_LOG("  Impact Point (Mundi): (%.2f, %.2f, %.2f)",
+                    HitResult.ImpactPoint.X, HitResult.ImpactPoint.Y, HitResult.ImpactPoint.Z);
+                UE_LOG("===========================================================");
+            }
+        }
+        return;
+    }
+
+    UPrimitiveComponent* Comp0 = BodyInst0->OwnerComponent;
+    UPrimitiveComponent* Comp1 = BodyInst1->OwnerComponent;
+
+    if (!Comp0 || !Comp1)
+    {
+        return;
+    }
+
     // 각 ContactPair 처리
     for (PxU32 i = 0; i < NbPairs; ++i)
     {
         const PxContactPair& ContactPair = Pairs[i];
 
         // 충돌 시작/유지/종료 확인
-        // PxFlags와 int 비교 시 C++20 호환성 문제로 명시적 캐스트 사용
         bool bNewContact = (ContactPair.events & PxPairFlag::eNOTIFY_TOUCH_FOUND);
-        bool bContactPersist = (ContactPair.events & PxPairFlag::eNOTIFY_TOUCH_PERSISTS);
         bool bContactLost = (ContactPair.events & PxPairFlag::eNOTIFY_TOUCH_LOST);
 
         if (bNewContact)
         {
             ++TotalContactEvents;
 
-            // 충돌 정보 추출
-            FHitResult HitResult;
-            ExtractHitResult(ContactPair, PairHeader, true, HitResult);
+            // HitResult 추출
+            FHitResult HitResult0;
+            ExtractHitResult(ContactPair, PairHeader, true, HitResult0);
+            HitResult0.HitActor = Comp1->GetOwner();
+            HitResult0.HitComponent = Comp1;
 
-            // Log collision info (Mundi coordinate system)
-            UE_LOG("===========================================================");
-            UE_LOG("[Contact] #%u - New collision detected!", TotalContactEvents);
-            UE_LOG("  Impact Point (Mundi): (%.2f, %.2f, %.2f)",
-                HitResult.ImpactPoint.X, HitResult.ImpactPoint.Y, HitResult.ImpactPoint.Z);
-            UE_LOG("  Impact Normal (Mundi): (%.2f, %.2f, %.2f)",
-                HitResult.ImpactNormal.X, HitResult.ImpactNormal.Y, HitResult.ImpactNormal.Z);
-            UE_LOG("  Penetration Depth: %.4f", HitResult.PenetrationDepth);
-            UE_LOG("  Contact Count: %u", ContactPair.contactCount);
-            UE_LOG("===========================================================");
+            // 델리게이트 브로드캐스트
+            AActor* Owner0 = Comp0->GetOwner();
+            AActor* Owner1 = Comp1->GetOwner();
 
-            // Phase 2에서 추가할 코드:
-            // FBodyInstance* BodyInst0 = static_cast<FBodyInstance*>(PairHeader.actors[0]->userData);
-            // FBodyInstance* BodyInst1 = static_cast<FBodyInstance*>(PairHeader.actors[1]->userData);
-            // Comp0->OnComponentHit.Broadcast(...);
+            if (Owner0)
+            {
+                Owner0->OnComponentHit.Broadcast(Comp0, Comp1);
+            }
+            if (Owner1)
+            {
+                FHitResult HitResult1;
+                ExtractHitResult(ContactPair, PairHeader, false, HitResult1);
+                HitResult1.HitActor = Comp0->GetOwner();
+                HitResult1.HitComponent = Comp0;
+
+                Owner1->OnComponentHit.Broadcast(Comp1, Comp0);
+            }
+
+            UE_LOG("[Contact] #%u - Hit event broadcast", TotalContactEvents);
         }
         else if (bContactLost)
         {
@@ -92,22 +137,57 @@ void FPhysicsEventCallback::onTrigger(PxTriggerPair* Pairs, PxU32 Count)
             continue;
         }
 
+        // userData에서 FBodyInstance 추출
+        FBodyInstance* TriggerBody = static_cast<FBodyInstance*>(TriggerPair.triggerActor->userData);
+        FBodyInstance* OtherBody = static_cast<FBodyInstance*>(TriggerPair.otherActor->userData);
+
+        if (!TriggerBody || !OtherBody)
+        {
+            ++TotalTriggerEvents;
+            UE_LOG("[Trigger] #%u - Trigger event (no BodyInstance)", TotalTriggerEvents);
+            continue;
+        }
+
+        UPrimitiveComponent* TriggerComp = TriggerBody->OwnerComponent;
+        UPrimitiveComponent* OtherComp = OtherBody->OwnerComponent;
+
+        if (!TriggerComp || !OtherComp)
+        {
+            continue;
+        }
+
+        AActor* TriggerOwner = TriggerComp->GetOwner();
+        AActor* OtherOwner = OtherComp->GetOwner();
+
         ++TotalTriggerEvents;
 
-        // Check trigger enter/exit
         if (TriggerPair.status == PxPairFlag::eNOTIFY_TOUCH_FOUND)
         {
-            UE_LOG("===========================================================");
-            UE_LOG("[Trigger] #%u - Trigger entered (BeginOverlap)", TotalTriggerEvents);
-            UE_LOG("===========================================================");
+            // BeginOverlap 델리게이트
+            if (TriggerOwner)
+            {
+                TriggerOwner->OnComponentBeginOverlap.Broadcast(TriggerComp, OtherComp);
+            }
+            if (OtherOwner)
+            {
+                OtherOwner->OnComponentBeginOverlap.Broadcast(OtherComp, TriggerComp);
+            }
 
-            // Phase 2: TriggerComp->OnComponentBeginOverlap.Broadcast(...);
+            UE_LOG("[Trigger] #%u - BeginOverlap broadcast", TotalTriggerEvents);
         }
         else if (TriggerPair.status == PxPairFlag::eNOTIFY_TOUCH_LOST)
         {
-            UE_LOG("[Trigger] Trigger exited (EndOverlap)");
+            // EndOverlap 델리게이트
+            if (TriggerOwner)
+            {
+                TriggerOwner->OnComponentEndOverlap.Broadcast(TriggerComp, OtherComp);
+            }
+            if (OtherOwner)
+            {
+                OtherOwner->OnComponentEndOverlap.Broadcast(OtherComp, TriggerComp);
+            }
 
-            // Phase 2: TriggerComp->OnComponentEndOverlap.Broadcast(...);
+            UE_LOG("[Trigger] #%u - EndOverlap broadcast", TotalTriggerEvents);
         }
     }
 }

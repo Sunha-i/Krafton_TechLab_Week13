@@ -129,6 +129,10 @@ public:
 	 */
 	bool ContainsPoint(const FVector& Point) const;
 
+protected:
+	/** BodySetup 업데이트 (Capsule 크기 반영) */
+	void UpdateBodySetup() override;
+
 private:
 	/** 현재 Bounds (캐시됨) */
 	FBoxSphereBounds CachedBounds;

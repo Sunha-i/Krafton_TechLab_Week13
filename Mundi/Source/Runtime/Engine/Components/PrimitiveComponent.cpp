@@ -3,6 +3,9 @@
 #include "SceneComponent.h"
 #include "Actor.h"
 #include "WorldPartitionManager.h"
+#include "BodySetup.h"
+#include "PhysScene.h"
+#include "World.h"
 // IMPLEMENT_CLASS is now auto-generated in .generated.cpp
 UPrimitiveComponent::UPrimitiveComponent() : bGenerateOverlapEvents(true)
 {
@@ -72,4 +75,58 @@ bool UPrimitiveComponent::IsOverlappingActor(const AActor* Other) const
         }
     }
     return false;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 물리 시스템
+// ═══════════════════════════════════════════════════════════════════════════
+
+void UPrimitiveComponent::BeginPlay()
+{
+    Super::BeginPlay();
+    CreatePhysicsState();
+}
+
+void UPrimitiveComponent::EndPlay()
+{
+    DestroyPhysicsState();
+    Super::EndPlay();
+}
+
+void UPrimitiveComponent::CreatePhysicsState()
+{
+    // BodySetup이 없으면 물리 상태 생성 안 함
+    UBodySetup* Setup = GetBodySetup();
+    if (!Setup)
+    {
+        return;
+    }
+
+    if (UWorld* World = GetWorld())
+    {
+        if (FPhysScene* PhysScene = World->GetPhysScene())
+        {
+            BodyInstance.InitBody(Setup, GetWorldTransform(), this, PhysScene);
+        }
+    }
+}
+
+void UPrimitiveComponent::DestroyPhysicsState()
+{
+    BodyInstance.TermBody();
+}
+
+void UPrimitiveComponent::SetSimulatePhysics(bool bSimulate)
+{
+    BodyInstance.bSimulatePhysics = bSimulate;
+    if (BodyInstance.IsInitialized())
+    {
+        BodyInstance.SetSimulatePhysics(bSimulate);
+    }
+}
+
+void UPrimitiveComponent::SetIsTrigger(bool bTrigger)
+{
+    BodyInstance.bIsTrigger = bTrigger;
+    // 이미 생성된 경우 재생성 필요 (또는 Shape 플래그 수정)
 }

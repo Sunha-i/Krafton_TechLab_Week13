@@ -4,6 +4,7 @@
 #include "PhysicsCore.h"
 #include "PhysicsTypes.h"
 #include "PhysicsEventCallback.h"
+#include "BodyInstance.h"
 #include "World.h"
 #include "GlobalConsole.h"
 
@@ -291,7 +292,21 @@ void FPhysSceneImpl::FetchResults()
     PScene->fetchResults(true);
     bIsSimulating = false;
 
-    // TODO: Active Actors 처리 (FBodyInstance 연동)
+    // Active Actors Transform 동기화
+    PxU32 NumActiveActors = 0;
+    PxActor** ActiveActors = PScene->getActiveActors(NumActiveActors);
+
+    for (PxU32 i = 0; i < NumActiveActors; ++i)
+    {
+        if (PxRigidActor* RigidActor = ActiveActors[i]->is<PxRigidActor>())
+        {
+            FBodyInstance* BodyInst = static_cast<FBodyInstance*>(RigidActor->userData);
+            if (BodyInst && BodyInst->IsInScene())
+            {
+                BodyInst->SyncPhysicsToComponent();
+            }
+        }
+    }
 }
 
 void FPhysSceneImpl::SetGravity(const PxVec3& InGravity)

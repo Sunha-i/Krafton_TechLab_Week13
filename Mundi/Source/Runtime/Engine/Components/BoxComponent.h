@@ -109,6 +109,10 @@ public:
 	 */
 	bool ContainsPoint(const FVector& Point) const;
 
+protected:
+	/** BodySetup 업데이트 (Box Extent 반영) */
+	void UpdateBodySetup() override;
+
 private:
 	/** 현재 Bounds (캐시됨) */
 	FBoxSphereBounds CachedBounds;
