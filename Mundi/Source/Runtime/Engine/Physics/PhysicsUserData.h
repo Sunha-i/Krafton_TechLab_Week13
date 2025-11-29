@@ -127,7 +127,7 @@ inline FConstraintInstance* FUserData::Get(void* UserData)
         return nullptr;
     }
 
-    FUserData* Data = static_cast<FUserData*>(ConstraintInstance);
+    FUserData* Data = static_cast<FUserData*>(UserData);
     if (Data->Type != EUserDataType::PhysScene)
     {
         return nullptr;
