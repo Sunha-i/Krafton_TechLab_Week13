@@ -154,7 +154,7 @@ void SViewportWindow::OnUpdate(float DeltaSeconds)
 	uint32 NewHeight = static_cast<uint32>(Rect.Bottom - Rect.Top);
 
 	Viewport->Resize(NewStartX, NewStartY, NewWidth, NewHeight);
-	ViewportClient->Tick(DeltaSeconds);
+	ViewportClient->Tick(Viewport, DeltaSeconds);
 }
 
 void SViewportWindow::OnMouseMove(FVector2D MousePos)

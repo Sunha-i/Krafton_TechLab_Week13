@@ -188,6 +188,15 @@ void ACameraActor::ProcessEditorCameraInput(float DeltaSeconds)
     }
 }
 
+void ACameraActor::ApplyZoomInput(float WheelDelta, float DeltaSeconds)
+{
+    const float ZoomSpeed = CameraMoveSpeed;
+    const FVector Forward = GetForward();
+    const float MovementAmount = WheelDelta * ZoomSpeed * DeltaSeconds * 5.0f;
+    const FVector CurrentLocation = GetActorLocation();
+    SetActorLocation(CurrentLocation + Forward * MovementAmount);
+}
+
 void ACameraActor::Serialize(const bool bInIsLoading, JSON& InOutHandle)
 {
     Super::Serialize(bInIsLoading, InOutHandle);
@@ -306,4 +315,11 @@ void ACameraActor::ProcessCameraMovement(float DeltaSeconds)
         const FVector P = GetActorLocation();
         SetActorLocation(P + Move);
     }
+}
+
+void ACameraActor::ProcessCameraZoom(float DeltaSeconds)
+{
+    UInputManager& InputManager = UInputManager::GetInstance();
+    float WheelDelta = InputManager.GetMouseWheelDelta();
+    ApplyZoomInput(WheelDelta, DeltaSeconds);
 }
