@@ -1,4 +1,4 @@
-<?xml version='1.0' encoding='utf-8'?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="4.0">
   <ItemGroup>
     <FxCompile Include="Shaders\Materials\Fireball.hlsl">
@@ -1129,6 +1129,18 @@
     </ClCompile>
     <ClCompile Include="Generated\UBodySetup.generated.cpp">
       <Filter>Generated</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Runtime\Engine\Physics\BodyInstance.cpp">
+      <Filter>Source\Runtime\Engine\Physics</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Runtime\Engine\Physics\BodySetup.cpp">
+      <Filter>Source\Runtime\Engine\Physics</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Runtime\Engine\GameFramework\PhysBoxActor.cpp">
+      <Filter>Source\Runtime\Engine\GameFramework</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Runtime\Engine\GameFramework\PhysGroundActor.cpp">
+      <Filter>Source\Runtime\Engine\GameFramework</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -2389,6 +2401,18 @@
     </ClInclude>
     <ClInclude Include="Generated\UBodySetup.generated.h">
       <Filter>Generated</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Runtime\Engine\Physics\BodyInstance.h">
+      <Filter>Source\Runtime\Engine\Physics</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Runtime\Engine\Physics\BodySetup.h">
+      <Filter>Source\Runtime\Engine\Physics</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Runtime\Engine\GameFramework\PhysBoxActor.h">
+      <Filter>Source\Runtime\Engine\GameFramework</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Runtime\Engine\GameFramework\PhysGroundActor.h">
+      <Filter>Source\Runtime\Engine\GameFramework</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
