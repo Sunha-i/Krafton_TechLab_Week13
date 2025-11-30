@@ -24,6 +24,12 @@ class UCapsuleComponent : public UShapeComponent
 public:
 	GENERATED_REFLECTION_BODY()
 
+	/** 기본 CapsuleRadius 값 (Archetype 공유용) */
+	static const float DefaultCapsuleRadius;
+
+	/** 기본 CapsuleHalfHeight 값 (Archetype 공유용) */
+	static const float DefaultCapsuleHalfHeight;
+
 	UCapsuleComponent();
 
 protected:
@@ -130,6 +136,16 @@ public:
 	bool ContainsPoint(const FVector& Point) const;
 
 protected:
+	// ────────────────────────────────────────────────
+	// Archetype 패턴 오버라이드
+	// ────────────────────────────────────────────────
+
+	/** 클래스 공유 기본 BodySetup 반환 */
+	virtual UBodySetup* GetDefaultBodySetup() const override;
+
+	/** 현재 Capsule 크기가 기본값인지 확인 */
+	virtual bool IsUsingDefaultParameters() const override;
+
 	/** BodySetup 업데이트 (Capsule 크기 반영) */
 	void UpdateBodySetup() override;
 

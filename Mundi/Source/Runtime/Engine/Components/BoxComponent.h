@@ -23,6 +23,9 @@ class UBoxComponent : public UShapeComponent
 public:
 	GENERATED_REFLECTION_BODY()
 
+	/** 기본 BoxExtent 값 (Archetype 공유용) */
+	static const FVector DefaultBoxExtent;
+
 	UBoxComponent();
 
 protected:
@@ -33,11 +36,6 @@ public:
 	// 복사 관련
 	// ────────────────────────────────────────────────
 	void DuplicateSubObjects() override;
-
-	// ────────────────────────────────────────────────
-	// 직렬화
-	// ────────────────────────────────────────────────
-	void Serialize(const bool bInIsLoading, JSON& InOutHandle) override;
 
 public:
 	// ────────────────────────────────────────────────
@@ -115,6 +113,16 @@ public:
 	bool ContainsPoint(const FVector& Point) const;
 
 protected:
+	// ────────────────────────────────────────────────
+	// Archetype 패턴 오버라이드
+	// ────────────────────────────────────────────────
+
+	/** 클래스 공유 기본 BodySetup 반환 */
+	virtual UBodySetup* GetDefaultBodySetup() const override;
+
+	/** 현재 BoxExtent가 기본값인지 확인 */
+	virtual bool IsUsingDefaultParameters() const override;
+
 	/** BodySetup 업데이트 (Box Extent 반영) */
 	void UpdateBodySetup() override;
 

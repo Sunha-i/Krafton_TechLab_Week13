@@ -23,6 +23,9 @@ class USphereComponent : public UShapeComponent
 public:
 	GENERATED_REFLECTION_BODY()
 
+	/** 기본 SphereRadius 값 (Archetype 공유용) */
+	static const float DefaultSphereRadius;
+
 	USphereComponent();
 
 protected:
@@ -110,6 +113,16 @@ public:
 	bool ContainsPoint(const FVector& Point) const;
 
 protected:
+	// ────────────────────────────────────────────────
+	// Archetype 패턴 오버라이드
+	// ────────────────────────────────────────────────
+
+	/** 클래스 공유 기본 BodySetup 반환 */
+	virtual UBodySetup* GetDefaultBodySetup() const override;
+
+	/** 현재 SphereRadius가 기본값인지 확인 */
+	virtual bool IsUsingDefaultParameters() const override;
+
 	/** BodySetup 업데이트 (Sphere Radius 반영) */
 	void UpdateBodySetup() override;
 

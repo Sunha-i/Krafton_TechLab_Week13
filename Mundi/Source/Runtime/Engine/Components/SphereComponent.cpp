@@ -13,17 +13,21 @@
 #include "BodySetup.h"
 
 // ────────────────────────────────────────────────────────────────────────────
+// 기본값 정의 (Archetype 공유용)
+// ────────────────────────────────────────────────────────────────────────────
+
+const float USphereComponent::DefaultSphereRadius = 50.0f;
+
+// ────────────────────────────────────────────────────────────────────────────
 // 생성자 / 소멸자
 // ────────────────────────────────────────────────────────────────────────────
 
 USphereComponent::USphereComponent()
 {
-	SphereRadius = 50.0f;
+	SphereRadius = DefaultSphereRadius;
+	bUseArchetypeBodySetup = true;  // 기본값이므로 Archetype 공유
+	// ShapeBodySetup 생성하지 않음 - GetDefaultBodySetup()에서 공유
 	UpdateBounds();
-
-	// BodySetup 생성 및 초기화
-	ShapeBodySetup = ObjectFactory::NewObject<UBodySetup>();
-	UpdateBodySetup();
 }
 
 USphereComponent::~USphereComponent()
@@ -251,12 +255,33 @@ bool USphereComponent::ContainsPoint(const FVector& Point) const
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// 물리 BodySetup 업데이트
+// Archetype 패턴 구현
 // ────────────────────────────────────────────────────────────────────────────
+
+UBodySetup* USphereComponent::GetDefaultBodySetup() const
+{
+	// Static 기본 BodySetup (클래스당 1개, 모든 기본값 인스턴스가 공유)
+	static UBodySetup* DefaultSetup = nullptr;
+	if (!DefaultSetup)
+	{
+		DefaultSetup = ObjectFactory::NewObject<UBodySetup>();
+		DefaultSetup->BodyType = EBodySetupType::Sphere;
+		DefaultSetup->SphereRadius = DefaultSphereRadius;
+	}
+	return DefaultSetup;
+}
+
+bool USphereComponent::IsUsingDefaultParameters() const
+{
+	return SphereRadius == DefaultSphereRadius;
+}
 
 void USphereComponent::UpdateBodySetup()
 {
-	if (ShapeBodySetup)
+	Super::UpdateBodySetup();  // EnsureBodySetupIsValid() 호출
+
+	// 자체 BodySetup을 사용하는 경우에만 값 설정
+	if (!bUseArchetypeBodySetup && ShapeBodySetup)
 	{
 		ShapeBodySetup->BodyType = EBodySetupType::Sphere;
 		ShapeBodySetup->SphereRadius = SphereRadius;
