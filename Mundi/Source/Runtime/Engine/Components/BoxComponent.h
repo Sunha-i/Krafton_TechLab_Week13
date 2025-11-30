@@ -34,6 +34,11 @@ public:
 	// ────────────────────────────────────────────────
 	void DuplicateSubObjects() override;
 
+	// ────────────────────────────────────────────────
+	// 직렬화
+	// ────────────────────────────────────────────────
+	void Serialize(const bool bInIsLoading, JSON& InOutHandle) override;
+
 public:
 	// ────────────────────────────────────────────────
 	// Box 속성
