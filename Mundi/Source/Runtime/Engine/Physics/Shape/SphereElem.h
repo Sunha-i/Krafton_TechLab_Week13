@@ -23,6 +23,16 @@ struct FSphereElem : public FShapeElem
                 (LHS.Radius == RHS.Radius);
     }
 
+    FTransform GetTransform() const override
+    {
+        return FTransform(Center, FQuat::Identity(), FVector::One());
+    }
+
+    void SetTransform(const FTransform& InTransform)
+    {
+        Center = InTransform.Translation;
+    }
+
     FAABB CalcAABB(const FTransform& ParentTransform);
 
     // 부모의 원점에서 얼마나 떨어져 있는지를 나타내는 local offset

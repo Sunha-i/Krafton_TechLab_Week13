@@ -12,6 +12,8 @@
 #include "Object.h"
 #include "Vector.h"
 #include "UBodySetup.generated.h"
+#include "AggregateGeom.h"
+
 
 // 전방 선언 (PhysX 의존성 숨김)
 namespace physx
@@ -52,6 +54,21 @@ public:
     // 형상 데이터
     // ═══════════════════════════════════════════════════════════════════════
 
+    // 모든 형상데이터를 가진 구조체(Sphyl, Sphere, Box, Convex)
+    FAggregateGeom AggGeom;
+
+    /**
+     * @brief AggGeom에 있는 모든 형상을 PhysX Actor에 추가합니다.
+     * @param RigidActor 대상 PxRigidActor (여기에 shape들이 attach됨)
+     * @param DefaultMaterial 기본 재질
+     * @param Scale 액터의 월드 스케일
+     * @return 생성된 Shape 개수
+     */
+    int32 AddShapesToRigidActor(
+        physx::PxRigidActor* RigidActor,
+        physx::PxMaterial* DefaultMaterial,
+        const FVector& Scale = FVector::One()) const;
+
     /** 형상 타입 */
     EBodySetupType BodyType = EBodySetupType::None;
 
@@ -81,6 +98,26 @@ public:
         const FVector& Scale = FVector::One()) const;
 
 private:
+    void AddBoxElems(
+        physx::PxRigidActor* RigidActor,
+        physx::PxMaterial* DefaultMaterial,
+        const FVector& Scale) const;
+
+    void AddSphereElems(
+        physx::PxRigidActor* RigidActor,
+        physx::PxMaterial* DefaultMaterial,
+        const FVector& Scale) const;
+
+    void AddSphylElems(
+        physx::PxRigidActor* RigidActor,
+        physx::PxMaterial* DefaultMaterial,
+        const FVector& Scale) const;
+
+    void AddConvexElems(
+        physx::PxRigidActor* RigidActor,
+        physx::PxMaterial* DefaultMaterial,
+        const FVector& Scale) const;
+    
     /** Box 형상 생성 */
     physx::PxShape* CreateBoxShape(
         physx::PxRigidActor* RigidActor,

@@ -33,6 +33,17 @@ struct FSphylElem : public FShapeElem
                 (LHS.Length == RHS.Length);
     }
 
+    FTransform GetTransform() const override
+    {
+        return FTransform(Center, Rotation, FVector::One());
+    }
+
+    void SetTransform(const FTransform& InTransform)
+    {
+        Center = InTransform.Translation;
+        Rotation = InTransform.Rotation;
+    }
+
     FAABB CalcAABB(const FTransform& ParentTransform);
 
     FVector Center;

@@ -1,5 +1,9 @@
 #pragma once
+#include <geometry/PxConvexMesh.h>
+
 #include "ShapeElem.h"
+
+class PxConvexMesh;
 
 struct FConvexElem : public FShapeElem
 {
@@ -7,16 +11,33 @@ struct FConvexElem : public FShapeElem
         : FShapeElem(EAggCollisionShape::Convex),
           VertexData(),
           IndexData(),
-          LocalAABB(FAABB())
+          LocalAABB(FAABB()),
+          ConvexMesh(nullptr)
     {}
     FConvexElem(const FConvexElem& Other)
         : FShapeElem(Other),
           VertexData(Other.VertexData),
           IndexData(Other.IndexData),
-          LocalAABB(Other.LocalAABB)
-    {}
+          LocalAABB(Other.LocalAABB),
+          ConvexMesh(Other.ConvexMesh)
+    {
+        if (ConvexMesh)
+        {
+            ConvexMesh->acquireReference();
+        }
+    }
     virtual ~FConvexElem() override;
 
+    FTransform GetTransform() const override
+    {
+        return Transform;
+    }
+
+    void SetTransform(const FTransform& InTransform)
+    {
+        Transform = InTransform;
+    }
+    
     FAABB CalcAABB(const FTransform& ParentTransform);
 
     void SetVertexData(const TArray<FVector>& InVertices)
@@ -38,7 +59,11 @@ struct FConvexElem : public FShapeElem
 
     TArray<FVector> VertexData;
     TArray<int32> IndexData;
-    FAABB LocalAABB;    
+    FAABB LocalAABB;
+
+    FTransform Transform;
+
+    mutable physx::PxConvexMesh* ConvexMesh;
 
     static EAggCollisionShape StaticShapeType;
 };

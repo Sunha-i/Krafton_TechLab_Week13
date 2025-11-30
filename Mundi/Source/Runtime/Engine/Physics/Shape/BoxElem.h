@@ -33,6 +33,17 @@ struct FBoxElem : public FShapeElem
                 (LHS.X == RHS.X) && (LHS.Y == RHS.Y) && (LHS.Z == RHS.Z);
     }
 
+    FTransform GetTransform() const override
+    {
+        return FTransform(Center, Rotation, FVector(X, Y, Z));
+    }
+
+    void SetTransform(const FTransform& InTransform)
+    {
+        Center = InTransform.Translation;
+        Rotation = InTransform.Rotation;
+    }
+
     FAABB CalcAABB(const FTransform& ParentTransform);
     
     FVector Center;

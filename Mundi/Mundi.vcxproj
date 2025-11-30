@@ -271,7 +271,7 @@ xcopy /y /d "$(ProjectDir)ThirdParty\lib\Lua\lua54.dll" "$(OutDir)"</Command>
     <ClCompile Include="Source\Runtime\AssetManagement\SkeletalMesh.cpp" />
     <ClCompile Include="Source\Runtime\Core\Misc\DebugUtils.cpp" />
     <ClCompile Include="Source\Runtime\Core\Misc\VertexData.cpp" />
-    <ClCompile Include="Source\Runtime\Engine\Physics\FAggregateGeom.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\Physics\AggregateGeom.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Physics\PhysicsCore.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Physics\PhysicsEventCallback.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Physics\PhysScene.cpp" />
@@ -307,7 +307,7 @@ xcopy /y /d "$(ProjectDir)ThirdParty\lib\Lua\lua54.dll" "$(OutDir)"</Command>
     <ClCompile Include="Source\Runtime\Engine\GameFramework\SkeletalMeshActor.cpp" />
     <ClCompile Include="Source\Runtime\Engine\Components\BoneAnchorComponent.cpp" />
     <ClCompile Include="Source\Runtime\Engine\GameFramework\Camera\CamMod_Fade.cpp" />
-    <Content Include="Source\Runtime\Engine\Physics\FAggregateGeom.h" />
+    <Content Include="Source\Runtime\Engine\Physics\AggregateGeom.h" />
     <FxCompile Include="Shaders\Materials\Fireball.hlsl">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug_StandAlone|x64'">true</ExcludedFromBuild>

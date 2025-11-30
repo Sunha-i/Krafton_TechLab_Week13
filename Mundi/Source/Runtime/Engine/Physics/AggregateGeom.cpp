@@ -1,5 +1,5 @@
 #include "pch.h"
-#include "FAggregateGeom.h"
+#include "AggregateGeom.h"
 #include "../Collision/AABB.h"
 
 EAggCollisionShape FShapeElem::StaticShapeType = EAggCollisionShape::Unknown;
@@ -12,7 +12,14 @@ FShapeElem::~FShapeElem() = default;
 FSphylElem::~FSphylElem() = default;
 FSphereElem::~FSphereElem() = default;
 FBoxElem::~FBoxElem() = default;
-FConvexElem::~FConvexElem() = default;
+FConvexElem::~FConvexElem()
+{
+    if (ConvexMesh)
+    {
+        ConvexMesh->release();
+        ConvexMesh = nullptr;
+    }
+}
 
 FAABB FSphylElem::CalcAABB(const FTransform& ParentTransform)
 {
@@ -34,10 +41,11 @@ FAABB FSphylElem::CalcAABB(const FTransform& ParentTransform)
     Max.Y = FMath::Max(WorldTop.Y, WorldBottom.Y);
     Max.Z = FMath::Max(WorldTop.Z, WorldBottom.Z);
 
-    float Scale = FMath::Max(FMath::Max(
-        FMath::Abs(ParentTransform.Scale3D.X),
-         FMath::Abs(ParentTransform.Scale3D.Y)),
-         FMath::Abs(ParentTransform.Scale3D.Z));
+    // float Scale = FMath::Max(FMath::Max(
+    //     FMath::Abs(ParentTransform.Scale3D.X),
+    //      FMath::Abs(ParentTransform.Scale3D.Y)),
+    //      FMath::Abs(ParentTransform.Scale3D.Z));
+    float Scale = FMath::Abs(ParentTransform.Scale3D.GetMaxValue());
     float WorldRadius = this->Radius * Scale;
 
     FVector WorldMin = Min - WorldRadius;
@@ -50,10 +58,11 @@ FAABB FSphereElem::CalcAABB(const FTransform& ParentTransform)
 {
     FVector WorldCenter = ParentTransform.TransformPosition(Center);
     
-    float Scale = FMath::Max(FMath::Max(
-        FMath::Abs(ParentTransform.Scale3D.X),
-         FMath::Abs(ParentTransform.Scale3D.Y)),
-         FMath::Abs(ParentTransform.Scale3D.Z));
+    // float Scale = FMath::Max(FMath::Max(
+    //     FMath::Abs(ParentTransform.Scale3D.X),
+    //      FMath::Abs(ParentTransform.Scale3D.Y)),
+    //      FMath::Abs(ParentTransform.Scale3D.Z));
+    float Scale = FMath::Abs(ParentTransform.Scale3D.GetMaxValue());
     
     FVector WorldRadius = Radius * Scale;
     FVector WorldMin = WorldCenter - WorldRadius;
