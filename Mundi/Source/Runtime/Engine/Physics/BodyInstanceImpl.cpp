@@ -1,10 +1,18 @@
 #include "pch.h"
-#include "BodySetup.h"
+#include "BodyInstanceImpl.h"
+
+using namespace physx;
 
 // ═══════════════════════════════════════════════════════════════════════════
-// 생성자
+// 헬퍼 함수
 // ═══════════════════════════════════════════════════════════════════════════
 
-UBodySetup::UBodySetup()
+PxRigidDynamic* FBodyInstanceImpl::GetPxRigidDynamic() const
 {
+    if (!RigidActorSync)
+    {
+        return nullptr;
+    }
+
+    return RigidActorSync->is<PxRigidDynamic>();
 }

@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 // ─────────────────────────────────────────────────────────────────────────────
 // BodySetup.h
@@ -7,19 +7,14 @@
 //
 // 언리얼 엔진의 UBodySetup과 유사.
 // 여러 FBodyInstance가 동일한 UBodySetup을 공유하여 메모리 효율성 확보.
+//
+// PhysX 의존성이 없는 순수 데이터 클래스.
+// Shape 생성은 BodySetupImpl.h의 BodySetupHelper 네임스페이스에서 담당.
 // ─────────────────────────────────────────────────────────────────────────────
 
 #include "Object.h"
 #include "Vector.h"
 #include "UBodySetup.generated.h"
-
-// 전방 선언 (PhysX 의존성 숨김)
-namespace physx
-{
-    class PxRigidActor;
-    class PxShape;
-    class PxMaterial;
-}
 
 /**
  * @brief 충돌 형상 타입
@@ -38,6 +33,9 @@ enum class EBodySetupType : uint8
  *
  * 언리얼 엔진의 UBodySetup과 유사.
  * 여러 FBodyInstance가 동일한 UBodySetup을 공유하여 메모리 효율성 확보.
+ *
+ * 이 클래스는 순수 데이터만 보유하며, PhysX 의존성이 없습니다.
+ * 실제 PhysX Shape 생성은 BodySetupImpl.h의 BodySetupHelper에서 담당합니다.
  */
 UCLASS(DisplayName = "충돌 기하 데이터", Description = "공유 가능한 충돌 기하 데이터 입니다")
 class UBodySetup : public UObject
@@ -63,39 +61,4 @@ public:
 
     /** Capsule 형상용 - Half Height (반구 제외) */
     float CapsuleHalfHeight = 50.0f;
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // Shape 생성
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /**
-     * @brief PhysX Shape 생성 및 Actor에 부착
-     * @param RigidActor 대상 PxRigidActor
-     * @param DefaultMaterial 기본 PxMaterial (PhysMaterial이 없을 때 사용)
-     * @param Scale 월드 스케일 (형상 크기에 적용)
-     * @return 생성된 PxShape (nullptr이면 실패)
-     */
-    physx::PxShape* CreatePhysicsShape(
-        physx::PxRigidActor* RigidActor,
-        physx::PxMaterial* DefaultMaterial,
-        const FVector& Scale = FVector::One()) const;
-
-private:
-    /** Box 형상 생성 */
-    physx::PxShape* CreateBoxShape(
-        physx::PxRigidActor* RigidActor,
-        physx::PxMaterial* Material,
-        const FVector& Scale) const;
-
-    /** Sphere 형상 생성 */
-    physx::PxShape* CreateSphereShape(
-        physx::PxRigidActor* RigidActor,
-        physx::PxMaterial* Material,
-        const FVector& Scale) const;
-
-    /** Capsule 형상 생성 */
-    physx::PxShape* CreateCapsuleShape(
-        physx::PxRigidActor* RigidActor,
-        physx::PxMaterial* Material,
-        const FVector& Scale) const;
 };
