@@ -8,6 +8,7 @@
 #include "GameObject.h"
 #include "CollisionManager.h"
 #include "BodySetup.h"
+#include "HitResult.h"
 // IMPLEMENT_CLASS is now auto-generated in .generated.cpp
 UShapeComponent::UShapeComponent() : bShapeIsVisible(true), bShapeHiddenInGame(true)
 {
@@ -188,21 +189,20 @@ void UShapeComponent::TickComponent(float DeltaSeconds)
                 continue;
             }
 
-            // 양방향 호출 
-            Owner->OnComponentBeginOverlap.Broadcast(this, Comp);
-            if (AActor* OtherOwner = Comp->GetOwner())
+            // 양방향 BeginOverlap 호출 (UPrimitiveComponent 델리게이트 사용)
+            FHitResult EmptyHit;
+            this->OnComponentBeginOverlap.Broadcast(this, OtherOwner, Comp, 0, false, EmptyHit);
+            if (Comp)
             {
-                OtherOwner->OnComponentBeginOverlap.Broadcast(Comp, this);
+                Comp->OnComponentBeginOverlap.Broadcast(Comp, Owner, this, 0, false, EmptyHit);
             }
 
-            // Hit호출 
-            Owner->OnComponentHit.Broadcast(this, Comp);
-            if (bBlockComponent)
+            // Hit 호출 (UPrimitiveComponent 델리게이트 사용)
+            FVector ZeroImpulse = FVector::Zero();
+            this->OnComponentHit.Broadcast(this, OtherOwner, Comp, ZeroImpulse, EmptyHit);
+            if (bBlockComponent && Comp)
             {
-                if (AActor* OtherOwner = Comp->GetOwner())
-                {
-                    OtherOwner->OnComponentHit.Broadcast(Comp, this);
-                }
+                Comp->OnComponentHit.Broadcast(Comp, Owner, this, ZeroImpulse, EmptyHit);
             }
         }
     }
@@ -226,11 +226,11 @@ void UShapeComponent::TickComponent(float DeltaSeconds)
                 continue;
             }
 
-            // 양방향 호출
-            Owner->OnComponentEndOverlap.Broadcast(this, Comp);
-            if (AActor* OtherOwner = Comp->GetOwner())
+            // 양방향 EndOverlap 호출 (UPrimitiveComponent 델리게이트 사용)
+            this->OnComponentEndOverlap.Broadcast(this, OtherOwner, Comp, 0);
+            if (Comp)
             {
-                OtherOwner->OnComponentEndOverlap.Broadcast(Comp, this);
+                Comp->OnComponentEndOverlap.Broadcast(Comp, Owner, this, 0);
             }
         }
     }

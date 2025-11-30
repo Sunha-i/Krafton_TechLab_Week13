@@ -564,23 +564,8 @@ bool AActor::IsOverlappingActor(const AActor* Other) const
     return false;
 }
 
-void AActor::OnBeginOverlap(UPrimitiveComponent* MyComp, UPrimitiveComponent* OtherComp)
-{
-	if (OtherComp->GetOwner()->Tag == "player")
-		UE_LOG("On Begin Overlap");
-	
-}
-
-void AActor::OnEndOverlap(UPrimitiveComponent* MyComp, UPrimitiveComponent* OtherComp)
-{
-	if (OtherComp->GetOwner()->Tag == "player")
-		UE_LOG("On End Overlap");
-}
-
-void AActor::OnHit(UPrimitiveComponent* MyComp, UPrimitiveComponent* OtherComp)
-{
-	UE_LOG("On Hit");
-} 
+// 물리 이벤트 콜백은 UPrimitiveComponent 델리게이트로 이동됨
+// OnBeginOverlap, OnEndOverlap, OnHit는 PrimitiveComponent::OnComponentBeginOverlap 등으로 대체
 
 void AActor::DuplicateSubObjects()
 {

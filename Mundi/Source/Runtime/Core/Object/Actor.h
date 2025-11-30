@@ -21,9 +21,8 @@ class AActor : public UObject
 public:
     GENERATED_REFLECTION_BODY()
 
-    DECLARE_DELEGATE(OnComponentBeginOverlap, UPrimitiveComponent*, UPrimitiveComponent*);
-    DECLARE_DELEGATE(OnComponentEndOverlap, UPrimitiveComponent*, UPrimitiveComponent*);
-    DECLARE_DELEGATE(OnComponentHit, UPrimitiveComponent*, UPrimitiveComponent*);
+    // 물리 이벤트 델리게이트는 UPrimitiveComponent로 이동됨
+    // (PrimitiveComponent.h의 OnComponentHit, OnComponentBeginOverlap, OnComponentEndOverlap 참조)
 
     AActor(); 
 
@@ -160,11 +159,9 @@ public:
 
     bool CanEverTick() const { return bCanEverTick; }
 	bool CanTickInEditor() const { return bTickInEditor; }
-    // ───── 충돌 관련 ─────────────────────────  
-    void OnBeginOverlap(UPrimitiveComponent* MyComp, UPrimitiveComponent* OtherComp);
-    void OnEndOverlap(UPrimitiveComponent* MyComp, UPrimitiveComponent* OtherComp);
-    void OnHit(UPrimitiveComponent* MyComp, UPrimitiveComponent* OtherComp);
-     
+
+    // ───── 충돌 관련 ─────────────────────────
+    // 물리 이벤트 콜백은 UPrimitiveComponent 델리게이트로 처리됨
     bool IsOverlappingActor(const AActor* Other) const;
 
     // ───── 복사 관련 ────────────────────────────

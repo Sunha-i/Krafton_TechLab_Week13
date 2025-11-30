@@ -88,30 +88,39 @@ void FPhysicsEventCallback::onContact(
             ++TotalContactEvents;
 
             // HitResult 추출
-            FHitResult HitResult0;
+            FHitResult HitResult0, HitResult1;
             ExtractHitResult(ContactPair, PairHeader, true, HitResult0);
-            HitResult0.HitActor = Comp1->GetOwner();
-            HitResult0.HitComponent = Comp1;
+            ExtractHitResult(ContactPair, PairHeader, false, HitResult1);
+
+            // 임펄스 계산
+            PxVec3 TotalImpulse(0);
+            if (ContactPair.contactCount > 0)
+            {
+                PxContactPairPoint ContactPoints[64];
+                PxU32 ContactCount = ContactPair.extractContacts(ContactPoints, 64);
+                for (PxU32 j = 0; j < ContactCount; ++j)
+                {
+                    TotalImpulse += ContactPoints[j].impulse;
+                }
+            }
+            FVector NormalImpulse = PhysicsConversion::ToFVector(TotalImpulse);
 
             // 델리게이트 브로드캐스트
             AActor* Owner0 = Comp0->GetOwner();
             AActor* Owner1 = Comp1->GetOwner();
 
-            if (Owner0)
-            {
-                Owner0->OnComponentHit.Broadcast(Comp0, Comp1);
-            }
-            if (Owner1)
-            {
-                FHitResult HitResult1;
-                ExtractHitResult(ContactPair, PairHeader, false, HitResult1);
-                HitResult1.HitActor = Comp0->GetOwner();
-                HitResult1.HitComponent = Comp0;
+            // Comp0에 Hit 이벤트 전달
+            HitResult0.HitActor = Owner1;
+            HitResult0.HitComponent = Comp1;
+            Comp0->OnComponentHit.Broadcast(Comp0, Owner1, Comp1, NormalImpulse, HitResult0);
 
-                Owner1->OnComponentHit.Broadcast(Comp1, Comp0);
-            }
+            // Comp1에 Hit 이벤트 전달
+            HitResult1.HitActor = Owner0;
+            HitResult1.HitComponent = Comp0;
+            Comp1->OnComponentHit.Broadcast(Comp1, Owner0, Comp0, -NormalImpulse, HitResult1);
 
-            UE_LOG("[Contact] #%u - Hit event broadcast", TotalContactEvents);
+            UE_LOG("[Contact] #%u - Hit event broadcast (Impulse: %.2f, %.2f, %.2f)",
+                TotalContactEvents, NormalImpulse.X, NormalImpulse.Y, NormalImpulse.Z);
         }
         else if (bContactLost)
         {
@@ -163,29 +172,30 @@ void FPhysicsEventCallback::onTrigger(PxTriggerPair* Pairs, PxU32 Count)
 
         if (TriggerPair.status == PxPairFlag::eNOTIFY_TOUCH_FOUND)
         {
-            // BeginOverlap 델리게이트
-            if (TriggerOwner)
-            {
-                TriggerOwner->OnComponentBeginOverlap.Broadcast(TriggerComp, OtherComp);
-            }
-            if (OtherOwner)
-            {
-                OtherOwner->OnComponentBeginOverlap.Broadcast(OtherComp, TriggerComp);
-            }
+            // BeginOverlap 이벤트 - UPrimitiveComponent 델리게이트로 브로드캐스트
+            FHitResult EmptyHit;
+
+            // 트리거 컴포넌트에 이벤트 전달
+            TriggerComp->OnComponentBeginOverlap.Broadcast(
+                TriggerComp, OtherOwner, OtherComp, 0, false, EmptyHit);
+
+            // 상대 컴포넌트에 이벤트 전달
+            OtherComp->OnComponentBeginOverlap.Broadcast(
+                OtherComp, TriggerOwner, TriggerComp, 0, false, EmptyHit);
 
             UE_LOG("[Trigger] #%u - BeginOverlap broadcast", TotalTriggerEvents);
         }
         else if (TriggerPair.status == PxPairFlag::eNOTIFY_TOUCH_LOST)
         {
-            // EndOverlap 델리게이트
-            if (TriggerOwner)
-            {
-                TriggerOwner->OnComponentEndOverlap.Broadcast(TriggerComp, OtherComp);
-            }
-            if (OtherOwner)
-            {
-                OtherOwner->OnComponentEndOverlap.Broadcast(OtherComp, TriggerComp);
-            }
+            // EndOverlap 이벤트 - UPrimitiveComponent 델리게이트로 브로드캐스트
+
+            // 트리거 컴포넌트에 이벤트 전달
+            TriggerComp->OnComponentEndOverlap.Broadcast(
+                TriggerComp, OtherOwner, OtherComp, 0);
+
+            // 상대 컴포넌트에 이벤트 전달
+            OtherComp->OnComponentEndOverlap.Broadcast(
+                OtherComp, TriggerOwner, TriggerComp, 0);
 
             UE_LOG("[Trigger] #%u - EndOverlap broadcast", TotalTriggerEvents);
         }

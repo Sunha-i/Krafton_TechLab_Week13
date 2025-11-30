@@ -3,6 +3,8 @@
 #include "SceneComponent.h"
 #include "Material.h"
 #include "BodyInstance.h"
+#include "Delegates.h"
+#include "HitResult.h"
 #include "UPrimitiveComponent.generated.h"
 
 // 전방 선언
@@ -19,6 +21,45 @@ struct FOverlapInfo
     AActor* OtherActor = nullptr;
     UPrimitiveComponent* Other = nullptr;
 };
+
+// ═══════════════════════════════════════════════════════════════════════
+// 물리 이벤트 델리게이트 타입 정의
+// ═══════════════════════════════════════════════════════════════════════
+
+/**
+ * @brief Hit 이벤트 델리게이트
+ * @param HitComponent 충돌한 자신의 Component
+ * @param OtherActor 충돌한 상대 Actor
+ * @param OtherComp 충돌한 상대 Component
+ * @param NormalImpulse 충돌 임펄스
+ * @param Hit 충돌 상세 정보
+ */
+DECLARE_DELEGATE_TYPE(FComponentHitSignature,
+    UPrimitiveComponent*, AActor*, UPrimitiveComponent*,
+    FVector, const FHitResult&);
+
+/**
+ * @brief BeginOverlap 이벤트 델리게이트
+ * @param OverlappedComponent 오버랩된 자신의 Component
+ * @param OtherActor 오버랩한 상대 Actor
+ * @param OtherComp 오버랩한 상대 Component
+ * @param OtherBodyIndex 상대 바디 인덱스
+ * @param bFromSweep 스윕에 의한 오버랩인지
+ * @param SweepResult 스윕 결과 (bFromSweep이 true일 때만 유효)
+ */
+DECLARE_DELEGATE_TYPE(FComponentBeginOverlapSignature,
+    UPrimitiveComponent*, AActor*, UPrimitiveComponent*,
+    int32, bool, const FHitResult&);
+
+/**
+ * @brief EndOverlap 이벤트 델리게이트
+ * @param OverlappedComponent 오버랩이 끝난 자신의 Component
+ * @param OtherActor 오버랩이 끝난 상대 Actor
+ * @param OtherComp 오버랩이 끝난 상대 Component
+ * @param OtherBodyIndex 상대 바디 인덱스
+ */
+DECLARE_DELEGATE_TYPE(FComponentEndOverlapSignature,
+    UPrimitiveComponent*, AActor*, UPrimitiveComponent*, int32);
 
 UCLASS(DisplayName="프리미티브 컴포넌트", Description="렌더링 가능한 기본 컴포넌트입니다")
 class UPrimitiveComponent :public USceneComponent
@@ -75,8 +116,19 @@ public:
     bool IsOverlappingActor(const AActor* Other) const;
     virtual const TArray<FOverlapInfo>& GetOverlapInfos() const { static TArray<FOverlapInfo> Empty; return Empty; }
 
-    //Delegate 
-    
+    // ═══════════════════════════════════════════════════════════════════════
+    // 물리 이벤트 델리게이트
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /** Hit 이벤트 (물리적 충돌 시) */
+    FComponentHitSignature OnComponentHit;
+
+    /** BeginOverlap 이벤트 (트리거 진입 시) */
+    FComponentBeginOverlapSignature OnComponentBeginOverlap;
+
+    /** EndOverlap 이벤트 (트리거 이탈 시) */
+    FComponentEndOverlapSignature OnComponentEndOverlap;
+
     // ───── 복사 관련 ────────────────────────────
     void DuplicateSubObjects() override;
 

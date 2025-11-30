@@ -1,6 +1,7 @@
 ﻿#include "pch.h"
 #include "LuaScriptComponent.h"
 #include "PrimitiveComponent.h"
+#include "HitResult.h"
 #include <sol/state.hpp>
 #include <sol/coroutine.hpp>
 
@@ -30,12 +31,17 @@ ULuaScriptComponent::~ULuaScriptComponent()
 
 void ULuaScriptComponent::BeginPlay()
 {
-	// 델리게이트 등록
+	// 델리게이트 등록 - Owner의 첫 번째 PrimitiveComponent에 바인딩
 	if (AActor* Owner = GetOwner())
 	{
-		BeginHandleLua = Owner->OnComponentBeginOverlap.AddDynamic(this, &ULuaScriptComponent::OnBeginOverlap);
-		EndHandleLua = Owner->OnComponentEndOverlap.AddDynamic(this, &ULuaScriptComponent::OnEndOverlap);
-		//FDelegateHandle HitHandleLua = Owner->OnComponentHit.AddDynamic(this, ULuaScriptComponent::OnHit);
+		// Owner의 PrimitiveComponent를 찾아서 델리게이트 등록
+		if (UActorComponent* Comp = Owner->GetComponent(UPrimitiveComponent::StaticClass()))
+		{
+			BoundPrimitiveComponent = static_cast<UPrimitiveComponent*>(Comp);
+			BeginHandleLua = BoundPrimitiveComponent->OnComponentBeginOverlap.AddDynamic(this, &ULuaScriptComponent::OnBeginOverlap);
+			EndHandleLua = BoundPrimitiveComponent->OnComponentEndOverlap.AddDynamic(this, &ULuaScriptComponent::OnEndOverlap);
+			HitHandleLua = BoundPrimitiveComponent->OnComponentHit.AddDynamic(this, &ULuaScriptComponent::OnHit);
+		}
 	}
 
 	auto LuaVM = GetWorld()->GetLuaManager();
@@ -77,6 +83,7 @@ void ULuaScriptComponent::BeginPlay()
 	FuncTick      = FLuaManager::GetFunc(Env, "Tick");
 	FuncOnBeginOverlap = FLuaManager::GetFunc(Env, "OnBeginOverlap");
 	FuncOnEndOverlap = FLuaManager::GetFunc(Env, "OnEndOverlap");
+	FuncOnHit = FLuaManager::GetFunc(Env, "OnHit");
 	FuncEndPlay		  =	FLuaManager::GetFunc(Env, "EndPlay");
 	
 	if (FuncBeginPlay.valid()) {
@@ -93,17 +100,15 @@ void ULuaScriptComponent::BeginPlay()
 	bIsLuaCleanedUp = false;
 }
 
-void ULuaScriptComponent::OnBeginOverlap(UPrimitiveComponent* MyComp, UPrimitiveComponent* OtherComp)
+void ULuaScriptComponent::OnBeginOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor,
+	UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
 	if (FuncOnBeginOverlap.valid())
 	{
 		FGameObject* OtherGameObject = nullptr;
-		if (OtherComp)
+		if (OtherActor)
 		{
-			if (AActor* OtherActor = OtherComp->GetOwner())
-			{
-				OtherGameObject = OtherActor->GetGameObject();
-			}
+			OtherGameObject = OtherActor->GetGameObject();
 		}
 
 		if (OtherGameObject)
@@ -120,18 +125,15 @@ void ULuaScriptComponent::OnBeginOverlap(UPrimitiveComponent* MyComp, UPrimitive
 	}
 }
 
-void ULuaScriptComponent::OnEndOverlap(UPrimitiveComponent* MyComp, UPrimitiveComponent* OtherComp)
+void ULuaScriptComponent::OnEndOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor,
+	UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
 {
 	if (FuncOnEndOverlap.valid())
 	{
 		FGameObject* OtherGameObject = nullptr;
-		if (OtherComp)
+		if (OtherActor)
 		{
-			if (AActor* OtherActor = OtherComp->GetOwner())
-			{
-				OtherActor->GetGameObject();
-				OtherGameObject = OtherActor->GetGameObject();
-			}
+			OtherGameObject = OtherActor->GetGameObject();
 		}
 
 		if (OtherGameObject)
@@ -148,17 +150,15 @@ void ULuaScriptComponent::OnEndOverlap(UPrimitiveComponent* MyComp, UPrimitiveCo
 	}
 }
 
-void ULuaScriptComponent::OnHit(UPrimitiveComponent* MyComp, UPrimitiveComponent* OtherComp)
+void ULuaScriptComponent::OnHit(UPrimitiveComponent* HitComp, AActor* OtherActor,
+	UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
 {
 	if (FuncOnHit.valid())
 	{
 		FGameObject* OtherGameObject = nullptr;
-		if (OtherComp)
+		if (OtherActor)
 		{
-			if (AActor* OtherActor = OtherComp->GetOwner())
-			{
-				OtherGameObject = OtherActor->GetGameObject();
-			}
+			OtherGameObject = OtherActor->GetGameObject();
 		}
 
 		if (OtherGameObject)
@@ -198,11 +198,12 @@ void ULuaScriptComponent::EndPlay()
 	}
 
 	// BeginPlay에서 등록한 델리게이트를 대칭적으로 해제
-	if (AActor* Owner = GetOwner())
+	if (BoundPrimitiveComponent)
 	{
-		Owner->OnComponentBeginOverlap.Remove(BeginHandleLua);
-		Owner->OnComponentEndOverlap.Remove(EndHandleLua);
-		// Owner->OnComponentHit.Remove(HitHandleLua);
+		BoundPrimitiveComponent->OnComponentBeginOverlap.Remove(BeginHandleLua);
+		BoundPrimitiveComponent->OnComponentEndOverlap.Remove(EndHandleLua);
+		BoundPrimitiveComponent->OnComponentHit.Remove(HitHandleLua);
+		BoundPrimitiveComponent = nullptr;
 	}
 
 	// 모든 Lua 관련 리소스 정리

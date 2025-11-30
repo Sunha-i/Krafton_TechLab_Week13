@@ -9,6 +9,9 @@ namespace sol { class state; }
 using state = sol::state;
 
 class USceneComponent;
+class UPrimitiveComponent;
+class AActor;
+struct FHitResult;
 
 UCLASS(DisplayName="Lua 스크립트 컴포넌트", Description="Lua 스크립트를 실행하는 컴포넌트입니다")
 class ULuaScriptComponent : public UActorComponent
@@ -30,9 +33,13 @@ public:
 	void TickComponent(float DeltaTime) override;       // 매 프레임
 	void EndPlay() override;							// 파괴/월드 제거 시
 
-	void OnBeginOverlap(UPrimitiveComponent* MyComp, UPrimitiveComponent* OtherComp);
-	void OnEndOverlap(UPrimitiveComponent* MyComp, UPrimitiveComponent* OtherComp);
-	void OnHit(UPrimitiveComponent* MyComp, UPrimitiveComponent* OtherComp);
+	// 물리 이벤트 콜백 (UPrimitiveComponent 델리게이트에 바인딩)
+	void OnBeginOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor,
+		UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
+	void OnEndOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor,
+		UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
+	void OnHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp,
+		FVector NormalImpulse, const FHitResult& Hit);
 
 	bool Call(const char* FuncName, sol::variadic_args VarArgs); // 다른 클래스가 날 호출할 때 씀
 
@@ -53,6 +60,10 @@ protected:
 
 	FDelegateHandle BeginHandleLua{};
 	FDelegateHandle EndHandleLua{};
-	
+	FDelegateHandle HitHandleLua{};
+
+	/** 델리게이트가 등록된 PrimitiveComponent (해제 시 필요) */
+	UPrimitiveComponent* BoundPrimitiveComponent = nullptr;
+
 	bool bIsLuaCleanedUp = false;
 };
