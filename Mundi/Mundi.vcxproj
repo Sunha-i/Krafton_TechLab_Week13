@@ -562,6 +562,8 @@ xcopy /y /d "$(ProjectDir)ThirdParty\lib\Lua\lua54.dll" "$(OutDir)"</Command>
     <ClCompile Include="Source\Runtime\Engine\GameFramework\Level.cpp" />
     <ClCompile Include="Source\Runtime\Engine\GameFramework\StaticMeshActor.cpp" />
     <ClCompile Include="Source\Runtime\Engine\GameFramework\PhysBoxActor.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\GameFramework\PhysCapsuleActor.cpp" />
+    <ClCompile Include="Source\Runtime\Engine\GameFramework\PhysSphereActor.cpp" />
     <ClCompile Include="Source\Runtime\Engine\GameFramework\PhysGroundActor.cpp" />
     <ClCompile Include="Source\Runtime\Engine\GameFramework\World.cpp" />
     <ClCompile Include="Source\Runtime\Engine\GameFramework\WorldPartitionManager.cpp" />
@@ -674,6 +676,8 @@ xcopy /y /d "$(ProjectDir)ThirdParty\lib\Lua\lua54.dll" "$(OutDir)"</Command>
     <ClCompile Include="Generated\UParticleModuleTrailSource.generated.cpp" />
     <ClCompile Include="Generated\ARibbonActor.generated.cpp" />
     <ClCompile Include="Generated\APhysBoxActor.generated.cpp" />
+    <ClCompile Include="Generated\APhysCapsuleActor.generated.cpp" />
+    <ClCompile Include="Generated\APhysSphereActor.generated.cpp" />
     <ClCompile Include="Generated\APhysGroundActor.generated.cpp" />
     <ClCompile Include="Generated\UBodySetup.generated.cpp" />
   </ItemGroup>
@@ -1089,6 +1093,8 @@ xcopy /y /d "$(ProjectDir)ThirdParty\lib\Lua\lua54.dll" "$(OutDir)"</Command>
     <ClInclude Include="Source\Runtime\Engine\GameFramework\Level.h" />
     <ClInclude Include="Source\Runtime\Engine\GameFramework\StaticMeshActor.h" />
     <ClInclude Include="Source\Runtime\Engine\GameFramework\PhysBoxActor.h" />
+    <ClInclude Include="Source\Runtime\Engine\GameFramework\PhysCapsuleActor.h" />
+    <ClInclude Include="Source\Runtime\Engine\GameFramework\PhysSphereActor.h" />
     <ClInclude Include="Source\Runtime\Engine\GameFramework\PhysGroundActor.h" />
     <ClInclude Include="Source\Runtime\Engine\GameFramework\World.h" />
     <ClInclude Include="Source\Runtime\Engine\Spatial\BVHierarchy.h" />
@@ -1209,6 +1215,8 @@ xcopy /y /d "$(ProjectDir)ThirdParty\lib\Lua\lua54.dll" "$(OutDir)"</Command>
     <ClInclude Include="Generated\UParticleModuleTrailSource.generated.h" />
     <ClInclude Include="Generated\ARibbonActor.generated.h" />
     <ClInclude Include="Generated\APhysBoxActor.generated.h" />
+    <ClInclude Include="Generated\APhysCapsuleActor.generated.h" />
+    <ClInclude Include="Generated\APhysSphereActor.generated.h" />
     <ClInclude Include="Generated\APhysGroundActor.generated.h" />
     <ClInclude Include="Generated\UBodySetup.generated.h" />
   </ItemGroup>

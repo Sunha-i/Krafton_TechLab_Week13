@@ -109,10 +109,10 @@ namespace
         PxShape* Shape = Physics->createShape(CapsuleGeom, *Material, true);
         if (Shape)
         {
-            // Capsule은 기본적으로 X축 방향으로 누워있음
-            // Mundi에서는 Z축 방향(세로)이 기본이므로 회전 필요
-            // Local pose: X축 → Z축 회전 (Y축 기준 90도)
-            PxTransform LocalPose(PxQuat(PxHalfPi, PxVec3(0, 1, 0)));
+            // PhysX Capsule은 기본적으로 PhysX X축 방향으로 누워있음
+            // Mundi Z축(Up) = PhysX Y축이므로, PhysX Y축 방향으로 세워야 함
+            // PhysX Z축 기준 90도 회전: PhysX X축 → PhysX Y축 (= Mundi Z축)
+            PxTransform LocalPose(PxQuat(PxHalfPi, PxVec3(0, 0, 1)));
             Shape->setLocalPose(LocalPose);
 
             RigidActor->attachShape(*Shape);
