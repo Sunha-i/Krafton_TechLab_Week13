@@ -328,6 +328,53 @@ void FBodyInstance::SyncPhysicsToComponent()
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// 렌더 보간
+// ═══════════════════════════════════════════════════════════════════════════
+
+void FBodyInstance::CapturePhysicsTransform()
+{
+    if (!Impl || !Impl->RigidActorSync)
+    {
+        return;
+    }
+
+    // 이전 Transform ← 현재 Transform
+    Impl->PreviousPhysicsTransform = Impl->CurrentPhysicsTransform;
+
+    // 현재 Transform ← PhysX
+    Impl->CurrentPhysicsTransform = Impl->RigidActorSync->getGlobalPose();
+
+    // 최소 1회 캡처 후 보간 활성화
+    Impl->bRenderInterpolationValid = true;
+}
+
+void FBodyInstance::UpdateRenderInterpolation(float Alpha)
+{
+    if (!Impl || !Impl->bRenderInterpolationValid || !OwnerComponent)
+    {
+        return;
+    }
+
+    // Alpha 클램프
+    Alpha = FMath::Clamp(Alpha, 0.0f, 1.0f);
+
+    // PhysX Transform → Mundi Transform 변환
+    FTransform PrevTransform = PhysicsConversion::ToFTransform(Impl->PreviousPhysicsTransform);
+    FTransform CurrTransform = PhysicsConversion::ToFTransform(Impl->CurrentPhysicsTransform);
+
+    // 스케일은 Component에서 가져옴 (물리 시뮬레이션에는 스케일 미포함)
+    FVector Scale = OwnerComponent->GetWorldScale();
+    PrevTransform.Scale3D = Scale;
+    CurrTransform.Scale3D = Scale;
+
+    // FTransform::Lerp 사용 (내부적으로 FQuat::Slerp 호출)
+    FTransform InterpolatedTransform = FTransform::Lerp(PrevTransform, CurrTransform, Alpha);
+
+    // Component에 적용
+    OwnerComponent->SetWorldTransform(InterpolatedTransform);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // 물리 제어
 // ═══════════════════════════════════════════════════════════════════════════
 

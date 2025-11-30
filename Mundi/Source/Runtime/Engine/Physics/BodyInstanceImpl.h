@@ -33,6 +33,19 @@ public:
     physx::PxRigidActor* RigidActorSync = nullptr;
 
     // ═══════════════════════════════════════════════════════════════════════
+    // 렌더 보간용 Transform 이력
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /** 이전 물리 스텝의 Transform (PhysX 좌표계) */
+    physx::PxTransform PreviousPhysicsTransform = physx::PxTransform(physx::PxIdentity);
+
+    /** 현재 물리 스텝의 Transform (PhysX 좌표계) */
+    physx::PxTransform CurrentPhysicsTransform = physx::PxTransform(physx::PxIdentity);
+
+    /** 렌더 보간이 유효한지 (최소 1회 물리 스텝 실행 후 true) */
+    bool bRenderInterpolationValid = false;
+
+    // ═══════════════════════════════════════════════════════════════════════
     // 헬퍼 함수
     // ═══════════════════════════════════════════════════════════════════════
 

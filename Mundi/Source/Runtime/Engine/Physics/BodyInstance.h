@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 // ─────────────────────────────────────────────────────────────────────────────
 // BodyInstance.h
@@ -133,6 +133,23 @@ struct FBodyInstance
 
     /** PhysX Transform → Component 동기화 */
     void SyncPhysicsToComponent();
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // 렌더 보간 (고프레임 렌더링 지원)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /**
+     * @brief 물리 스텝 후 Transform 캡처
+     * @note PhysScene::Simulate()에서 물리 스텝 실행 후 호출됨
+     */
+    void CapturePhysicsTransform();
+
+    /**
+     * @brief Alpha 값으로 보간된 Transform 계산하여 Component에 적용
+     * @param Alpha 보간 비율 (0.0 ~ 1.0): 0=이전 Transform, 1=현재 Transform
+     * @note PhysScene::Simulate() 종료 시점에 매 프레임 호출됨
+     */
+    void UpdateRenderInterpolation(float Alpha);
 
     // ═══════════════════════════════════════════════════════════════════════
     // 물리 제어

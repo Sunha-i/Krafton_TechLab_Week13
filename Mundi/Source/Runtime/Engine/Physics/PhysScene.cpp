@@ -278,10 +278,10 @@ void FPhysSceneImpl::Simulate(float DeltaSeconds)
         return;
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Fixed Timestep 물리 시뮬레이션
+    // Fixed Timestep 물리 시뮬레이션 + 렌더 보간
     // ═══════════════════════════════════════════════════════════════════════
     // 프레임레이트와 무관하게 일정한 물리 시뮬레이션 속도를 보장합니다.
-    // Debug(저FPS)와 Release(고FPS) 빌드에서 동일한 물리 결과를 얻습니다.
+    // 고프레임 렌더링 시 보간을 통해 부드러운 움직임을 제공합니다.
 
     // 비정상적으로 큰 DeltaTime 제한 (예: 디버거 일시정지 후)
     DeltaSeconds = FMath::Min(DeltaSeconds, MaxSubsteps * FixedTimestep);
@@ -302,11 +302,22 @@ void FPhysSceneImpl::Simulate(float DeltaSeconds)
         NumSteps++;
     }
 
-    // 마지막 스텝 이후 Active Actors Transform 동기화
+    // ═══════════════════════════════════════════════════════════════════════
+    // 렌더 보간 처리
+    // ═══════════════════════════════════════════════════════════════════════
+
+    // 물리 스텝 실행됨 → Transform 캡처
     if (NumSteps > 0)
     {
-        SyncActiveActorsToComponents();
+        CaptureActiveActorsTransform();
     }
+
+    // 매 프레임 보간 업데이트 (물리 스텝 실행 여부와 무관)
+    // Alpha = AccumulatedTime / FixedTimestep
+    // - 물리 스텝 직후: Alpha ≈ 0.0 (이전 Transform에 가까움)
+    // - 다음 물리 스텝 직전: Alpha ≈ 1.0 (현재 Transform에 가까움)
+    float Alpha = GetInterpolationAlpha();
+    UpdateRenderInterpolation(Alpha);
 }
 
 void FPhysSceneImpl::FetchResults()
@@ -320,7 +331,7 @@ void FPhysSceneImpl::SyncActiveActorsToComponents()
     if (!PScene)
         return;
 
-    // Active Actors Transform 동기화
+    // Active Actors Transform 동기화 (레거시 - 보간 미사용 시)
     PxU32 NumActiveActors = 0;
     PxActor** ActiveActors = PScene->getActiveActors(NumActiveActors);
 
@@ -332,6 +343,50 @@ void FPhysSceneImpl::SyncActiveActorsToComponents()
             if (BodyInst && BodyInst->IsInScene())
             {
                 BodyInst->SyncPhysicsToComponent();
+            }
+        }
+    }
+}
+
+void FPhysSceneImpl::CaptureActiveActorsTransform()
+{
+    if (!PScene)
+        return;
+
+    // Active Actors의 Transform 이력 캡처
+    PxU32 NumActiveActors = 0;
+    PxActor** ActiveActors = PScene->getActiveActors(NumActiveActors);
+
+    for (PxU32 i = 0; i < NumActiveActors; ++i)
+    {
+        if (PxRigidActor* RigidActor = ActiveActors[i]->is<PxRigidActor>())
+        {
+            FBodyInstance* BodyInst = static_cast<FBodyInstance*>(RigidActor->userData);
+            if (BodyInst && BodyInst->IsInScene() && BodyInst->bSimulatePhysics)
+            {
+                BodyInst->CapturePhysicsTransform();
+            }
+        }
+    }
+}
+
+void FPhysSceneImpl::UpdateRenderInterpolation(float Alpha)
+{
+    if (!PScene)
+        return;
+
+    // Active Actors의 렌더 보간 Transform 업데이트
+    PxU32 NumActiveActors = 0;
+    PxActor** ActiveActors = PScene->getActiveActors(NumActiveActors);
+
+    for (PxU32 i = 0; i < NumActiveActors; ++i)
+    {
+        if (PxRigidActor* RigidActor = ActiveActors[i]->is<PxRigidActor>())
+        {
+            FBodyInstance* BodyInst = static_cast<FBodyInstance*>(RigidActor->userData);
+            if (BodyInst && BodyInst->IsInScene() && BodyInst->bSimulatePhysics)
+            {
+                BodyInst->UpdateRenderInterpolation(Alpha);
             }
         }
     }
