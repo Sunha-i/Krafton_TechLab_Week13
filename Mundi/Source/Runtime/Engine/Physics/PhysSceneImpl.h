@@ -45,8 +45,21 @@ public:
     void FetchResults();
     bool IsSimulating() const { return bIsSimulating; }
 
-    /** Active Actors의 Transform을 Component에 동기화 */
+    /** Active Actors의 Transform을 Component에 동기화 (레거시, 보간 미사용 시) */
     void SyncActiveActorsToComponents();
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // 렌더 보간 (고프레임 렌더링 지원)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /** Active Actors의 Transform 이력 캡처 (물리 스텝 후 호출) */
+    void CaptureActiveActorsTransform();
+
+    /** Active Actors의 렌더 보간 Transform 업데이트 (매 프레임 호출) */
+    void UpdateRenderInterpolation(float Alpha);
+
+    /** 현재 보간 Alpha 값 반환 */
+    float GetInterpolationAlpha() const { return AccumulatedTime / FixedTimestep; }
 
     // ═══════════════════════════════════════════════════════════════════════
     // 중력 설정

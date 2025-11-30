@@ -20,6 +20,7 @@
 
 // 언리얼 방식: 모든 직교 뷰포트가 하나의 3D 위치를 공유
 FVector FViewportClient::CameraAddPosition{};
+float FViewportClient::SharedOrthographicZoom = 1.0f;
 
 FViewportClient::FViewportClient()
 {
@@ -33,13 +34,13 @@ FViewportClient::~FViewportClient()
 {
 }
 
-void FViewportClient::Tick(float DeltaTime)
+void FViewportClient::Tick(FViewport* Viewport, float DeltaTime)
 {
 	if (PerspectiveCameraInput)
 	{
 		Camera->ProcessEditorCameraInput(DeltaTime);
 	}
-	MouseWheel(DeltaTime);
+	MouseWheel(Viewport, DeltaTime);
 	static UClipboardManager* ClipboardManager = NewObject<UClipboardManager>();
 
 	// 키보드 입력 처리 (Ctrl+C/V)
@@ -157,6 +158,7 @@ void FViewportClient::Draw(FViewport* Viewport)
 	{
 		Camera->GetCameraComponent()->SetProjectionMode(ECameraProjectionMode::Orthographic);
 		SetupCameraMode();
+		Camera->GetCameraComponent()->SetZoomFactor(SharedOrthographicZoom);
 		break;
 	}
 	}
@@ -360,16 +362,38 @@ FMatrix FViewportClient::GetViewMatrix() const
 	return FMatrix::Identity();
 }
 
-void FViewportClient::MouseWheel(float DeltaSeconds)
+void FViewportClient::MouseWheel(FViewport* Viewport, float DeltaSeconds)
 {
-	if (!Camera) return;
+	if (!Camera || !Viewport) return;
 
 	UCameraComponent* CameraComponent = Camera->GetCameraComponent();
 	if (!CameraComponent) return;
 
-	// OwnerWindow가 설정된 경우(메인 에디터 뷰포트)만 체크
+	float WheelDelta = UInputManager::GetInstance().GetMouseWheelDelta();
+
+	// 마우스 휠이 움직이지 않았으면 처리 안 함
+	if (WheelDelta == 0.0f)
+		return;
+
+	// OwnerWindow가 설정된 경우(메인 에디터 뷰포트)만 마우스 위치 및 추가 체크
 	if (OwnerWindow != nullptr)
 	{
+		// 마우스가 이 뷰포트 위에 있는지 확인
+		UInputManager& InputManager = UInputManager::GetInstance();
+		FVector2D MousePos = InputManager.GetMousePosition();
+
+		float VpLeft = static_cast<float>(Viewport->GetStartX());
+		float VpTop = static_cast<float>(Viewport->GetStartY());
+		float VpRight = VpLeft + static_cast<float>(Viewport->GetSizeX());
+		float VpBottom = VpTop + static_cast<float>(Viewport->GetSizeY());
+
+		bool bMouseOverViewport = (MousePos.X >= VpLeft && MousePos.X < VpRight &&
+								   MousePos.Y >= VpTop && MousePos.Y < VpBottom);
+
+		// 마우스가 이 뷰포트 위에 없으면 처리 안 함
+		if (!bMouseOverViewport)
+			return;
+
 		// ImGui가 마우스 입력을 캡처 중이면 뷰포트에서 마우스 휠 처리 안 함
 		ImGuiIO& io = ImGui::GetIO();
 		if (io.WantCaptureMouse)
@@ -380,14 +404,12 @@ void FViewportClient::MouseWheel(float DeltaSeconds)
 		if (USlateManager::ActiveViewport != nullptr && USlateManager::ActiveViewport != OwnerWindow)
 			return;
 	}
-	// 뷰어 창(OwnerWindow == nullptr)은 WantCaptureMouse 체크 안 함
-	// (뷰어는 ImGui 윈도우 내부에 있어서 항상 WantCaptureMouse가 true이므로)
-
-	float WheelDelta = UInputManager::GetInstance().GetMouseWheelDelta();
-
-	// 마우스 휠이 움직이지 않았으면 처리 안 함
-	if (WheelDelta == 0.0f)
-		return;
+	else // 뷰어 창 (OwnerWindow == nullptr)
+	{
+		// 뷰어 창은 IsViewportHovered()로 체크 (ImGui::Image의 IsItemHovered 기반)
+		if (!Viewport->IsViewportHovered())
+			return;
+	}
 
 	// 우클릭이 눌려있을 때: 카메라 이동 속도 조절
 	if (bIsMouseRightButtonDown)
@@ -402,9 +424,18 @@ void FViewportClient::MouseWheel(float DeltaSeconds)
 	// 우클릭이 안 눌려있을 때: 줌 조절
 	else
 	{
-		float zoomFactor = CameraComponent->GetZoomFactor();
-		zoomFactor *= (1.0f - WheelDelta * DeltaSeconds * 100.0f);
-		CameraComponent->SetZoomFactor(zoomFactor);
+		// Perspective 모드: 해당 카메라를 앞뒤로 이동 (dolly)
+		if (ViewportType == EViewportType::Perspective)
+		{
+			Camera->ApplyZoomInput(WheelDelta, DeltaSeconds);
+		}
+		// Orthographic 모드: 모든 orthographic 뷰포트가 공유하는 줌 팩터 조절
+		else
+		{
+			SharedOrthographicZoom *= (1.0f - WheelDelta * DeltaSeconds * 100.0f);
+			//SharedOrthographicZoom = std::max(0.1f, std::min(10.0f, SharedOrthographicZoom)); // 범위 제한
+			CameraComponent->SetZoomFactor(SharedOrthographicZoom);
+		}
 	}
 }
 

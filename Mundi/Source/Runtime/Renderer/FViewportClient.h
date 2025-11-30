@@ -19,13 +19,13 @@ public:
 
     // 렌더링
     virtual void Draw(FViewport* Viewport);
-    virtual void Tick(float DeltaTime);
+    virtual void Tick(FViewport* Viewport, float DeltaTime);
 
     // 입력 처리
     virtual void MouseMove(FViewport* Viewport, int32 X, int32 Y);
     virtual void MouseButtonDown(FViewport* Viewport, int32 X, int32 Y, int32 Button);
     virtual void MouseButtonUp(FViewport* Viewport, int32 X, int32 Y, int32 Button);
-    virtual void MouseWheel(float DeltaSeconds);
+    virtual void MouseWheel(FViewport* Viewport, float DeltaSeconds);
     virtual void KeyDown(FViewport* Viewport, int32 KeyCode) {}
     virtual void KeyUp(FViewport* Viewport, int32 KeyCode) {}
 
@@ -71,6 +71,9 @@ protected:
 
     // 언리얼 방식: 모든 직교 뷰포트가 하나의 3D 위치를 공유 (연동되어 움직임)
     static FVector CameraAddPosition;
+
+    // 모든 직교 뷰포트가 공유하는 줌 팩터
+    static float SharedOrthographicZoom;
 
     // 직교 뷰용 카메라 설정
     uint32 OrthographicAddXPosition;

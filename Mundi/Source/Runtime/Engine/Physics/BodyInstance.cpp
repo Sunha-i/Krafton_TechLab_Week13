@@ -1,6 +1,8 @@
 #include "pch.h"
 #include "BodyInstance.h"
+#include "BodyInstanceImpl.h"
 #include "BodySetup.h"
+#include "BodySetupImpl.h"
 #include "PhysScene.h"
 #include "PhysSceneImpl.h"
 #include "PhysicsCore.h"
@@ -12,6 +14,61 @@
 #include <PxPhysicsAPI.h>
 
 using namespace physx;
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 생성자/소멸자
+// ═══════════════════════════════════════════════════════════════════════════
+
+FBodyInstance::FBodyInstance()
+    : Impl(std::make_unique<FBodyInstanceImpl>())
+{
+}
+
+FBodyInstance::~FBodyInstance()
+{
+    TermBody();
+}
+
+FBodyInstance::FBodyInstance(const FBodyInstance& Other)
+    : Impl(std::make_unique<FBodyInstanceImpl>())  // 새 Impl 생성
+    , OwnerComponent(nullptr)  // 복사 시 소유자는 nullptr
+    , CurrentSceneState(EBodyInstanceSceneState::NotAdded)
+    , bSimulatePhysics(Other.bSimulatePhysics)
+    , bEnableGravity(Other.bEnableGravity)
+    , bIsTrigger(Other.bIsTrigger)
+    , MassInKg(Other.MassInKg)
+    , LinearDamping(Other.LinearDamping)
+    , AngularDamping(Other.AngularDamping)
+    , OwnerScene(nullptr)
+{
+    // PhysX Actor는 복사하지 않음 - 나중에 InitBody()로 새로 생성해야 함
+}
+
+FBodyInstance& FBodyInstance::operator=(const FBodyInstance& Other)
+{
+    if (this != &Other)
+    {
+        // 기존 PhysX Actor 정리
+        TermBody();
+
+        // 물리 파라미터 복사
+        bSimulatePhysics = Other.bSimulatePhysics;
+        bEnableGravity = Other.bEnableGravity;
+        bIsTrigger = Other.bIsTrigger;
+        MassInKg = Other.MassInKg;
+        LinearDamping = Other.LinearDamping;
+        AngularDamping = Other.AngularDamping;
+
+        // 소유자/Scene은 복사하지 않음
+        OwnerComponent = nullptr;
+        OwnerScene = nullptr;
+        CurrentSceneState = EBodyInstanceSceneState::NotAdded;
+
+        // Impl은 이미 존재하므로 재생성하지 않음
+        // PhysX Actor는 InitBody()로 새로 생성해야 함
+    }
+    return *this;
+}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 생명주기
@@ -43,8 +100,8 @@ void FBodyInstance::InitBody(
     CurrentSceneState = EBodyInstanceSceneState::AwaitingAdd;
 
     // PhysX 객체 가져오기
-    FPhysSceneImpl* Impl = Scene->GetImpl();
-    if (!Impl || !Impl->IsInitialized())
+    FPhysSceneImpl* SceneImpl = Scene->GetImpl();
+    if (!SceneImpl || !SceneImpl->IsInitialized())
     {
         UE_LOG("FBodyInstance::InitBody - PhysScene not initialized");
         CurrentSceneState = EBodyInstanceSceneState::NotAdded;
@@ -52,8 +109,8 @@ void FBodyInstance::InitBody(
     }
 
     PxPhysics* Physics = FPhysicsCore::Get().GetPhysics();
-    PxScene* PScene = Impl->GetPxScene();
-    PxMaterial* DefaultMaterial = Impl->GetDefaultMaterial();
+    PxScene* PScene = SceneImpl->GetPxScene();
+    PxMaterial* DefaultMaterial = SceneImpl->GetDefaultMaterial();
 
     if (!Physics || !PScene || !DefaultMaterial)
     {
@@ -79,7 +136,7 @@ void FBodyInstance::InitBody(
 
         // Shape 생성 및 부착
         FVector Scale = Transform.Scale3D;
-        PxShape* Shape = Setup->CreatePhysicsShape(DynamicActor, DefaultMaterial, Scale);
+        PxShape* Shape = BodySetupHelper::CreatePhysicsShape(Setup, DynamicActor, DefaultMaterial, Scale);
         if (!Shape)
         {
             DynamicActor->release();
@@ -108,7 +165,7 @@ void FBodyInstance::InitBody(
         Shape->setFlag(PxShapeFlag::eSIMULATION_SHAPE, !bIsTrigger);
         Shape->setFlag(PxShapeFlag::eTRIGGER_SHAPE, bIsTrigger);
 
-        RigidActorSync = DynamicActor;
+        Impl->RigidActorSync = DynamicActor;
     }
     else
     {
@@ -123,7 +180,7 @@ void FBodyInstance::InitBody(
 
         // Shape 생성 및 부착
         FVector Scale = Transform.Scale3D;
-        PxShape* Shape = Setup->CreatePhysicsShape(StaticActor, DefaultMaterial, Scale);
+        PxShape* Shape = BodySetupHelper::CreatePhysicsShape(Setup, StaticActor, DefaultMaterial, Scale);
         if (!Shape)
         {
             StaticActor->release();
@@ -136,14 +193,14 @@ void FBodyInstance::InitBody(
         Shape->setFlag(PxShapeFlag::eSIMULATION_SHAPE, !bIsTrigger);
         Shape->setFlag(PxShapeFlag::eTRIGGER_SHAPE, bIsTrigger);
 
-        RigidActorSync = StaticActor;
+        Impl->RigidActorSync = StaticActor;
     }
 
     // userData 설정 (콜백에서 FBodyInstance로 접근)
-    RigidActorSync->userData = this;
+    Impl->RigidActorSync->userData = this;
 
     // Scene에 추가
-    PScene->addActor(*RigidActorSync);
+    PScene->addActor(*Impl->RigidActorSync);
     CurrentSceneState = EBodyInstanceSceneState::Added;
 
     UE_LOG("FBodyInstance::InitBody - Body created successfully (Simulate=%s, Trigger=%s)",
@@ -153,7 +210,7 @@ void FBodyInstance::InitBody(
 
 void FBodyInstance::TermBody()
 {
-    if (!RigidActorSync)
+    if (!Impl || !Impl->RigidActorSync)
     {
         return;
     }
@@ -163,20 +220,20 @@ void FBodyInstance::TermBody()
     // Scene에서 제거
     if (OwnerScene)
     {
-        FPhysSceneImpl* Impl = OwnerScene->GetImpl();
-        if (Impl && Impl->IsInitialized())
+        FPhysSceneImpl* SceneImpl = OwnerScene->GetImpl();
+        if (SceneImpl && SceneImpl->IsInitialized())
         {
-            PxScene* PScene = Impl->GetPxScene();
+            PxScene* PScene = SceneImpl->GetPxScene();
             if (PScene)
             {
-                PScene->removeActor(*RigidActorSync);
+                PScene->removeActor(*Impl->RigidActorSync);
             }
         }
     }
 
     // Actor 해제
-    RigidActorSync->release();
-    RigidActorSync = nullptr;
+    Impl->RigidActorSync->release();
+    Impl->RigidActorSync = nullptr;
 
     CurrentSceneState = EBodyInstanceSceneState::Removed;
     OwnerComponent = nullptr;
@@ -185,18 +242,23 @@ void FBodyInstance::TermBody()
     UE_LOG("FBodyInstance::TermBody - Body destroyed");
 }
 
+bool FBodyInstance::IsInitialized() const
+{
+    return Impl && Impl->RigidActorSync != nullptr;
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // Transform 동기화
 // ═══════════════════════════════════════════════════════════════════════════
 
 FTransform FBodyInstance::GetWorldTransform() const
 {
-    if (!RigidActorSync)
+    if (!Impl || !Impl->RigidActorSync)
     {
         return FTransform();
     }
 
-    PxTransform PxPose = RigidActorSync->getGlobalPose();
+    PxTransform PxPose = Impl->RigidActorSync->getGlobalPose();
     FTransform Result = PhysicsConversion::ToFTransform(PxPose);
 
     // 스케일은 Component에서 가져옴
@@ -210,7 +272,7 @@ FTransform FBodyInstance::GetWorldTransform() const
 
 void FBodyInstance::SetWorldTransform(const FTransform& NewTransform, bool bTeleport)
 {
-    if (!RigidActorSync)
+    if (!Impl || !Impl->RigidActorSync)
     {
         return;
     }
@@ -220,7 +282,7 @@ void FBodyInstance::SetWorldTransform(const FTransform& NewTransform, bool bTele
     if (bSimulatePhysics && bTeleport)
     {
         // Dynamic Actor의 경우 setKinematicTarget 또는 setGlobalPose 사용
-        PxRigidDynamic* Dynamic = GetPxRigidDynamic();
+        PxRigidDynamic* Dynamic = Impl->GetPxRigidDynamic();
         if (Dynamic)
         {
             Dynamic->setGlobalPose(PxPose);
@@ -231,13 +293,13 @@ void FBodyInstance::SetWorldTransform(const FTransform& NewTransform, bool bTele
     }
     else
     {
-        RigidActorSync->setGlobalPose(PxPose);
+        Impl->RigidActorSync->setGlobalPose(PxPose);
     }
 }
 
 void FBodyInstance::SyncComponentToPhysics()
 {
-    if (!OwnerComponent || !RigidActorSync)
+    if (!OwnerComponent || !Impl || !Impl->RigidActorSync)
     {
         return;
     }
@@ -252,7 +314,7 @@ void FBodyInstance::SyncComponentToPhysics()
 
 void FBodyInstance::SyncPhysicsToComponent()
 {
-    if (!OwnerComponent || !RigidActorSync)
+    if (!OwnerComponent || !Impl || !Impl->RigidActorSync)
     {
         return;
     }
@@ -263,6 +325,53 @@ void FBodyInstance::SyncPhysicsToComponent()
         FTransform PhysTransform = GetWorldTransform();
         OwnerComponent->SetWorldTransform(PhysTransform);
     }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 렌더 보간
+// ═══════════════════════════════════════════════════════════════════════════
+
+void FBodyInstance::CapturePhysicsTransform()
+{
+    if (!Impl || !Impl->RigidActorSync)
+    {
+        return;
+    }
+
+    // 이전 Transform ← 현재 Transform
+    Impl->PreviousPhysicsTransform = Impl->CurrentPhysicsTransform;
+
+    // 현재 Transform ← PhysX
+    Impl->CurrentPhysicsTransform = Impl->RigidActorSync->getGlobalPose();
+
+    // 최소 1회 캡처 후 보간 활성화
+    Impl->bRenderInterpolationValid = true;
+}
+
+void FBodyInstance::UpdateRenderInterpolation(float Alpha)
+{
+    if (!Impl || !Impl->bRenderInterpolationValid || !OwnerComponent)
+    {
+        return;
+    }
+
+    // Alpha 클램프
+    Alpha = FMath::Clamp(Alpha, 0.0f, 1.0f);
+
+    // PhysX Transform → Mundi Transform 변환
+    FTransform PrevTransform = PhysicsConversion::ToFTransform(Impl->PreviousPhysicsTransform);
+    FTransform CurrTransform = PhysicsConversion::ToFTransform(Impl->CurrentPhysicsTransform);
+
+    // 스케일은 Component에서 가져옴 (물리 시뮬레이션에는 스케일 미포함)
+    FVector Scale = OwnerComponent->GetWorldScale();
+    PrevTransform.Scale3D = Scale;
+    CurrTransform.Scale3D = Scale;
+
+    // FTransform::Lerp 사용 (내부적으로 FQuat::Slerp 호출)
+    FTransform InterpolatedTransform = FTransform::Lerp(PrevTransform, CurrTransform, Alpha);
+
+    // Component에 적용
+    OwnerComponent->SetWorldTransform(InterpolatedTransform);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -282,7 +391,7 @@ void FBodyInstance::SetSimulatePhysics(bool bSimulate)
     // 이미 초기화된 상태라면 Actor 타입 변경이 필요
     // (Static ↔ Dynamic 변환은 복잡하므로 재생성 권장)
     // 현재 구현에서는 런타임 변경 미지원
-    if (RigidActorSync)
+    if (Impl && Impl->RigidActorSync)
     {
         UE_LOG("FBodyInstance::SetSimulatePhysics - Runtime change requires re-initialization");
     }
@@ -290,7 +399,12 @@ void FBodyInstance::SetSimulatePhysics(bool bSimulate)
 
 void FBodyInstance::AddForce(const FVector& Force, bool bAccelChange)
 {
-    PxRigidDynamic* Dynamic = GetPxRigidDynamic();
+    if (!Impl)
+    {
+        return;
+    }
+
+    PxRigidDynamic* Dynamic = Impl->GetPxRigidDynamic();
     if (!Dynamic)
     {
         return;
@@ -303,7 +417,12 @@ void FBodyInstance::AddForce(const FVector& Force, bool bAccelChange)
 
 void FBodyInstance::AddImpulse(const FVector& Impulse, bool bVelChange)
 {
-    PxRigidDynamic* Dynamic = GetPxRigidDynamic();
+    if (!Impl)
+    {
+        return;
+    }
+
+    PxRigidDynamic* Dynamic = Impl->GetPxRigidDynamic();
     if (!Dynamic)
     {
         return;
@@ -316,7 +435,12 @@ void FBodyInstance::AddImpulse(const FVector& Impulse, bool bVelChange)
 
 void FBodyInstance::AddTorqueInRadians(const FVector& Torque, bool bAccelChange)
 {
-    PxRigidDynamic* Dynamic = GetPxRigidDynamic();
+    if (!Impl)
+    {
+        return;
+    }
+
+    PxRigidDynamic* Dynamic = Impl->GetPxRigidDynamic();
     if (!Dynamic)
     {
         return;
@@ -333,7 +457,12 @@ void FBodyInstance::AddTorqueInRadians(const FVector& Torque, bool bAccelChange)
 
 FVector FBodyInstance::GetLinearVelocity() const
 {
-    PxRigidDynamic* Dynamic = GetPxRigidDynamic();
+    if (!Impl)
+    {
+        return FVector::Zero();
+    }
+
+    PxRigidDynamic* Dynamic = Impl->GetPxRigidDynamic();
     if (!Dynamic)
     {
         return FVector::Zero();
@@ -345,7 +474,12 @@ FVector FBodyInstance::GetLinearVelocity() const
 
 void FBodyInstance::SetLinearVelocity(const FVector& Velocity, bool bAddToCurrent)
 {
-    PxRigidDynamic* Dynamic = GetPxRigidDynamic();
+    if (!Impl)
+    {
+        return;
+    }
+
+    PxRigidDynamic* Dynamic = Impl->GetPxRigidDynamic();
     if (!Dynamic)
     {
         return;
@@ -361,7 +495,12 @@ void FBodyInstance::SetLinearVelocity(const FVector& Velocity, bool bAddToCurren
 
 FVector FBodyInstance::GetAngularVelocityInRadians() const
 {
-    PxRigidDynamic* Dynamic = GetPxRigidDynamic();
+    if (!Impl)
+    {
+        return FVector::Zero();
+    }
+
+    PxRigidDynamic* Dynamic = Impl->GetPxRigidDynamic();
     if (!Dynamic)
     {
         return FVector::Zero();
@@ -373,7 +512,12 @@ FVector FBodyInstance::GetAngularVelocityInRadians() const
 
 void FBodyInstance::SetAngularVelocityInRadians(const FVector& AngVel, bool bAddToCurrent)
 {
-    PxRigidDynamic* Dynamic = GetPxRigidDynamic();
+    if (!Impl)
+    {
+        return;
+    }
+
+    PxRigidDynamic* Dynamic = Impl->GetPxRigidDynamic();
     if (!Dynamic)
     {
         return;
@@ -393,7 +537,12 @@ void FBodyInstance::SetAngularVelocityInRadians(const FVector& AngVel, bool bAdd
 
 float FBodyInstance::GetBodyMass() const
 {
-    PxRigidDynamic* Dynamic = GetPxRigidDynamic();
+    if (!Impl)
+    {
+        return 0.0f;
+    }
+
+    PxRigidDynamic* Dynamic = Impl->GetPxRigidDynamic();
     if (!Dynamic)
     {
         return 0.0f;
@@ -404,7 +553,12 @@ float FBodyInstance::GetBodyMass() const
 
 FVector FBodyInstance::GetBodyInertiaTensor() const
 {
-    PxRigidDynamic* Dynamic = GetPxRigidDynamic();
+    if (!Impl)
+    {
+        return FVector::Zero();
+    }
+
+    PxRigidDynamic* Dynamic = Impl->GetPxRigidDynamic();
     if (!Dynamic)
     {
         return FVector::Zero();
@@ -415,15 +569,10 @@ FVector FBodyInstance::GetBodyInertiaTensor() const
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// 내부 헬퍼
+// PIMPL 접근자
 // ═══════════════════════════════════════════════════════════════════════════
 
-PxRigidDynamic* FBodyInstance::GetPxRigidDynamic() const
+FBodyInstanceImpl* FBodyInstance::GetImpl() const
 {
-    if (!RigidActorSync)
-    {
-        return nullptr;
-    }
-
-    return RigidActorSync->is<PxRigidDynamic>();
+    return Impl.get();
 }

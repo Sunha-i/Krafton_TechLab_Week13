@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PhysicsCore.h
@@ -23,7 +23,7 @@ public:
     // 초기화/종료
     void Init();
     void Shutdown();
-
+    
     // PhysX 객체 접근자
     physx::PxFoundation* GetFoundation() const { return GFoundation; }
     physx::PxPhysics* GetPhysics() const { return GPhysics; }
@@ -47,6 +47,8 @@ private:
     bool CreateFoundation();
     bool CreatePhysics();
     bool CreateCooking();
+    bool InitVehicleSDK();
+    void ShutdownVehicleSDK();
     bool ConnectPvd();
     void DisconnectPvd();
 
@@ -61,4 +63,5 @@ private:
     physx::PxPvdTransport* GPvdTransport = nullptr;
 
     bool bInitialized = false;
+    bool bVehicleSDKInitialized = false;
 };

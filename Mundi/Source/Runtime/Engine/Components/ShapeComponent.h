@@ -45,6 +45,10 @@ public:
 
 	UShapeComponent();
 
+protected:
+	~UShapeComponent() override;
+
+public:
 	virtual void TickComponent(float DeltaSeconds) override;
 
 	virtual void GetShape(FShape& OutShape) const {};
@@ -62,22 +66,37 @@ public:
     FAABB GetWorldAABB() const override;
 	virtual const TArray<FOverlapInfo>& GetOverlapInfos() const override { return OverlapInfos; }
 
+	// Serialization
+	void Serialize(const bool bInIsLoading, JSON& InOutHandle) override;
+
 	// Duplication
 	virtual void DuplicateSubObjects() override;
 
 	// ═══════════════════════════════════════════════════════════════════════
-	// BodySetup (Shape별로 내부에서 관리)
+	// BodySetup (Archetype 패턴 - 기본값 공유 + Copy-on-Write)
 	// ═══════════════════════════════════════════════════════════════════════
 
-	/** 이 Shape의 BodySetup 반환 */
-	virtual UBodySetup* GetBodySetup() const override { return ShapeBodySetup; }
+	/** 이 Shape의 BodySetup 반환 (Archetype 또는 자체 소유) */
+	virtual UBodySetup* GetBodySetup() const override;
 
 protected:
-	/** Shape용 BodySetup (각 파생 클래스에서 초기화) */
+	/** Shape용 BodySetup (nullptr이면 Archetype 사용) */
 	UBodySetup* ShapeBodySetup = nullptr;
 
+	/** Archetype(기본값) BodySetup 사용 여부 */
+	bool bUseArchetypeBodySetup = true;
+
+	/** 기본 BodySetup 반환 (파생 클래스에서 구현) */
+	virtual UBodySetup* GetDefaultBodySetup() const { return nullptr; }
+
+	/** 현재 파라미터가 기본값과 같은지 확인 (파생 클래스에서 구현) */
+	virtual bool IsUsingDefaultParameters() const { return true; }
+
+	/** 자체 BodySetup 생성이 필요한지 확인하고 필요시 생성 */
+	void EnsureBodySetupIsValid();
+
 	/** BodySetup 생성/업데이트 (Shape 크기 변경 시 호출) */
-	virtual void UpdateBodySetup() {}
+	virtual void UpdateBodySetup();
 
 	// ㅡㅡㅡㅡㅡㅡㅡㅡㅡ디버깅용ㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡ
 

@@ -11,8 +11,18 @@
 // IMPLEMENT_CLASS is now auto-generated in .generated.cpp
 UShapeComponent::UShapeComponent() : bShapeIsVisible(true), bShapeHiddenInGame(true)
 {
-    ShapeColor = FVector4(0.2f, 0.8f, 1.0f, 1.0f); 
+    ShapeColor = FVector4(0.2f, 0.8f, 1.0f, 1.0f);
     bCanEverTick = true;
+}
+
+UShapeComponent::~UShapeComponent()
+{
+    // 자체 BodySetup 명시적 삭제 (Mundi는 GC 없음)
+    if (ShapeBodySetup)
+    {
+        ObjectFactory::DeleteObject(ShapeBodySetup);
+        ShapeBodySetup = nullptr;
+    }
 }
 
 void UShapeComponent::BeginPlay()
@@ -245,10 +255,79 @@ FAABB UShapeComponent::GetWorldAABB() const
     }
     return WorldAABB;
 }
-  
+
+void UShapeComponent::Serialize(const bool bInIsLoading, JSON& InOutHandle)
+{
+    Super::Serialize(bInIsLoading, InOutHandle);
+
+    if (bInIsLoading)
+    {
+        // Shape 파라미터가 UPROPERTY로 자동 로드된 후,
+        // BodySetup에 반영해야 PhysX Shape가 올바른 크기로 생성됨
+        UpdateBodySetup();
+    }
+}
+
 void UShapeComponent::DuplicateSubObjects()
 {
     Super::DuplicateSubObjects();
+
+    // Archetype 사용 여부 재평가
+    bUseArchetypeBodySetup = IsUsingDefaultParameters();
+    if (!bUseArchetypeBodySetup)
+    {
+        // 커스텀 파라미터 → 자체 BodySetup 생성
+        ShapeBodySetup = ObjectFactory::NewObject<UBodySetup>();
+        UpdateBodySetup();
+    }
+    else
+    {
+        // 기본값 → Archetype 공유
+        ShapeBodySetup = nullptr;
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// BodySetup Archetype 패턴 구현
+// ═══════════════════════════════════════════════════════════════════════
+
+UBodySetup* UShapeComponent::GetBodySetup() const
+{
+    if (bUseArchetypeBodySetup)
+    {
+        return GetDefaultBodySetup();  // Static 기본값 공유
+    }
+    return ShapeBodySetup;  // 자체 BodySetup 사용
+}
+
+void UShapeComponent::EnsureBodySetupIsValid()
+{
+    if (IsUsingDefaultParameters())
+    {
+        // 기본값 사용 → Archetype 공유
+        bUseArchetypeBodySetup = true;
+        if (ShapeBodySetup)
+        {
+            // 기존 자체 BodySetup 명시적 삭제
+            ObjectFactory::DeleteObject(ShapeBodySetup);
+            ShapeBodySetup = nullptr;
+        }
+    }
+    else
+    {
+        // 커스텀 값 → 자체 BodySetup 필요
+        if (bUseArchetypeBodySetup || !ShapeBodySetup)
+        {
+            bUseArchetypeBodySetup = false;
+            ShapeBodySetup = ObjectFactory::NewObject<UBodySetup>();
+        }
+    }
+}
+
+void UShapeComponent::UpdateBodySetup()
+{
+    EnsureBodySetupIsValid();
+    // 파생 클래스에서 ShapeBodySetup에 실제 값 설정
 }
 
 

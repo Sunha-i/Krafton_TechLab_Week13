@@ -41,6 +41,27 @@ FAABB APhysGroundActor::GetBounds() const
     return FAABB();
 }
 
+void APhysGroundActor::Serialize(const bool bInIsLoading, JSON& InOutHandle)
+{
+    Super::Serialize(bInIsLoading, InOutHandle);
+
+    if (bInIsLoading)
+    {
+        // OwnedComponents에서 컴포넌트 포인터 재설정
+        for (UActorComponent* Component : OwnedComponents)
+        {
+            if (UStaticMeshComponent* Mesh = Cast<UStaticMeshComponent>(Component))
+            {
+                MeshComponent = Mesh;
+            }
+            else if (UBoxComponent* Box = Cast<UBoxComponent>(Component))
+            {
+                BoxComponent = Box;
+            }
+        }
+    }
+}
+
 void APhysGroundActor::DuplicateSubObjects()
 {
 	Super::DuplicateSubObjects();

@@ -64,17 +64,19 @@ protected:
     };
 
     bool bBoneLinesInitialized = false;
-    int32 CachedSegments = 4;
+    int32 ConeSegments = 4;
+    int32 JointSegments = 12;
     int32 CachedSelected = -1;
     TArray<FBoneDebugLines> BoneLinesCache; // size == BoneCount
     TArray<TArray<int32>> BoneChildren;     // adjacency for subtree updates
 
     float BoneJointRadius = 0.01f;
-    float BoneBaseRadius = 0.02f;
+    float BoneBaseRadius = 0.015f;
 
     void BuildBoneLinesCache();
     void UpdateBoneSubtreeTransforms(int32 BoneIndex);
     void UpdateBoneSelectionHighlight(int32 SelectedBoneIndex);
+    void RestoreOriginalBoneColors();
 
     // Lazily create viewer-only components (BoneLineComponent, BoneAnchor) if in preview world
     void EnsureViewerComponents();
@@ -85,4 +87,9 @@ private:
     float SMTestAccum = 0.f;
     bool bSMTestFlip = false;
     // ---------------------
+
+    // Color Helpers
+    TArray<int32> JointOwner;
+    static FVector4 GetBoneColor(int32 BoneIndex);
+    static FVector4 HSVtoRGB(float H, float S, float V);
 };

@@ -19,6 +19,7 @@ protected:
 public:
     void BeginPlay() override;
     FAABB GetBounds() const override;
+    void Serialize(const bool bInIsLoading, JSON& InOutHandle) override;
 
 	void DuplicateSubObjects() override;
 

@@ -223,7 +223,7 @@ void SViewerWindow::OnUpdate(float DeltaSeconds)
 
     if (ActiveState && ActiveState->Client)
     {
-        ActiveState->Client->Tick(DeltaSeconds);
+        ActiveState->Client->Tick(ActiveState->Viewport, DeltaSeconds);
 
         // 뷰어 윈도우가 호버되어 있고 마우스 휠이 움직였을 때 ViewportClient에 전달
         // (ImGui 윈도우 내부의 마우스 휠 입력을 ViewportClient로 전달)

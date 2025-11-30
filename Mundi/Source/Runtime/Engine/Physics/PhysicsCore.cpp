@@ -1,4 +1,4 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "PhysicsCore.h"
 #include "GlobalConsole.h"
 
@@ -54,7 +54,15 @@ void FPhysicsCore::Init()
         return;
     }
 
-    // 5. Cooking 생성
+    // 5. Vehicle SDK 초기화
+    if (!InitVehicleSDK())
+    {
+        UE_LOG("FPhysicsCore: Failed to initialize Vehicle SDK");
+        Shutdown();
+        return;
+    }
+
+    // 6. Cooking 생성
     if (!CreateCooking())
     {
         UE_LOG("FPhysicsCore: Failed to create Cooking");
@@ -77,6 +85,9 @@ void FPhysicsCore::Shutdown()
         GCooking->release();
         GCooking = nullptr;
     }
+
+    // Vehicle SDK 해제
+    ShutdownVehicleSDK();
 
     // Extensions 종료
     if (GPhysics)
@@ -121,6 +132,38 @@ bool FPhysicsCore::CreateCooking()
 {
     GCooking = PxCreateCooking(PX_PHYSICS_VERSION, *GFoundation, PxCookingParams(GPhysics->getTolerancesScale()));
     return GCooking != nullptr;
+}
+
+bool FPhysicsCore::InitVehicleSDK()
+{
+    if (!GPhysics)
+    {
+        return false;
+    }
+
+    if (bVehicleSDKInitialized)
+    {
+        return true;
+    }
+
+    if (!PxInitVehicleSDK(*GPhysics))
+    {
+        return false;
+    }
+
+    bVehicleSDKInitialized = true;
+    return true;
+}
+
+void FPhysicsCore::ShutdownVehicleSDK()
+{
+    if (!bVehicleSDKInitialized)
+    {
+        return;
+    }
+
+    PxCloseVehicleSDK();
+    bVehicleSDKInitialized = false;
 }
 
 bool FPhysicsCore::ConnectPvd()

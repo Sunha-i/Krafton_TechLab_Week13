@@ -18,12 +18,10 @@
 
 UBoxComponent::UBoxComponent()
 {
-	BoxExtent = FVector(0.5f, 0.5f, 0.5f);
+	BoxExtent = UBodySetup::DefaultBoxExtent;
+	bUseArchetypeBodySetup = true;  // 기본값이므로 Archetype 공유
+	// ShapeBodySetup 생성하지 않음 - GetDefaultBodySetup()에서 공유
 	UpdateBounds();
-
-	// BodySetup 생성 및 초기화
-	ShapeBodySetup = ObjectFactory::NewObject<UBodySetup>();
-	UpdateBodySetup();
 }
 
 UBoxComponent::~UBoxComponent()
@@ -33,6 +31,7 @@ UBoxComponent::~UBoxComponent()
 void UBoxComponent::DuplicateSubObjects()
 {
 	Super::DuplicateSubObjects();
+	// Archetype 처리는 Super::DuplicateSubObjects()에서 수행
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -289,12 +288,36 @@ bool UBoxComponent::ContainsPoint(const FVector& Point) const
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// 물리 BodySetup 업데이트
+// Archetype 패턴 구현
 // ────────────────────────────────────────────────────────────────────────────
+
+UBodySetup* UBoxComponent::GetDefaultBodySetup() const
+{
+	// Static 기본 BodySetup (클래스당 1개, 모든 기본값 인스턴스가 공유)
+	static UBodySetup* DefaultSetup = nullptr;
+	if (!DefaultSetup)
+	{
+		DefaultSetup = ObjectFactory::NewObject<UBodySetup>();
+		DefaultSetup->BodyType = EBodySetupType::Box;
+		DefaultSetup->BoxExtent = UBodySetup::DefaultBoxExtent;
+	}
+	return DefaultSetup;
+}
+
+bool UBoxComponent::IsUsingDefaultParameters() const
+{
+	// 부동소수점 비교 (정확한 일치 확인)
+	return BoxExtent.X == UBodySetup::DefaultBoxExtent.X &&
+	       BoxExtent.Y == UBodySetup::DefaultBoxExtent.Y &&
+	       BoxExtent.Z == UBodySetup::DefaultBoxExtent.Z;
+}
 
 void UBoxComponent::UpdateBodySetup()
 {
-	if (ShapeBodySetup)
+	Super::UpdateBodySetup();  // EnsureBodySetupIsValid() 호출
+
+	// 자체 BodySetup을 사용하는 경우에만 값 설정
+	if (!bUseArchetypeBodySetup && ShapeBodySetup)
 	{
 		ShapeBodySetup->BodyType = EBodySetupType::Box;
 		ShapeBodySetup->BoxExtent = BoxExtent;

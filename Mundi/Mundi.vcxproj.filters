@@ -1,4 +1,4 @@
-<?xml version='1.0' encoding='utf-8'?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="4.0">
   <ItemGroup>
     <FxCompile Include="Shaders\Materials\Fireball.hlsl">
@@ -1115,6 +1115,12 @@
     <ClCompile Include="Source\Slate\Windows\SPhysicsAssetEditorWindow.cpp">
       <Filter>Source\Slate\Windows</Filter>
     </ClCompile>
+    <ClCompile Include="Source\Runtime\Engine\Components\SimpleWheeledVehicleMovementComponent.cpp">
+      <Filter>Source\Runtime\Engine\Components</Filter>
+    </ClCompile>
+    <ClCompile Include="Generated\USimpleWheeledVehicleMovementComponent.generated.cpp">
+      <Filter>Generated</Filter>
+    </ClCompile>
     <ClCompile Include="Generated\APhysBoxActor.generated.cpp">
       <Filter>Generated</Filter>
     </ClCompile>
@@ -1123,6 +1129,24 @@
     </ClCompile>
     <ClCompile Include="Generated\UBodySetup.generated.cpp">
       <Filter>Generated</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Runtime\Engine\Physics\BodyInstance.cpp">
+      <Filter>Source\Runtime\Engine\Physics</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Runtime\Engine\Physics\BodyInstanceImpl.cpp">
+      <Filter>Source\Runtime\Engine\Physics</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Runtime\Engine\Physics\BodySetup.cpp">
+      <Filter>Source\Runtime\Engine\Physics</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Runtime\Engine\Physics\BodySetupImpl.cpp">
+      <Filter>Source\Runtime\Engine\Physics</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Runtime\Engine\GameFramework\PhysBoxActor.cpp">
+      <Filter>Source\Runtime\Engine\GameFramework</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Runtime\Engine\GameFramework\PhysGroundActor.cpp">
+      <Filter>Source\Runtime\Engine\GameFramework</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -2363,6 +2387,12 @@
     <ClInclude Include="Source\Runtime\Engine\Particles\ParticleEventGeneratorTypes.h">
       <Filter>Source\Runtime\Engine\Particles</Filter>
     </ClInclude>
+    <ClInclude Include="Source\Runtime\Engine\Components\SimpleWheeledVehicleMovementComponent.h">
+      <Filter>Source\Runtime\Engine\Components</Filter>
+    </ClInclude>
+    <ClInclude Include="Generated\USimpleWheeledVehicleMovementComponent.generated.h">
+      <Filter>Generated</Filter>
+    </ClInclude>
     <ClInclude Include="Source\Runtime\Engine\Viewer\PhysicsAssetEditorBootstrap.h">
       <Filter>Source\Runtime\Engine\Viewer</Filter>
     </ClInclude>
@@ -2377,6 +2407,24 @@
     </ClInclude>
     <ClInclude Include="Generated\UBodySetup.generated.h">
       <Filter>Generated</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Runtime\Engine\Physics\BodyInstance.h">
+      <Filter>Source\Runtime\Engine\Physics</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Runtime\Engine\Physics\BodyInstanceImpl.h">
+      <Filter>Source\Runtime\Engine\Physics</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Runtime\Engine\Physics\BodySetup.h">
+      <Filter>Source\Runtime\Engine\Physics</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Runtime\Engine\Physics\BodySetupImpl.h">
+      <Filter>Source\Runtime\Engine\Physics</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Runtime\Engine\GameFramework\PhysBoxActor.h">
+      <Filter>Source\Runtime\Engine\GameFramework</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Runtime\Engine\GameFramework\PhysGroundActor.h">
+      <Filter>Source\Runtime\Engine\GameFramework</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
