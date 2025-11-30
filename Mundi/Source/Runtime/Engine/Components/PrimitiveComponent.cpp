@@ -105,7 +105,7 @@ bool UPrimitiveComponent::IsOverlappingActor(const AActor* Other) const
 void UPrimitiveComponent::BeginPlay()
 {
     Super::BeginPlay();
-     CreatePhysicsState();
+    CreatePhysicsState();
 }
 
 void UPrimitiveComponent::EndPlay()
@@ -117,7 +117,7 @@ void UPrimitiveComponent::EndPlay()
 void UPrimitiveComponent::CreatePhysicsState()
 {
     // BodySetup이 없으면 물리 상태 생성 안 함
-   UBodySetup* Setup = GetBodySetup();
+    UBodySetup* Setup = GetBodySetup();
     if (!Setup)
     {
         return;

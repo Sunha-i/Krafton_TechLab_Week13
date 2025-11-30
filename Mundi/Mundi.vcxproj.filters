@@ -1124,6 +1124,12 @@
     <ClCompile Include="Generated\APhysBoxActor.generated.cpp">
       <Filter>Generated</Filter>
     </ClCompile>
+    <ClCompile Include="Generated\APhysCapsuleActor.generated.cpp">
+      <Filter>Generated</Filter>
+    </ClCompile>
+    <ClCompile Include="Generated\APhysSphereActor.generated.cpp">
+      <Filter>Generated</Filter>
+    </ClCompile>
     <ClCompile Include="Generated\APhysGroundActor.generated.cpp">
       <Filter>Generated</Filter>
     </ClCompile>
@@ -1143,6 +1149,12 @@
       <Filter>Source\Runtime\Engine\Physics</Filter>
     </ClCompile>
     <ClCompile Include="Source\Runtime\Engine\GameFramework\PhysBoxActor.cpp">
+      <Filter>Source\Runtime\Engine\GameFramework</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Runtime\Engine\GameFramework\PhysCapsuleActor.cpp">
+      <Filter>Source\Runtime\Engine\GameFramework</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Runtime\Engine\GameFramework\PhysSphereActor.cpp">
       <Filter>Source\Runtime\Engine\GameFramework</Filter>
     </ClCompile>
     <ClCompile Include="Source\Runtime\Engine\GameFramework\PhysGroundActor.cpp">
@@ -2402,6 +2414,12 @@
     <ClInclude Include="Generated\APhysBoxActor.generated.h">
       <Filter>Generated</Filter>
     </ClInclude>
+    <ClInclude Include="Generated\APhysCapsuleActor.generated.h">
+      <Filter>Generated</Filter>
+    </ClInclude>
+    <ClInclude Include="Generated\APhysSphereActor.generated.h">
+      <Filter>Generated</Filter>
+    </ClInclude>
     <ClInclude Include="Generated\APhysGroundActor.generated.h">
       <Filter>Generated</Filter>
     </ClInclude>
@@ -2421,6 +2439,12 @@
       <Filter>Source\Runtime\Engine\Physics</Filter>
     </ClInclude>
     <ClInclude Include="Source\Runtime\Engine\GameFramework\PhysBoxActor.h">
+      <Filter>Source\Runtime\Engine\GameFramework</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Runtime\Engine\GameFramework\PhysCapsuleActor.h">
+      <Filter>Source\Runtime\Engine\GameFramework</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Runtime\Engine\GameFramework\PhysSphereActor.h">
       <Filter>Source\Runtime\Engine\GameFramework</Filter>
     </ClInclude>
     <ClInclude Include="Source\Runtime\Engine\GameFramework\PhysGroundActor.h">

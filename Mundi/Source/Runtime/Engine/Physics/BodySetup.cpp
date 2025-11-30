@@ -6,7 +6,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 const FVector UBodySetup::DefaultBoxExtent = FVector(0.5f, 0.5f, 0.5f);
-const float UBodySetup::DefaultSphereRadius = 0.5f;
+const float UBodySetup::DefaultSphereRadius = 1.0f;
 const float UBodySetup::DefaultCapsuleRadius = 0.5f;
 const float UBodySetup::DefaultCapsuleHalfHeight = 1.0f;
 
