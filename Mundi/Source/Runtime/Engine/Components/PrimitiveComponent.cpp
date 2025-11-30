@@ -51,6 +51,27 @@ void UPrimitiveComponent::DuplicateSubObjects()
 void UPrimitiveComponent::Serialize(const bool bInIsLoading, JSON& InOutHandle)
 {
     Super::Serialize(bInIsLoading, InOutHandle);
+
+    // BodyInstance 물리 파라미터 직렬화
+    // (런타임 포인터들은 BeginPlay에서 CreatePhysicsState로 생성됨)
+    if (bInIsLoading)
+    {
+        FJsonSerializer::ReadBool(InOutHandle, "bSimulatePhysics", BodyInstance.bSimulatePhysics, false, false);
+        FJsonSerializer::ReadBool(InOutHandle, "bEnableGravity", BodyInstance.bEnableGravity, true, false);
+        FJsonSerializer::ReadBool(InOutHandle, "bIsTrigger", BodyInstance.bIsTrigger, false, false);
+        FJsonSerializer::ReadFloat(InOutHandle, "MassInKg", BodyInstance.MassInKg, 0.0f, false);
+        FJsonSerializer::ReadFloat(InOutHandle, "LinearDamping", BodyInstance.LinearDamping, 0.01f, false);
+        FJsonSerializer::ReadFloat(InOutHandle, "AngularDamping", BodyInstance.AngularDamping, 0.05f, false);
+    }
+    else
+    {
+        InOutHandle["bSimulatePhysics"] = BodyInstance.bSimulatePhysics;
+        InOutHandle["bEnableGravity"] = BodyInstance.bEnableGravity;
+        InOutHandle["bIsTrigger"] = BodyInstance.bIsTrigger;
+        InOutHandle["MassInKg"] = BodyInstance.MassInKg;
+        InOutHandle["LinearDamping"] = BodyInstance.LinearDamping;
+        InOutHandle["AngularDamping"] = BodyInstance.AngularDamping;
+    }
 }
 
 bool UPrimitiveComponent::IsOverlappingActor(const AActor* Other) const
@@ -84,7 +105,7 @@ bool UPrimitiveComponent::IsOverlappingActor(const AActor* Other) const
 void UPrimitiveComponent::BeginPlay()
 {
     Super::BeginPlay();
-    CreatePhysicsState();
+     CreatePhysicsState();
 }
 
 void UPrimitiveComponent::EndPlay()
@@ -96,7 +117,7 @@ void UPrimitiveComponent::EndPlay()
 void UPrimitiveComponent::CreatePhysicsState()
 {
     // BodySetup이 없으면 물리 상태 생성 안 함
-    UBodySetup* Setup = GetBodySetup();
+   UBodySetup* Setup = GetBodySetup();
     if (!Setup)
     {
         return;

@@ -33,6 +33,22 @@ UBoxComponent::~UBoxComponent()
 void UBoxComponent::DuplicateSubObjects()
 {
 	Super::DuplicateSubObjects();
+
+	// BodySetup을 새로 생성하고 현재 BoxExtent로 업데이트
+	ShapeBodySetup = ObjectFactory::NewObject<UBodySetup>();
+	UpdateBodySetup();
+}
+
+void UBoxComponent::Serialize(const bool bInIsLoading, JSON& InOutHandle)
+{
+	Super::Serialize(bInIsLoading, InOutHandle);
+
+	if (bInIsLoading)
+	{
+		// BoxExtent가 UPROPERTY로 자동 로드된 후,
+		// BodySetup에 반영해야 PhysX Shape가 올바른 크기로 생성됨
+		UpdateBodySetup();
+	}
 }
 
 // ────────────────────────────────────────────────────────────────────────────
