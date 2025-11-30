@@ -13,20 +13,13 @@
 #include "BodySetup.h"
 
 // ────────────────────────────────────────────────────────────────────────────
-// 기본값 정의 (Archetype 공유용)
-// ────────────────────────────────────────────────────────────────────────────
-
-const float UCapsuleComponent::DefaultCapsuleRadius = 50.0f;
-const float UCapsuleComponent::DefaultCapsuleHalfHeight = 100.0f;
-
-// ────────────────────────────────────────────────────────────────────────────
 // 생성자 / 소멸자
 // ────────────────────────────────────────────────────────────────────────────
 
 UCapsuleComponent::UCapsuleComponent()
 {
-	CapsuleRadius = DefaultCapsuleRadius;
-	CapsuleHalfHeight = DefaultCapsuleHalfHeight;
+	CapsuleRadius = UBodySetup::DefaultCapsuleRadius;
+	CapsuleHalfHeight = UBodySetup::DefaultCapsuleHalfHeight;
 	bUseArchetypeBodySetup = true;  // 기본값이므로 Archetype 공유
 	// ShapeBodySetup 생성하지 않음 - GetDefaultBodySetup()에서 공유
 	UpdateBounds();
@@ -484,16 +477,16 @@ UBodySetup* UCapsuleComponent::GetDefaultBodySetup() const
 	{
 		DefaultSetup = ObjectFactory::NewObject<UBodySetup>();
 		DefaultSetup->BodyType = EBodySetupType::Capsule;
-		DefaultSetup->SphereRadius = DefaultCapsuleRadius;
-		DefaultSetup->CapsuleHalfHeight = DefaultCapsuleHalfHeight;
+		DefaultSetup->SphereRadius = UBodySetup::DefaultCapsuleRadius;
+		DefaultSetup->CapsuleHalfHeight = UBodySetup::DefaultCapsuleHalfHeight;
 	}
 	return DefaultSetup;
 }
 
 bool UCapsuleComponent::IsUsingDefaultParameters() const
 {
-	return CapsuleRadius == DefaultCapsuleRadius &&
-	       CapsuleHalfHeight == DefaultCapsuleHalfHeight;
+	return CapsuleRadius == UBodySetup::DefaultCapsuleRadius &&
+	       CapsuleHalfHeight == UBodySetup::DefaultCapsuleHalfHeight;
 }
 
 void UCapsuleComponent::UpdateBodySetup()

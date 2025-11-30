@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 // ─────────────────────────────────────────────────────────────────────────────
 // BodySetup.h
@@ -47,18 +47,27 @@ public:
     virtual ~UBodySetup() = default;
 
     // ═══════════════════════════════════════════════════════════════════════
+    // 기본값 상수 (단일 정의 지점 - ShapeComponent들이 참조)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    static const FVector DefaultBoxExtent;
+    static const float DefaultSphereRadius;
+    static const float DefaultCapsuleRadius;
+    static const float DefaultCapsuleHalfHeight;
+
+    // ═══════════════════════════════════════════════════════════════════════
     // 형상 데이터
     // ═══════════════════════════════════════════════════════════════════════
 
     /** 형상 타입 */
     EBodySetupType BodyType = EBodySetupType::None;
 
-    /** Box 형상용 - Half Extent (Mundi 좌표계) */
-    FVector BoxExtent = FVector(50.0f, 50.0f, 50.0f);
+    /** Box 형상용 - Half Extent */
+    FVector BoxExtent;
 
     /** Sphere/Capsule 형상용 - 반지름 */
-    float SphereRadius = 50.0f;
+    float SphereRadius;
 
     /** Capsule 형상용 - Half Height (반구 제외) */
-    float CapsuleHalfHeight = 50.0f;
+    float CapsuleHalfHeight;
 };

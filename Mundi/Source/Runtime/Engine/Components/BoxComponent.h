@@ -23,9 +23,6 @@ class UBoxComponent : public UShapeComponent
 public:
 	GENERATED_REFLECTION_BODY()
 
-	/** 기본 BoxExtent 값 (Archetype 공유용) */
-	static const FVector DefaultBoxExtent;
-
 	UBoxComponent();
 
 protected:

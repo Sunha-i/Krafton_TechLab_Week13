@@ -24,12 +24,6 @@ class UCapsuleComponent : public UShapeComponent
 public:
 	GENERATED_REFLECTION_BODY()
 
-	/** 기본 CapsuleRadius 값 (Archetype 공유용) */
-	static const float DefaultCapsuleRadius;
-
-	/** 기본 CapsuleHalfHeight 값 (Archetype 공유용) */
-	static const float DefaultCapsuleHalfHeight;
-
 	UCapsuleComponent();
 
 protected:

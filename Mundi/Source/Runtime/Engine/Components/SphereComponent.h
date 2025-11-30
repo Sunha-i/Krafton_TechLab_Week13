@@ -23,9 +23,6 @@ class USphereComponent : public UShapeComponent
 public:
 	GENERATED_REFLECTION_BODY()
 
-	/** 기본 SphereRadius 값 (Archetype 공유용) */
-	static const float DefaultSphereRadius;
-
 	USphereComponent();
 
 protected:

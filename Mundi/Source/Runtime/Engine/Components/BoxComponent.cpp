@@ -13,18 +13,12 @@
 #include "BodySetup.h"
 
 // ────────────────────────────────────────────────────────────────────────────
-// 기본값 정의 (Archetype 공유용)
-// ────────────────────────────────────────────────────────────────────────────
-
-const FVector UBoxComponent::DefaultBoxExtent = FVector(0.5f, 0.5f, 0.5f);
-
-// ────────────────────────────────────────────────────────────────────────────
 // 생성자 / 소멸자
 // ────────────────────────────────────────────────────────────────────────────
 
 UBoxComponent::UBoxComponent()
 {
-	BoxExtent = DefaultBoxExtent;
+	BoxExtent = UBodySetup::DefaultBoxExtent;
 	bUseArchetypeBodySetup = true;  // 기본값이므로 Archetype 공유
 	// ShapeBodySetup 생성하지 않음 - GetDefaultBodySetup()에서 공유
 	UpdateBounds();
@@ -305,7 +299,7 @@ UBodySetup* UBoxComponent::GetDefaultBodySetup() const
 	{
 		DefaultSetup = ObjectFactory::NewObject<UBodySetup>();
 		DefaultSetup->BodyType = EBodySetupType::Box;
-		DefaultSetup->BoxExtent = DefaultBoxExtent;
+		DefaultSetup->BoxExtent = UBodySetup::DefaultBoxExtent;
 	}
 	return DefaultSetup;
 }
@@ -313,9 +307,9 @@ UBodySetup* UBoxComponent::GetDefaultBodySetup() const
 bool UBoxComponent::IsUsingDefaultParameters() const
 {
 	// 부동소수점 비교 (정확한 일치 확인)
-	return BoxExtent.X == DefaultBoxExtent.X &&
-	       BoxExtent.Y == DefaultBoxExtent.Y &&
-	       BoxExtent.Z == DefaultBoxExtent.Z;
+	return BoxExtent.X == UBodySetup::DefaultBoxExtent.X &&
+	       BoxExtent.Y == UBodySetup::DefaultBoxExtent.Y &&
+	       BoxExtent.Z == UBodySetup::DefaultBoxExtent.Z;
 }
 
 void UBoxComponent::UpdateBodySetup()

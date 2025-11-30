@@ -13,18 +13,12 @@
 #include "BodySetup.h"
 
 // ────────────────────────────────────────────────────────────────────────────
-// 기본값 정의 (Archetype 공유용)
-// ────────────────────────────────────────────────────────────────────────────
-
-const float USphereComponent::DefaultSphereRadius = 50.0f;
-
-// ────────────────────────────────────────────────────────────────────────────
 // 생성자 / 소멸자
 // ────────────────────────────────────────────────────────────────────────────
 
 USphereComponent::USphereComponent()
 {
-	SphereRadius = DefaultSphereRadius;
+	SphereRadius = UBodySetup::DefaultSphereRadius;
 	bUseArchetypeBodySetup = true;  // 기본값이므로 Archetype 공유
 	// ShapeBodySetup 생성하지 않음 - GetDefaultBodySetup()에서 공유
 	UpdateBounds();
@@ -266,14 +260,14 @@ UBodySetup* USphereComponent::GetDefaultBodySetup() const
 	{
 		DefaultSetup = ObjectFactory::NewObject<UBodySetup>();
 		DefaultSetup->BodyType = EBodySetupType::Sphere;
-		DefaultSetup->SphereRadius = DefaultSphereRadius;
+		DefaultSetup->SphereRadius = UBodySetup::DefaultSphereRadius;
 	}
 	return DefaultSetup;
 }
 
 bool USphereComponent::IsUsingDefaultParameters() const
 {
-	return SphereRadius == DefaultSphereRadius;
+	return SphereRadius == UBodySetup::DefaultSphereRadius;
 }
 
 void USphereComponent::UpdateBodySetup()
